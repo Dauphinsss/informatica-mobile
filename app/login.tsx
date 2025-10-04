@@ -50,19 +50,17 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text variant="displayMedium" style={styles.title}>
-          Bienvenido
+        <Text variant="displaySmall" style={styles.title}>
+          Informatica
         </Text>
-        <Text variant="titleMedium" style={styles.subtitle}>
+        <Text variant="bodyLarge" style={styles.subtitle}>
           Inicia sesión para continuar
         </Text>
         <Button
-          mode="contained"
+          mode="contained-tonal"
           onPress={handleGoogleSignIn}
           icon="google"
           style={styles.button}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
           disabled={loading}
         >
           Continuar con Google
@@ -87,7 +85,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: "#666",
   },
   content: {
     width: "100%",
@@ -98,22 +95,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 16,
     fontWeight: "bold",
-    color: "#333",
   },
   subtitle: {
     textAlign: "center",
-    marginBottom: 48,
-    color: "#666",
+    marginBottom: 40,
+    opacity: 0.7,
   },
   button: {
     width: "100%",
-    borderRadius: 8,
   },
-  buttonContent: {
-    paddingVertical: 12,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  
 });

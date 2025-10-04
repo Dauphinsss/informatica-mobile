@@ -59,7 +59,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
   content: {
     flex: 1,
@@ -73,7 +72,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    color: "#666",
+    marginBottom: 4,
   },
   sectionTitle: {
     fontWeight: "bold",

@@ -7,15 +7,8 @@ import { auth } from "../firebase";
 import TabsLayout from "./(tabs)/_layout";
 import LoginScreen from "./login";
 
-// Tema personalizado en modo claro
-const theme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: "#4285F4",
-    secondary: "#34A853",
-  },
-};
+// Usar tema por defecto de Material Design 3
+const theme = MD3LightTheme;
 
 function AppContent() {
   const [user, setUser] = useState<any>(null);

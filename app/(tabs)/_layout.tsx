@@ -15,11 +15,14 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: "#666",
+        tabBarInactiveTintColor: "#999",
+        tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: "#ffffff",
-          borderTopWidth: 1,
-          borderTopColor: "#e0e0e0",
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          height: 48,
         },
       }}
     >
@@ -27,9 +30,8 @@ export default function TabLayout() {
         name="Home"
         component={HomeScreen}
         options={{
-          title: "Inicio",
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home" size={size} color={color} />
+            <MaterialCommunityIcons name="home" size={30} color={color} />
           ),
         }}
       />
@@ -37,9 +39,12 @@ export default function TabLayout() {
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: "Perfil",
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account" size={size} color={color} />
+            <MaterialCommunityIcons
+              name="account-circle"
+              size={30}
+              color={color}
+            />
           ),
         }}
       />
