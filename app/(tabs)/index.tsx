@@ -1,126 +1,84 @@
 import { auth } from "@/firebase";
-import { Image } from "expo-image";
-import { useEffect, useState } from "react";
-import { Platform, StyleSheet } from "react-native";
-
-import { HelloWave } from "@/components/hello-wave";
-import ParallaxScrollView from "@/components/parallax-scroll-view";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { Link } from "expo-router";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Appbar, Card, Divider, List, Text } from "react-native-paper";
 
 export default function HomeScreen() {
-  const [user, setUser] = useState(auth.currentUser);
+  const user = auth.currentUser;
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  if (!user) return null;
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
-      headerImage={
-        <Image
-          source={require("@/assets/images/partial-react-logo.png")}
-          style={styles.reactLogo}
-        />
-      }
-    >
-      <ThemedView style={styles.titleContainer}>
-        {user ? (
-          <>
-            <ThemedText type="title">
+    <View style={styles.container}>
+      <Appbar.Header>
+        <Appbar.Content title="Inicio" />
+      </Appbar.Header>
+
+      <ScrollView style={styles.content}>
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="headlineSmall" style={styles.greeting}>
               ¡Hola, {user.displayName?.split(" ")[0] || "Usuario"}!
-            </ThemedText>
-            <HelloWave />
-          </>
-        ) : (
-          <>
-            <ThemedText type="title">Welcome!</ThemedText>
-            <HelloWave />
-          </>
-        )}
-      </ThemedView>
+            </Text>
+            <Text variant="bodyMedium" style={styles.subtitle}>
+              Bienvenido a tu aplicación
+            </Text>
+          </Card.Content>
+        </Card>
 
-      {user && (
-        <ThemedView style={styles.userInfoContainer}>
-          <ThemedText type="subtitle">📱 Tu información</ThemedText>
-          <ThemedText>📧 {user.email}</ThemedText>
-          <ThemedText>✅ Autenticado con Google</ThemedText>
-        </ThemedView>
-      )}
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit{" "}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText>{" "}
-          to see changes. Press{" "}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: "cmd + d",
-              android: "cmd + m",
-              web: "F12",
-            })}
-          </ThemedText>{" "}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/login">
-          <ThemedText type="link">
-            {user ? "🔐 Gestionar Cuenta" : "🚀 Ir a Login"}
-          </ThemedText>
-        </Link>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about whats included in this
-          starter app.
-        </ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When youre ready, run{" "}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText>{" "}
-          to get a fresh app directory.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Accesos rápidos
+            </Text>
+            <Divider style={styles.divider} />
+          </Card.Content>
+          <List.Item
+            title="Configuración"
+            description="Ajusta tus preferencias"
+            left={(props) => <List.Icon {...props} icon="cog" />}
+            onPress={() => {}}
+          />
+          <List.Item
+            title="Notificaciones"
+            description="Gestiona tus alertas"
+            left={(props) => <List.Icon {...props} icon="bell" />}
+            onPress={() => {}}
+          />
+          <List.Item
+            title="Ayuda"
+            description="Preguntas frecuentes"
+            left={(props) => <List.Icon {...props} icon="help-circle" />}
+            onPress={() => {}}
+          />
+        </Card>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
   },
-  stepContainer: {
-    gap: 8,
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  card: {
+    marginBottom: 16,
+  },
+  greeting: {
+    fontWeight: "bold",
     marginBottom: 8,
   },
-  userInfoContainer: {
-    gap: 8,
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: "rgba(66, 133, 244, 0.1)",
-    borderRadius: 12,
+  subtitle: {
+    color: "#666",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
+  sectionTitle: {
+    fontWeight: "bold",
+  },
+  divider: {
+    marginVertical: 8,
   },
 });
