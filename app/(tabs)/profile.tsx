@@ -74,11 +74,6 @@ export default function ProfileScreen() {
             description={user.email || "No disponible"}
             left={(props) => <List.Icon {...props} icon="email" />}
           />
-          <List.Item
-            title="ID de usuario"
-            description={user.uid}
-            left={(props) => <List.Icon {...props} icon="identifier" />}
-          />
         </Card>
 
         <Card style={styles.card}>
@@ -156,6 +151,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   logoutButton: {
-    marginVertical: 16,
+    marginTop: 10,
+    marginBottom: 40,
   },
 });
