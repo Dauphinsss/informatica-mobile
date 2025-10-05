@@ -1,14 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { useTheme } from "react-native-paper";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
+import { StyleSheet } from "react-native";
+import { BottomNavigation } from "react-native-paper";
 import { auth, db } from "../../firebase";
 import AdminScreen from "./admin";
 import HomeScreen from "./index";
@@ -17,46 +13,7 @@ import ProfileScreen from "./profile";
 
 const Tab = createBottomTabNavigator();
 
-const AnimatedTabIcon = ({
-  name,
-  outlineName,
-  color,
-  focused,
-}: {
-  name: any;
-  outlineName: any;
-  color: string;
-  focused: boolean;
-}) => {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.6);
-
-  useEffect(() => {
-    scale.value = withSpring(focused ? 1.1 : 1, {
-      damping: 15,
-      stiffness: 150,
-    });
-    opacity.value = withTiming(focused ? 1 : 0.6, { duration: 200 });
-  }, [focused, scale, opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={animatedStyle}>
-      <MaterialCommunityIcons
-        name={focused ? name : outlineName}
-        size={28}
-        color={color}
-      />
-    </Animated.View>
-  );
-};
-
 export default function TabLayout() {
-  const theme = useTheme();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -88,34 +45,58 @@ export default function TabLayout() {
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: "rgba(0, 0, 0, 0.4)",
-        tabBarShowLabel: false,
-        tabBarStyle: {
-          backgroundColor: "#ffffff",
-          borderTopWidth: 1,
-          borderTopColor: "rgba(0, 0, 0, 0.05)",
-          height: 65,
-          paddingBottom: 8,
-          paddingTop: 8,
-          elevation: 8,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-        },
       }}
+      tabBar={({ navigation, state, descriptors, insets }) => (
+        <BottomNavigation.Bar
+          navigationState={state}
+          safeAreaInsets={insets}
+          onTabPress={({ route, preventDefault }) => {
+            const event = navigation.emit({
+              type: "tabPress",
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (event.defaultPrevented) {
+              preventDefault();
+            } else {
+              navigation.dispatch({
+                ...CommonActions.navigate(route.name, route.params),
+                target: state.key,
+              });
+            }
+          }}
+          renderIcon={({ route, focused, color }) => {
+            const { options } = descriptors[route.key];
+            if (options.tabBarIcon) {
+              return options.tabBarIcon({ focused, color, size: 24 });
+            }
+            return null;
+          }}
+          getLabelText={({ route }) => {
+            const { options } = descriptors[route.key];
+            const label =
+              options.tabBarLabel !== undefined
+                ? options.tabBarLabel
+                : options.title !== undefined
+                ? options.title
+                : route.name;
+            return typeof label === "string" ? label : route.name;
+          }}
+          style={styles.bottomNavigation}
+        />
+      )}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{
+          tabBarLabel: "Inicio",
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon
-              name="home"
-              outlineName="home-outline"
+            <MaterialCommunityIcons
+              name={focused ? "home" : "home-outline"}
+              size={24}
               color={color}
-              focused={focused}
             />
           ),
         }}
@@ -124,12 +105,12 @@ export default function TabLayout() {
         name="Notifications"
         component={NotificationsScreen}
         options={{
+          tabBarLabel: "Notificaciones",
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon
-              name="bell"
-              outlineName="bell-outline"
+            <MaterialCommunityIcons
+              name={focused ? "bell" : "bell-outline"}
+              size={24}
               color={color}
-              focused={focused}
             />
           ),
         }}
@@ -139,12 +120,12 @@ export default function TabLayout() {
           name="Admin"
           component={AdminScreen}
           options={{
+            tabBarLabel: "Admin",
             tabBarIcon: ({ color, focused }) => (
-              <AnimatedTabIcon
-                name="shield-account"
-                outlineName="shield-account-outline"
+              <MaterialCommunityIcons
+                name={focused ? "shield-account" : "shield-account-outline"}
+                size={24}
                 color={color}
-                focused={focused}
               />
             ),
           }}
@@ -154,12 +135,12 @@ export default function TabLayout() {
         name="Profile"
         component={ProfileScreen}
         options={{
+          tabBarLabel: "Perfil",
           tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon
-              name="account-circle"
-              outlineName="account-circle-outline"
+            <MaterialCommunityIcons
+              name={focused ? "account-circle" : "account-circle-outline"}
+              size={24}
               color={color}
-              focused={focused}
             />
           ),
         }}
@@ -167,3 +148,9 @@ export default function TabLayout() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  bottomNavigation: {
+    elevation: 8,
+  },
+});

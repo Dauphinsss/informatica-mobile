@@ -40,21 +40,21 @@ export default function AdminScreen() {
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
-              Gestión
+              Gestión del Sistema
             </Text>
             <Divider style={styles.divider} />
           </Card.Content>
           <List.Item
-            title="Usuarios"
-            description="Administrar usuarios del sistema"
-            left={(props) => <List.Icon {...props} icon="account-group" />}
+            title="Materias"
+            description="Gestionar materias y cursos"
+            left={(props) => <List.Icon {...props} icon="book-open-variant" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => {}}
           />
           <List.Item
-            title="Contenido"
-            description="Gestionar contenido de la app"
-            left={(props) => <List.Icon {...props} icon="file-document" />}
+            title="Usuarios"
+            description="Administrar usuarios del sistema"
+            left={(props) => <List.Icon {...props} icon="account-group" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => {}}
           />
@@ -66,12 +66,52 @@ export default function AdminScreen() {
             onPress={() => {}}
           />
           <List.Item
-            title="Configuración"
-            description="Configuración del sistema"
-            left={(props) => <List.Icon {...props} icon="cog" />}
+            title="Denuncias"
+            description="Gestionar denuncias y moderación"
+            left={(props) => <List.Icon {...props} icon="alert-octagon" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => {}}
           />
+        </Card>
+
+        <Card style={[styles.card, { marginBottom: 32 }]}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Actividad Reciente
+            </Text>
+            <Divider style={styles.divider} />
+          </Card.Content>
+
+          <List.Section>
+            <List.Subheader>Denuncias Recientes</List.Subheader>
+            <List.Item
+              title="No hay denuncias recientes"
+              description="Las denuncias de usuarios aparecerán aquí"
+              left={(props) => <List.Icon {...props} icon="information" />}
+            />
+          </List.Section>
+
+          <Divider />
+
+          <List.Section>
+            <List.Subheader>Cuentas Suspendidas</List.Subheader>
+            <List.Item
+              title="No hay cuentas suspendidas"
+              description="Las suspensiones aparecerán aquí"
+              left={(props) => <List.Icon {...props} icon="information" />}
+            />
+          </List.Section>
+
+          <Divider />
+
+          <List.Section>
+            <List.Subheader>Publicaciones Recientes</List.Subheader>
+            <List.Item
+              title="No hay publicaciones recientes"
+              description="Las publicaciones aparecerán aquí"
+              left={(props) => <List.Icon {...props} icon="information" />}
+            />
+          </List.Section>
         </Card>
       </ScrollView>
     </View>
