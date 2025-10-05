@@ -1,11 +1,11 @@
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Button, Text } from "react-native-paper";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
 
-// ⚙️ Configurar Google Sign-In
 GoogleSignin.configure({
   webClientId:
     "262339683739-7gb126vkheeio7gshmhft4ehutm8lhgt.apps.googleusercontent.com",
@@ -14,7 +14,6 @@ GoogleSignin.configure({
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
-  // 🔐 Iniciar sesión con Google
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
@@ -27,10 +26,33 @@ export default function LoginScreen() {
       }
 
       const credential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(auth, credential);
-      // El layout principal manejará la redirección automáticamente
+      const result = await signInWithCredential(auth, credential);
+
+      const user = result.user;
+      const usuarioRef = doc(db, "usuarios", user.uid);
+      const usuarioDoc = await getDoc(usuarioRef);
+
+      if (!usuarioDoc.exists()) {
+        await setDoc(usuarioRef, {
+          uid: user.uid,
+          correo: user.email,
+          nombre: user.displayName,
+          foto: user.photoURL,
+          rol: "usuario",
+          creadoEn: serverTimestamp(),
+          ultimoAcceso: serverTimestamp(),
+        });
+      } else {
+        await setDoc(
+          usuarioRef,
+          {
+            ultimoAcceso: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
     } catch (error: any) {
-      console.error("❌ Error:", error);
+      console.error("Error:", error);
       setLoading(false);
     }
   };
@@ -46,7 +68,6 @@ export default function LoginScreen() {
     );
   }
 
-  // Pantalla de login
   return (
     <View style={styles.container}>
       <View style={styles.content}>
@@ -104,5 +125,4 @@ const styles = StyleSheet.create({
   button: {
     width: "100%",
   },
-  
 });

@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import React, { useEffect } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
 import { useTheme } from "react-native-paper";
 import Animated, {
   useAnimatedStyle,
@@ -8,13 +9,14 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { auth, db } from "../../firebase";
+import AdminScreen from "./admin";
 import HomeScreen from "./index";
 import NotificationsScreen from "./notifications";
 import ProfileScreen from "./profile";
 
 const Tab = createBottomTabNavigator();
 
-// Componente animado para los iconos
 const AnimatedTabIcon = ({
   name,
   outlineName,
@@ -55,6 +57,31 @@ const AnimatedTabIcon = ({
 
 export default function TabLayout() {
   const theme = useTheme();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (auth.currentUser) {
+        try {
+          const userDoc = await getDoc(
+            doc(db, "usuarios", auth.currentUser.uid)
+          );
+          if (userDoc.exists()) {
+            setUserRole(userDoc.data().rol);
+          }
+        } catch (error) {
+          console.error("Error al obtener rol:", error);
+        }
+      }
+      setLoading(false);
+    };
+    fetchUserRole();
+  }, []);
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <Tab.Navigator
@@ -107,6 +134,22 @@ export default function TabLayout() {
           ),
         }}
       />
+      {userRole === "admin" && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <AnimatedTabIcon
+                name="shield-account"
+                outlineName="shield-account-outline"
+                color={color}
+                focused={focused}
+              />
+            ),
+          }}
+        />
+      )}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
