@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import { BottomNavigation } from "react-native-paper";
 import { auth, db } from "../../firebase";
-import AdminScreen from "./admin";
+import AdminLayOut from "../admin/_layout";
 import HomeScreen from "./index";
 import NotificationsScreen from "./notifications";
 import ProfileScreen from "./profile";
@@ -118,7 +118,7 @@ export default function TabLayout() {
       {userRole === "admin" && (
         <Tab.Screen
           name="Admin"
-          component={AdminScreen}
+          component={AdminLayOut}
           options={{
             tabBarLabel: "Admin",
             tabBarIcon: ({ color, focused }) => (

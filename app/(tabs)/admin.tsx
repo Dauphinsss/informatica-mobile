@@ -1,11 +1,23 @@
 import { auth, db } from "@/firebase";
+import { useNavigation } from "@react-navigation/native";
+import { StackNavigationProp } from '@react-navigation/stack';
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Appbar, Card, Divider, List, Text } from "react-native-paper";
 
+// Definir el tipo de navegación para el stack de admin
+type AdminStackParamList = {
+  Admin: undefined;
+  ManageUsers: undefined;
+};
+
+type AdminScreenNavigationProp = StackNavigationProp<AdminStackParamList, 'Admin'>;
+ 
 export default function AdminScreen() {
   const [userData, setUserData] = useState<any>(null);
+  const [pressed, setPressed] = useState(false);
+  const navigation = useNavigation<AdminScreenNavigationProp>();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -51,13 +63,21 @@ export default function AdminScreen() {
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => {}}
           />
-          <List.Item
-            title="Usuarios"
-            description="Administrar usuarios del sistema"
-            left={(props) => <List.Icon {...props} icon="account-group" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
-          />
+          <TouchableOpacity
+            activeOpacity={0.6}
+            onPress={() => navigation.navigate('ManageUsers')}
+            style={[pressed && styles.pressed]}
+            onPressIn={() => setPressed(true)}
+            onPressOut={() => setPressed(false)}
+          >
+            <List.Item
+              title="Usuarios"
+              description="Administrar usuarios del sistema"
+              left={(props) => <List.Icon {...props} icon="account-group" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            />
+          </TouchableOpacity>
+          
           <List.Item
             title="Reportes"
             description="Ver estadísticas y reportes"
@@ -142,4 +162,8 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 8,
   },
+  pressed: {
+    backgroundColor: '#e6e6e6',
+    borderRadius: 8,
+  }
 });
