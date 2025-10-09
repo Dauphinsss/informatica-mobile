@@ -2,6 +2,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import React from "react";
 import AdminScreen from "../(tabs)/admin";
 import ManageUsers from "./manage-users";
+import ReportsScreen from "./ReportsScreen";
 
 const Stack = createStackNavigator();
 
@@ -24,6 +25,13 @@ export default function AdminLayOut() {
         component={ManageUsers}
         options={{
           title: "Administrar Usuarios"
+        }}
+      />
+      <Stack.Screen
+        name="Reports"
+        component={ReportsScreen}
+        options={{
+          title: "Reportes"
         }}
       />
     </Stack.Navigator>

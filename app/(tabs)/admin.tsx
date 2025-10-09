@@ -10,6 +10,7 @@ import { Appbar, Card, Divider, List, Text } from "react-native-paper";
 type AdminStackParamList = {
   Admin: undefined;
   ManageUsers: undefined;
+  Reports: undefined;
 };
 
 type AdminScreenNavigationProp = StackNavigationProp<AdminStackParamList, 'Admin'>;
@@ -90,7 +91,7 @@ export default function AdminScreen() {
             description="Gestionar denuncias y moderación"
             left={(props) => <List.Icon {...props} icon="alert-octagon" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            onPress={() => navigation.navigate('Reports')}
           />
         </Card>
 
