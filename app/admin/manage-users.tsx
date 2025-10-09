@@ -1,16 +1,34 @@
 import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Appbar, Button, Card, Divider, List, Text } from 'react-native-paper';
-import { USERS_MOCK } from './mock-users';
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 const ManageUsers = () => {
-  const [users, setUsers] = useState(USERS_MOCK);
+  const [users, setUsers] = useState<any[]>([]);
   const navigation = useNavigation();
 
-  const handleDelete = (userId: number) => {
-    setUsers(users.filter(user => user.id !== userId));
+  { /* Función para obtener los usuarios de Firestore */}
+  const fetchUsers = async () => {
+    const usersCollection = collection(db, 'usuarios');
+    const userSnapshot = await getDocs(usersCollection);
+    const usersList = userSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id }));
+    setUsers(usersList);
   }
+
+  { /* Función para actualizar el estado de un usuario (activo, suspendido, baneado) */}
+  const handleChangeStatus = (userId: string, newStatus: string) => {
+    const userRef = doc(db, 'usuarios', userId);
+    updateDoc(userRef, { status: newStatus });
+    setUsers(users.map(user =>
+      user.uid === userId ? { ...user, status: newStatus } : user
+    ))
+  }
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -37,20 +55,43 @@ const ManageUsers = () => {
             </Card.Content>
           ) : (
             users.map(user => (
-              <View key={user.id}>
+              <View key={user.uid}>
                 <List.Item
-                  title={user.name}
-                  description={user.email}
-                  left={props => <List.Icon {...props} icon="account" />}
+                  title={user.nombre}
+                  description={user.correo}
+                  left={props => <List.Icon {...user.foto } icon="account" />}
                   right={() => (
-                    <Button 
-                      mode="contained-tonal" 
-                      onPress={() => handleDelete(user.id)}
-                      buttonColor="#ffebee"
-                      textColor="#c62828"
-                    >
-                      Banear
-                    </Button>
+                    <>
+                      {/* Botones para cambiar el estado del usuario */}
+                      {user.estado === "activo" ? (
+                        <Button 
+                          mode="contained-tonal" 
+                          onPress={() => handleChangeStatus(user.uid, "suspendido")}
+                          buttonColor="#ffebee"
+                          textColor="#c62828"
+                        >
+                          Suspender
+                        </Button>
+                      ) : user.estado === "suspendido" ? (
+                        <Button
+                          mode="contained-tonal"
+                          onPress={() => handleChangeStatus(user.uid, "activo")}
+                          buttonColor="#a5d6a7"
+                          textColor="#2e7d32"
+                        >
+                          Restaurar
+                        </Button>
+                      ) : (
+                        <Button
+                          mode="contained-tonal"
+                          onPress={() => handleChangeStatus(user.uid, "activo")}
+                          buttonColor="#a5d6a7"
+                          textColor="#2e7d32"
+                        >
+                          Activar
+                        </Button>
+                      )}
+                    </>
                   )}
                 />
                 <Divider />
