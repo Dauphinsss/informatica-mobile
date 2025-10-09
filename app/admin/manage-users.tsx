@@ -1,15 +1,44 @@
 import { useNavigation } from '@react-navigation/native';
+import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Appbar, Button, Card, Divider, List, Text } from 'react-native-paper';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { Appbar, Button, Card, Divider, List, Searchbar, Text } from 'react-native-paper';
 import { db } from '../../firebase';
 
 const ManageUsers = () => {
   const [users, setUsers] = useState<any[]>([]);
+  const [filter, setFilter] = useState<'all' | 'admin' | 'user'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const navigation = useNavigation();
-  const adminUsers = users.filter(user => user.rol === 'admin');
-  const normalUsers = users.filter(user => user.rol === 'user');
+ 
+  { /* Función para filtrar usuarios según el filtro seleccionado y la búsqueda */ }
+  const getFilteredUsers = () => {
+    let filtered = users;
+    
+    { /* Filtrar por rol */ }
+    if (filter === 'admin') {
+      filtered = filtered.filter(user => user.rol === 'admin');
+    } else if (filter === 'user') {
+      filtered = filtered.filter(user => user.rol === 'user');
+    }
+    
+    { /* Filtrar por búsqueda */ }
+    if (searchQuery.trim() !== '') {
+      filtered = filtered.filter(user => 
+        user.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.correo.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  };
+  
+  const filteredUsers = getFilteredUsers();
+  const adminUsers = filteredUsers.filter(user => user.rol === 'admin');
+  const normalUsers = filteredUsers.filter(user => user.rol === 'user');
+  
+  const totalAdmins = users.filter(user => user.rol === 'admin').length;
+  const totalUsers = users.filter(user => user.rol === 'user').length;
 
   { /* Función para obtener los usuarios de Firestore */}
   const fetchUsers = async () => {
@@ -19,8 +48,9 @@ const ManageUsers = () => {
     setUsers(usersList);
   }
 
-  { /* Función para actualizar el estado de un usuario (activo, suspendido, baneado) */}
-  const handleChangeStatus = (userId: string, newStatus: string) => {
+  { /* Función para alternar el estado de un usuario entre activo y suspendido */}
+  const handleToggleStatus = (userId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'activo' ? 'suspendido' : 'activo';
     const userRef = doc(db, 'usuarios', userId);
     updateDoc(userRef, { estado: newStatus });
     setUsers(users.map(user =>
@@ -41,34 +71,71 @@ const ManageUsers = () => {
 
       <ScrollView style={styles.content}>
         
-        {/* Card para Admins */}
-        {adminUsers.length > 0 && (
+        {/* Buscador dinámico */}
+        <Searchbar
+          placeholder="Buscar por nombre o email"
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchbar}
+        />
+        
+        {/* Filtros de usuarios */}
+        <View style={styles.filterButtons}>
+          <Button
+            mode={filter === 'all' ? 'contained' : 'outlined'}
+            onPress={() => setFilter('all')}
+            style={styles.filterButton}
+            compact
+          >
+            Todos {users.length}
+          </Button>
+          <Button
+            mode={filter === 'user' ? 'contained' : 'outlined'}
+            onPress={() => setFilter('user')}
+            style={styles.filterButton}
+            compact
+          >
+            Users {totalUsers}
+          </Button>
+          <Button
+            mode={filter === 'admin' ? 'contained' : 'outlined'}
+            onPress={() => setFilter('admin')}
+            style={styles.filterButton}
+            compact
+          >
+            Admins {totalAdmins}
+          </Button>
+        </View>
+        
+        {/* Card para Users */}
+        {normalUsers.length > 0 && (filter === 'all' || filter === 'user') && (
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="titleMedium" style={styles.sectionTitle}>
-                Administradores
+                Usuarios
               </Text>
               <Text variant="bodyMedium" style={styles.subtitle}>
-                Total de administradores: {adminUsers.length}
+                {searchQuery ? `${normalUsers.length} de ${totalUsers} usuarios` : `Total: ${normalUsers.length} usuarios`}
               </Text>
               <Divider style={styles.divider} />
             </Card.Content>
-            {adminUsers.map(user => (
+            {normalUsers.map(user => (
               <View key={user.uid}>
                 <List.Item
-                  title={user.nombre}  // Mostrar el nombre del usuario
-                  description={user.correo}  // Mostrar el correo del usuario
+                  title={user.nombre}
+                  description={user.correo}
                   left={props => <List.Icon {...props} icon="account" />}
                   right={() => (
                     <>
-                      {/* Botón para cambiar el estado del usuario */}
+                      {/* Botón dinámico para cambiar el estado del usuario */}
                       <Button 
                         mode="contained-tonal" 
-                        onPress={() => handleChangeStatus(user.uid, 'suspendido')} 
-                        buttonColor="#ffebee"
-                        textColor="#c62828"
+                        onPress={() => handleToggleStatus(user.uid, user.estado || 'activo')} 
+                        buttonColor={user.estado === 'suspendido' ? "#e8f5e8" : "#ffebee"}
+                        textColor={user.estado === 'suspendido' ? "#2e7d32" : "#c62828"}
+                        compact
                       >
-                        Suspender
+                        {user.estado === 'suspendido' ? 'Activar' : 'Suspender'}
                       </Button>
                     </>
                   )}
@@ -79,34 +146,35 @@ const ManageUsers = () => {
           </Card>
         )}
 
-        {/* Card para Users */}
-        {normalUsers.length > 0 && (
+        {/* Card para Admins */}
+        {adminUsers.length > 0 && (filter === 'all' || filter === 'admin') && (
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="titleMedium" style={styles.sectionTitle}>
-                Usuarios
+                Administradores
               </Text>
               <Text variant="bodyMedium" style={styles.subtitle}>
-                Total de usuarios: {normalUsers.length}
+                {searchQuery ? `${adminUsers.length} de ${totalAdmins} administradores` : `Total: ${adminUsers.length} administradores`}
               </Text>
               <Divider style={styles.divider} />
             </Card.Content>
-            {normalUsers.map(user => (
+            {adminUsers.map(user => (
               <View key={user.uid}>
                 <List.Item
-                  title={user.nombre}  // Mostrar el nombre del usuario
-                  description={user.correo}  // Mostrar el correo del usuario
-                  left={props => <List.Icon {...props} icon="account" />}
+                  title={user.nombre}
+                  description={user.correo}
+                  left={props => <List.Icon {...props} icon="shield-account" />}
                   right={() => (
                     <>
-                      {/* Botón para cambiar el estado del usuario */}
+                      {/* Botón dinámico para cambiar el estado del usuario */}
                       <Button 
                         mode="contained-tonal" 
-                        onPress={() => handleChangeStatus(user.uid, 'suspendido')} 
-                        buttonColor="#ffebee"
-                        textColor="#c62828"
+                        onPress={() => handleToggleStatus(user.uid, user.estado || 'activo')} 
+                        buttonColor={user.estado === 'suspendido' ? "#e8f5e8" : "#ffebee"}
+                        textColor={user.estado === 'suspendido' ? "#2e7d32" : "#c62828"}
+                        compact
                       >
-                        Suspender
+                        {user.estado === 'suspendido' ? 'Activar' : 'Suspender'}
                       </Button>
                     </>
                   )}
@@ -130,6 +198,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  searchbar: {
+    marginBottom: 16,
+  },
   card: {
     marginBottom: 16,
   },
@@ -143,6 +214,15 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 8,
   },
+  filterButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    marginBottom: 16,
+  },
+  filterButton: {
+    marginHorizontal: 4,
+    flex: 1,
+  }
 });
 
 export default ManageUsers;
