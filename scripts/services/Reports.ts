@@ -30,17 +30,22 @@ export const obtenerReportes = async (): Promise<Report[]> => {
       })
     );
 
+    await Promise.all(publicacionesPromises);
+
+    publicacionesCache.forEach(pub => {
+      if (pub?.autorUid) {
+        autoresPublicacionIds.add(pub.autorUid);
+        usuariosIds.add(pub.autorUid);
+      }
+    });
+
     const usuariosPromises = Array.from(usuariosIds).map(id =>
       getDoc(doc(db, "usuarios", id)).then(snap => {
         if (snap.exists()) usuariosCache.set(id, snap.data().nombre);
       })
     );
 
-    await Promise.all([...publicacionesPromises, ...usuariosPromises]);
-
-    publicacionesCache.forEach(pub => {
-      if (pub?.autorUid) autoresPublicacionIds.add(pub.autorUid);
-    });
+    await Promise.all(usuariosPromises);
 
     const estadisticasPromises = Array.from(autoresPublicacionIds).map(uid =>
       getDocs(
