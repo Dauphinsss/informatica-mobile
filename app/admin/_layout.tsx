@@ -1,6 +1,7 @@
 import { createStackNavigator } from "@react-navigation/stack";
 import React from "react";
 import AdminScreen from "../(tabs)/admin";
+import ManageSubjectsScreen from "./manage-subjects";
 import ManageUsers from "./manage-users";
 import ReportsScreen from "./ReportsScreen";
 
@@ -19,6 +20,11 @@ export default function AdminLayOut() {
         options={{
           title: "Panel Admin"
         }}
+      />
+      <Stack.Screen
+        name="ManageSubjects"
+        component={ManageSubjectsScreen}
+        options={{ title: 'Gestión de Materias' }}
       />
       <Stack.Screen 
         name="ManageUsers" 

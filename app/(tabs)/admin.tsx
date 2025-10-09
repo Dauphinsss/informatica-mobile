@@ -11,6 +11,7 @@ type AdminStackParamList = {
   Admin: undefined;
   ManageUsers: undefined;
   Reports: undefined;
+  ManageSubjects: undefined;
 };
 
 type AdminScreenNavigationProp = StackNavigationProp<AdminStackParamList, 'Admin'>;
@@ -62,7 +63,7 @@ export default function AdminScreen() {
             description="Gestionar materias y cursos"
             left={(props) => <List.Icon {...props} icon="book-open-variant" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            onPress={() => navigation.navigate('ManageSubjects')}
           />
           <TouchableOpacity
             activeOpacity={0.6}
