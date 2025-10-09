@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Reglas para la colección de usuarios
+    match /usuarios/{userId} {
+      // Permitir lectura y escritura para desarrollo
+      // En producción deberías restringir esto con autenticación
+      allow read, write: if true;
+    }
+    
+    // Si tienes otras colecciones, puedes agregar reglas aquí
+    // Por ejemplo:
+    // match /posts/{postId} {
+    //   allow read, write: if request.auth != null;
+    // }
+    
+    // Denegar acceso a cualquier otra colección por defecto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
