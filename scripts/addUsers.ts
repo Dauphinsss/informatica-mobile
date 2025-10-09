@@ -18,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const usersCollection = collection(db, 'usuarios');
 
-// Función para generar UID único
+{/* Función para generar UID único */}
 const generateUID = (): string => {
   return randomBytes(14).toString('base64').replace(/[+/=]/g, match => {
     switch (match) {
@@ -30,7 +30,7 @@ const generateUID = (): string => {
   });
 };
 
-// Lista de usuarios a agregar
+{/* Lista de usuarios a agregar */}
 const users = [
   {
     correo: "bruno@umss.edu.bo",
