@@ -1,9 +1,13 @@
 import { auth } from "@/firebase";
+import { useNavigation } from "@react-navigation/native";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Appbar, Card, Divider, List, Text } from "react-native-paper";
+import { Appbar, Button, Card, Divider, List, Text } from "react-native-paper";
+import { getEnrolledSubjects } from "../subjects/mock-subjects";
 
 export default function HomeScreen() {
   const user = auth.currentUser;
+  const navigation = useNavigation();
+  const enrolledSubjects = getEnrolledSubjects();
 
   if (!user) return null;
 
@@ -22,6 +26,45 @@ export default function HomeScreen() {
             <Text variant="bodyMedium" style={styles.subtitle}>
               Bienvenido a tu aplicación
             </Text>
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Mis Materias
+            </Text>
+            <Text variant="bodyMedium" style={styles.subtitle}>
+              Tienes {enrolledSubjects.length} materias inscritas
+            </Text>
+            <Divider style={styles.divider} />
+          </Card.Content>
+          
+          {/* Mostrar las primeras 3 materias */}
+          {enrolledSubjects.slice(0, 3).map((subject, index) => (
+            <List.Item
+              key={subject.id}
+              title={subject.name}
+              description={`${subject.code} • ${subject.materialsCount} materiales`}
+              left={(props) => <List.Icon {...props} icon="book-open-variant" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => {
+                // Navegación simple por ahora
+                console.log('Navegar a detalles de materia:', subject.name);
+              }}
+            />
+          ))}
+          
+          <Card.Content>
+            <Button 
+              mode="contained" 
+              onPress={() => {
+                navigation.navigate('MySubjects' as never);
+              }}
+              style={styles.viewAllButton}
+            >
+              Ver todas mis materias
+            </Button>
           </Card.Content>
         </Card>
 
@@ -79,5 +122,8 @@ const styles = StyleSheet.create({
   },
   divider: {
     marginVertical: 8,
+  },
+  viewAllButton: {
+    marginTop: 8,
   },
 });

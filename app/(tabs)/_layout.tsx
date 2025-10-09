@@ -7,7 +7,7 @@ import { StyleSheet } from "react-native";
 import { BottomNavigation } from "react-native-paper";
 import { auth, db } from "../../firebase";
 import AdminLayOut from "../admin/_layout";
-import HomeScreen from "./index";
+import SubjectsLayout from "../subjects/_layout";
 import NotificationsScreen from "./notifications";
 import ProfileScreen from "./profile";
 
@@ -89,7 +89,7 @@ export default function TabLayout() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={SubjectsLayout}
         options={{
           tabBarLabel: "Inicio",
           tabBarIcon: ({ color, focused }) => (
