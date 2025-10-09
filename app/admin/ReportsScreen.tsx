@@ -1,6 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ActivityIndicator } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { styles, LILAC_BG, LILAC_BORDER, LILAC_TEXT } from './ReportsScreen.styles';
+import { Report, FilterType } from "../../scripts/types/Reports.type";
+import { 
+  obtenerReportes,
+  completarReportesDePublicacion,
+  eliminarPublicacion as eliminarPublicacionFirestore,
+  aplicarStrikeAlAutor,
+  banearUsuarioPorNombre,
+ } from '@/scripts/services/Reports';
 import {
     Modal,
     ScrollView,
@@ -9,42 +20,25 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { styles, LILAC_BG, LILAC_BORDER, LILAC_TEXT } from './ReportsScreen.styles';
-
-type ReportStatus = 'pendiente' | 'completado';
-type FilterType = 'pendientes' | 'completados' | 'todos';
-
-interface Report {
-  id: string;
-  publicacionId: string;
-  titulo: string;
-  autor: string;
-  totalReportes: number;
-  ultimoMotivo: string;
-  ultimoReportadoPor: string;
-  ultimaFecha: string;
-  contenido: string;
-  estado: ReportStatus;
-  reportadores: Array<{
-    usuario: string;
-    motivo: string;
-    fecha: string;
-  }>;
-  strikesAutor: number;
-  decision?: string;
-  fechaDecision?: string;
-}
-
-// Datos mock
-import { reportesEjemplo } from './mockReports';
 
 export default function ReportsScreen() {
   const navigation = useNavigation();
   const [filtroActivo, setFiltroActivo] = useState<FilterType>('pendientes');
   const [modalVisible, setModalVisible] = useState(false);
   const [reporteSeleccionado, setReporteSeleccionado] = useState<Report | null>(null);
-  const [reportes, setReportes] = useState<Report[]>(reportesEjemplo);
+  const [reportes, setReportes] = useState<Report[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+  const cargarReportes = async () => {
+    setCargando(true);
+    const datos = await obtenerReportes();
+    setReportes(datos);
+    setCargando(false);
+  };
+
+  cargarReportes();
+  }, []);
 
   const reportesFiltrados = reportes
     .filter(reporte => {
@@ -78,25 +72,66 @@ export default function ReportsScreen() {
 
   const quitarReporte = async () => {
     if (!reporteSeleccionado) return;
-    console.log('Quitando reporte:', reporteSeleccionado.id);
-    const fecha = new Date().toLocaleDateString();
-    setReportes(prev => prev.map(r => r.id === reporteSeleccionado.id ? { ...r, estado: 'completado', decision: 'Reporte descartado - publicación en orden', fechaDecision: fecha } : r));
+    const fecha = await completarReportesDePublicacion(
+      reporteSeleccionado.publicacionId,
+      "Reporte descartado - publicación en orden"
+    );
+    const fechaStr = fecha.toLocaleDateString();
+    setReportes(prev =>
+      prev.map(r =>
+      r.publicacionId === reporteSeleccionado.publicacionId
+        ? { ...r, estado: "completado", decision: "Reporte descartado - publicación en orden", fechaDecision: fechaStr }
+        : r
+      )
+    );
     cerrarModal();
   };
 
   const eliminarPublicacion = async () => {
     if (!reporteSeleccionado) return;
-    console.log('Eliminando publicación y agregando strike:', reporteSeleccionado.publicacionId);
-    const fecha = new Date().toLocaleDateString();
-    setReportes(prev => prev.map(r => r.id === reporteSeleccionado.id ? { ...r, estado: 'completado', strikesAutor: (r.strikesAutor || 0) + 1, decision: 'Publicación eliminada y strike aplicado al autor', fechaDecision: fecha } : r));
+    await eliminarPublicacionFirestore(reporteSeleccionado.publicacionId);
+    await aplicarStrikeAlAutor(reporteSeleccionado.autorUid);
+    const fecha = await completarReportesDePublicacion(
+      reporteSeleccionado.publicacionId,
+     "Publicación eliminada y strike aplicado al autor"
+    );
+    const fechaStr = fecha.toLocaleDateString();
+    setReportes(prev =>
+      prev.map(r =>
+      r.publicacionId === reporteSeleccionado.publicacionId
+        ? {
+            ...r,
+            estado: "completado",
+            strikesAutor: (r.strikesAutor || 0) + 1,
+            decision: "Publicación eliminada y strike aplicado al autor",
+            fechaDecision: fechaStr,
+          }
+        : r
+      )
+    );
     cerrarModal();
   };
 
   const banearUsuario = async () => {
     if (!reporteSeleccionado) return;
-    console.log('Baneando usuario:', reporteSeleccionado.autor);
-    const fecha = new Date().toLocaleDateString();
-    setReportes(prev => prev.map(r => r.id === reporteSeleccionado.id ? { ...r, estado: 'completado', decision: 'Usuario baneado del sistema', fechaDecision: fecha } : r));
+    await banearUsuarioPorNombre(reporteSeleccionado.autor);
+    const fecha = await completarReportesDePublicacion(
+      reporteSeleccionado.publicacionId,
+      "Usuario baneado del sistema"
+    );
+    const fechaStr = fecha.toLocaleDateString();
+    setReportes(prev =>
+      prev.map(r =>
+      r.publicacionId === reporteSeleccionado.publicacionId
+        ? {
+            ...r,
+            estado: "completado",
+            decision: "Usuario baneado del sistema",
+            fechaDecision: fechaStr,
+          }
+          : r
+      )
+    );
     cerrarModal();
   };
 
@@ -152,21 +187,27 @@ export default function ReportsScreen() {
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-      >
-        {reportesFiltrados.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyText}>No hay denuncias {filtroActivo}</Text>
-          </View>
+        >
+        {cargando ? (
+            <View style={styles.emptyContainer}>
+                <Ionicons name="cloud-download-outline" size={64} color="#a78bfa" />
+                <Text style={styles.emptyText}>Cargando reportes...</Text>
+                <ActivityIndicator size="large" color="#a78bfa" style={{ marginTop: 12 }} />
+            </View>
+        ) : reportesFiltrados.length === 0 ? (
+            <View style={styles.emptyContainer}>
+                <Ionicons name="checkmark-circle-outline" size={64} color="#d1d5db" />
+                <Text style={styles.emptyText}>No hay denuncias {filtroActivo}</Text>
+            </View>
         ) : (
-          <View style={styles.cardsGrid}>
+            <View style={styles.cardsGrid}>
             {reportesFiltrados.map((reporte) => (
-              <TouchableOpacity
+                <TouchableOpacity
                 key={reporte.id}
                 style={styles.card}
                 onPress={() => abrirDetalles(reporte)}
                 activeOpacity={0.7}
-              >
+                >
                 <Text style={styles.cardTitulo} numberOfLines={2}>
                   {reporte.titulo}
                 </Text>
@@ -202,11 +243,11 @@ export default function ReportsScreen() {
                     </View>
                   )}
                 </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
             ))}
-          </View>
+            </View>
         )}
-      </ScrollView>
+        </ScrollView>
 
       {/* Modal de detalles */}
       <Modal
