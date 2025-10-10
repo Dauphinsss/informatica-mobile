@@ -14,7 +14,7 @@ const theme = MD3LightTheme;
 
 function AppContent() {
   const [user, setUser] = useState<any>(null);
-  const [userData, setUserData] = useState<any>(null);
+  const [setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSuspended, setIsSuspended] = useState(false);
 
@@ -25,7 +25,7 @@ function AppContent() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [setUserData]);
 
   // Escuchar cambios en el estado del usuario
   useEffect(() => {
@@ -43,7 +43,7 @@ function AppContent() {
       setIsSuspended(false);
       setUserData(null);
     }
-  }, [user]);
+  }, [user, setUserData]);
 
   if (loading) {
     return (

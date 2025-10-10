@@ -1,85 +1,55 @@
  import { StyleSheet } from 'react-native';
- 
-  export const LILAC_BG = '#f3e8ff';
-  export const LILAC_BORDER = '#d6bbff';
-  export const LILAC_TEXT = '#6b21a8';
 
- export const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
-  header: {
+  content: {
+    flex: 1,
+    padding: 16,
+  },  
+  filterContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  headerButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000',
-  },
-  avatarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    padding: 16,
+    paddingBottom: 8,
     gap: 8,
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filtrosContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  filtroBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#fff',
-  },
-  filtroBtnActivo: {
-    backgroundColor: '#000',
-    borderColor: '#000',
-  },
-  filtroText: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '600',
-  },
-  filtroTextActivo: {
-    color: '#fff',
-  },
-  scrollView: {
+
+  filterButton: {
     flex: 1,
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 24,
+  card: {
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  cardAuthor: {
+    opacity: 0.7,
+    marginBottom: 2,
+  },
+  cardDate: {
+    opacity: 0.6,
+    marginBottom: 8,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  leftChip: {
+    flexShrink: 1,
+    maxWidth: '60%',
+  },
+  rightChip: {
+    flexShrink: 1,
+    maxWidth: '35%',
+    alignSelf: 'flex-end',
   },
   emptyContainer: {
     flex: 1,
@@ -88,349 +58,65 @@
     paddingVertical: 80,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginTop: 16,
-    fontWeight: '500',
-  },
-  cardsGrid: {
-    gap: 12,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  cardTitulo: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: '#000',
-  },
-  cardInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  cardAutor: {
-    fontSize: 13,
-    color: '#666',
-    flex: 1,
-    marginRight: 8,
-  },
-  cardFecha: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  cardFechaText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  motivoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    flex: 1,
-  },
-  motivoText: {
-    fontSize: 12,
-    color: '#374151',
-    fontWeight: '600',
-    flex: 1,
-  },
-  reportesBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  reportesText: {
-    fontSize: 12,
-    color: '#ef4444',
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    flex: 1,
+    textAlign: 'center',
+    opacity: 0.7,
+    marginTop: 8,
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '92%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: 'white',
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
+    margin: 20,
+    borderRadius: 12,
+    maxHeight: '90%',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  modalScroll: {
-    paddingHorizontal: 20,
-  },
-  modalSection: {
-    marginTop: 20,
-  },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 12,
-    color: '#000',
-  },
-  publicacionCard: {
-    backgroundColor: '#f9fafb',
-    padding: 16,
-    borderRadius: 12,
-  },
-  modalPublicacionTitulo: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontWeight: 'bold',
     marginBottom: 8,
-    color: '#000',
   },
-  modalAutor: {
-    fontSize: 14,
-    color: '#666',
+  divider: {
+    marginVertical: 8,
+  },
+  modalCard: {
     marginBottom: 12,
-    fontWeight: '500',
   },
-  modalContenido: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
+  sectionTitle: {
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
-  infoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    overflow: 'hidden',
+  subtitle: {
+    opacity: 0.7,
+    marginTop: 4,
   },
-  modalInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+  publicacionTitulo: {
+    fontWeight: 'bold',
+    marginTop: 3,
+    marginBottom: 3,
   },
-  modalInfoLabel: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
+  publicacionAutor: {
+    opacity: 0.7,
+    marginTop: 4,
   },
-  modalInfoValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#000',
-  },
-  motivoValue: {
-    color: '#9879ecff',
-  },
-  badgeCount: {
-    backgroundColor: '#9879ecff',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  strikesBadge: {
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  strikesBadgeDanger: {
-    backgroundColor: '#ef4444',
-    borderColor: '#dc2626',
-  },
-  strikesText: {
-    color: '#ef4444',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  strikesTextDanger: {
-    color: '#fff',
-  },
-  reportadoresCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    overflow: 'hidden',
-  },
-  reportadorItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  reportadorItemLast: {
-    borderBottomWidth: 0,
-  },
-  reportadorInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  reportadorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  reportadorNombre: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#000',
-  },
-  reportadorMotivoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  reportadorMotivo: {
-    fontSize: 12,
-    color: '#666',
-  },
-  reportadorFecha: {
-    fontSize: 12,
-    color: '#999',
-    fontWeight: '500',
-  },
-  masReportadoresContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    backgroundColor: '#f9fafb',
+  publicacionContenido: {
+    marginTop: 8,
+    opacity: 0.8,
   },
   masReportadores: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '600',
+    textAlign: 'center',
+    opacity: 0.7,
   },
   accionesContainer: {
-    marginTop: 24,
-    marginBottom: 24,
+    marginTop: 16,
   },
-  accionesTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 16,
-    color: '#000',
+  actionButton: {
+    marginTop: 12,
   },
-  btnQuitar: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: '#f0fdf4',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 1,
-  },
-  btnQuitarText: {
-    color: '#10b981',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  btnSubtext: {
-    fontSize: 12,
-    color: '#666',
+  buttonSubtext: {
     textAlign: 'center',
+    opacity: 0.7,
+    marginTop: 4,
   },
-  btnSubtextDisabled: {
-    color: '#9ca3af',
-  },
-  btnEliminar: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: '#fffbeb',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 1,
-  },
-  btnEliminarText: {
-    color: '#f59e0b',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  btnBanear: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: '#fef2f2',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    elevation: 1,
-  },
-  btnBanearDisabled: {
-    backgroundColor: '#f9fafb',
-    opacity: 0.6,
-  },
-  btnBanearText: {
-    color: '#ef4444',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  btnBanearTextDisabled: {
-    color: '#9ca3af',
+  closeButton: {
+    marginTop: 16,
   },
 });
 

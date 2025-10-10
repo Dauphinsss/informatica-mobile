@@ -47,7 +47,22 @@ export default function TabLayout() {
         headerShown: false,
       }}
       tabBar={({ navigation, state, descriptors, insets }) => (
-        <BottomNavigation.Bar
+        (() => {
+          try {
+            const activeRoute = state.routes[state.index];
+            if (
+              activeRoute.name === 'Admin' &&
+              typeof activeRoute.state?.index === 'number' &&
+              activeRoute.state.index > 0
+            ) {
+              return null;
+            }
+          } catch {
+            // Si hay un error, mostramos la barra por defecto
+          }
+
+          return (
+            <BottomNavigation.Bar
           navigationState={state}
           safeAreaInsets={insets}
           onTabPress={({ route, preventDefault }) => {
@@ -84,7 +99,9 @@ export default function TabLayout() {
             return typeof label === "string" ? label : route.name;
           }}
           style={styles.bottomNavigation}
-        />
+          />
+          );
+        })()
       )}
     >
       <Tab.Screen

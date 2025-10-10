@@ -173,7 +173,7 @@ export const banearUsuarioPorNombre = async (nombre: string) => {
   const usuarioDoc = usuariosSnap.docs[0];
   if (usuarioDoc) {
     await updateDoc(doc(db, "usuarios", usuarioDoc.id), {
-      estado: "baneado",
+      estado: "suspendido",
     });
   }
 };

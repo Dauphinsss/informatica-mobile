@@ -7,7 +7,7 @@ import { Appbar, Button, Card, Divider, List, Text } from "react-native-paper";
 import { getEnrolledSubjects } from "../subjects/mock-subjects";
 
 export default function HomeScreen() {
-  const [userData, setUserData] = useState<any>(null);
+  const [setUserData] = useState<any>(null);
 
   const user = auth.currentUser;
   const navigation = useNavigation();
@@ -24,7 +24,7 @@ export default function HomeScreen() {
       });
       return () => unsubscribe();
     }
-  }, [user]);
+  }, [user, setUserData]);
 
   if (!user) return null;
 
