@@ -1,13 +1,61 @@
+import { useEffect, useState } from "react";
 import { auth } from "@/firebase";
 import { useNavigation } from "@react-navigation/native";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Appbar, Button, Card, Divider, List, Text } from "react-native-paper";
+import { getDoc, doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/firebase";
 import { getEnrolledSubjects } from "../subjects/mock-subjects";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { signOut } from "firebase/auth";
 
 export default function HomeScreen() {
+  const [userData, setUserData] = useState<any>(null);
+  const [isSuspended, setIsSuspended] = useState(false);
+
   const user = auth.currentUser;
   const navigation = useNavigation();
   const enrolledSubjects = getEnrolledSubjects();
+
+  const handleLogout = async () => {
+      try {
+        await GoogleSignin.signOut();
+        await signOut(auth);
+      } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+      }
+    };
+  
+  const showSuspendedAlert = () => {
+    Alert.alert(
+      "Cuenta Suspendida",
+      "Tu cuenta ha sido suspendida. Por favor, contacta al soporte para más información.",
+      [
+        { text: "Cerrar Sesión", onPress: () => {
+            handleLogout();
+          }
+        }
+      ],
+      { cancelable: false }
+    );
+  };
+
+  useEffect(() => {
+    if (user) {
+      const userRef = doc(db, "usuarios", user.uid);
+      const unsubscribe = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+          const userData = doc.data();
+          setUserData(userData);
+          if (userData.estado === "suspendido") {
+            setIsSuspended(true);
+            showSuspendedAlert();
+          }
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   if (!user) return null;
 
@@ -66,33 +114,6 @@ export default function HomeScreen() {
               Ver todas mis materias
             </Button>
           </Card.Content>
-        </Card>
-
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Accesos rápidos
-            </Text>
-            <Divider style={styles.divider} />
-          </Card.Content>
-          <List.Item
-            title="Configuración"
-            description="Ajusta tus preferencias"
-            left={(props) => <List.Icon {...props} icon="cog" />}
-            onPress={() => {}}
-          />
-          <List.Item
-            title="Notificaciones"
-            description="Gestiona tus alertas"
-            left={(props) => <List.Icon {...props} icon="bell" />}
-            onPress={() => {}}
-          />
-          <List.Item
-            title="Ayuda"
-            description="Preguntas frecuentes"
-            left={(props) => <List.Icon {...props} icon="help-circle" />}
-            onPress={() => {}}
-          />
         </Card>
       </ScrollView>
     </View>

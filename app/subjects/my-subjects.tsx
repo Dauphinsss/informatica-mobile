@@ -106,7 +106,7 @@ const MySubjects = () => {
                     <List.Icon 
                       {...props} 
                       icon={getSubjectIcon(subject.code)}
-                      color="#6200ea"
+                      color="#000000"
                     />
                   )}
                   right={props => <List.Icon {...props} icon="chevron-right" />}
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontWeight: 'bold',
-    color: '#6200ea',
+    color: '#000000',
   },
   statLabel: {
     opacity: 0.7,
