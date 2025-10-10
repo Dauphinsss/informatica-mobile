@@ -8,12 +8,13 @@ const Stack = createStackNavigator();
 export default function SubjectsLayout() {
   return (
     <Stack.Navigator
+      initialRouteName="HomeMain"
       screenOptions={{
         headerShown: false, // Cada pantalla maneja su propio header
       }}
     >
       <Stack.Screen 
-        name="Home" 
+        name="HomeMain" 
         component={HomeScreen}
         options={{
           title: "Inicio"

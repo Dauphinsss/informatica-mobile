@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Card, Chip, Text } from 'react-native-paper';
+import { Card, Chip, Text, useTheme } from 'react-native-paper';
 import { Subject } from '../types';
 
 interface SubjectCardProps {
@@ -14,17 +14,19 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   onToggleStatus, 
   isUpdating = false 
 }) => {
+  const theme = useTheme();
+
   return (
-    <Card style={styles.subjectCard}>
+    <Card style={styles.subjectCard} mode='elevated'>
       <Card.Content style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <View style={styles.subjectMainInfo}>
-            <Text style={styles.subjectName} numberOfLines={1}>
+            <Text variant="titleMedium" style={styles.subjectName} numberOfLines={1}>
               {subject.nombre}
             </Text>
             <View style={styles.metaInfo}>
-              {/* Cambiar a color negro fijo */}
-              <View style={[styles.semesterBadge, { backgroundColor: 'black' }]}>
+              {/* ✅ Usamos color primario del tema */}
+              <View style={[styles.semesterBadge, { backgroundColor: theme.colors.primary }]}>
                 <Text style={styles.semesterText}>
                   Semestre {subject.semestre}
                 </Text>
@@ -47,12 +49,12 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
           </View>
         </View>
         
-        <Text style={styles.subjectDescription} numberOfLines={2}>
+        <Text variant="bodyMedium" style={styles.subjectDescription} numberOfLines={2}>
           {subject.descripcion}
         </Text>
         
         <View style={styles.cardFooter}>
-          <Text style={styles.createdDate}>
+          <Text variant="labelSmall" style={styles.createdDate}>
             Creada: {subject.createdAt.toLocaleDateString()}
           </Text>
         </View>
@@ -64,16 +66,9 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
 const styles = {
   subjectCard: {
     marginBottom: 16,
-    borderRadius: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    backgroundColor: 'white',
   },
   cardContent: {
-    padding: 20,
+    padding: 16,
   },
   cardHeader: {
     marginBottom: 12,
@@ -82,9 +77,6 @@ const styles = {
     flex: 1,
   },
   subjectName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2c3e50',
     marginBottom: 8,
   },
   metaInfo: {
@@ -107,11 +99,9 @@ const styles = {
   },
   activeChip: {
     backgroundColor: '#e8f5e8',
-    borderColor: '#4caf50',
   },
   inactiveChip: {
     backgroundColor: '#ffebee',
-    borderColor: '#f44336',
   },
   chipText: {
     fontSize: 11,
@@ -121,19 +111,15 @@ const styles = {
     includeFontPadding: false,
   },
   subjectDescription: {
-    fontSize: 14,
-    color: '#7f8c8d',
     lineHeight: 20,
     marginBottom: 12,
   },
   cardFooter: {
     borderTopWidth: 1,
-    borderTopColor: '#ecf0f1',
+    borderTopColor: 'rgba(0, 0, 0, 0.12)',
     paddingTop: 12,
   },
   createdDate: {
-    fontSize: 11,
-    color: '#bdc3c7',
     fontStyle: 'italic',
   },
 } as const;

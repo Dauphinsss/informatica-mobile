@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button, Modal, Text, TextInput } from 'react-native-paper';
+import { Button, Modal, Text, TextInput, useTheme } from 'react-native-paper';
 
 interface CreateSubjectModalProps {
   visible: boolean;
@@ -10,7 +10,7 @@ interface CreateSubjectModalProps {
     descripcion: string;
     semestre: string;
   };
-  setFormData: (data: any) => void;
+  setFormData: (data: { nombre: string; descripcion: string; semestre: string }) => void;
   errors: {
     nombre: string;
     descripcion: string;
@@ -31,11 +31,13 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
   onSave,
   isSaveDisabled,
 }) => {
+  const theme = useTheme();
+
   return (
     <Modal
       visible={visible}
       onDismiss={onDismiss}
-      contentContainerStyle={styles.modal}
+      contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.background }]}
     >
       <Text variant="headlineSmall" style={styles.modalTitle}>
         Nueva Materia
@@ -44,18 +46,13 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
       <TextInput
         label="Nombre de la materia *"
         value={formData.nombre}
-        onChangeText={(text) => {
-          const filteredText = text.replace(/[^a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑüÜ,.;:()\-]/g, '');
-          setFormData({ ...formData, nombre: filteredText });
-        }}
+        onChangeText={(text) => setFormData({ ...formData, nombre: text })}
         error={!!errors.nombre}
         style={styles.input}
         maxLength={30}
         mode="outlined"
-        outlineColor="#E0E0E0"
-        activeOutlineColor="#000"
       />
-      {errors.nombre ? <Text style={styles.errorText}>{errors.nombre}</Text> : null}
+      {errors.nombre ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.nombre}</Text> : null}
       
       <TextInput
         label="Descripción breve *"
@@ -66,27 +63,20 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
         multiline
         numberOfLines={3}
         mode="outlined"
-        outlineColor="#E0E0E0"
-        activeOutlineColor="#000"
       />
-      {errors.descripcion ? <Text style={styles.errorText}>{errors.descripcion}</Text> : null}
+      {errors.descripcion ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.descripcion}</Text> : null}
       
       <TextInput
         label="Semestre *"
         value={formData.semestre}
-        onChangeText={(text) => {
-          const numbersOnly = text.replace(/[^0-9]/g, '').slice(0, 2);
-          setFormData({ ...formData, semestre: numbersOnly });
-        }}
+        onChangeText={(text) => setFormData({ ...formData, semestre: text })}
         error={!!errors.semestre}
         style={styles.input}
         keyboardType="numeric"
         maxLength={2}
         mode="outlined"
-        outlineColor="#E0E0E0"
-        activeOutlineColor="#000"
       />
-      {errors.semestre ? <Text style={styles.errorText}>{errors.semestre}</Text> : null}
+      {errors.semestre ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.semestre}</Text> : null}
 
       <View style={styles.modalButtons}>
         <Button
@@ -94,7 +84,6 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           onPress={onDismiss}
           style={styles.button}
           disabled={loading}
-          textColor="#000"
         >
           Cancelar
         </Button>
@@ -104,8 +93,6 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           style={styles.button}
           disabled={isSaveDisabled}
           loading={loading}
-          buttonColor="#000" // ✅ AGREGAR ESTA LÍNEA
-
         >
           Guardar
         </Button>
@@ -116,28 +103,19 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 
 const styles = {
   modal: {
-    backgroundColor: 'white',
     padding: 24,
     margin: 20,
-    borderRadius: 16,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    borderRadius: 8, 
   },
   modalTitle: {
     marginBottom: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
     textAlign: 'center',
   },
   input: {
     marginBottom: 4,
-    backgroundColor: 'white',
   },
   errorText: {
-    color: '#e74c3c',
     fontSize: 12,
     marginBottom: 12,
     marginLeft: 4,
@@ -151,7 +129,6 @@ const styles = {
   },
   button: {
     minWidth: 100,
-    borderRadius: 8,
   },
 } as const;
 

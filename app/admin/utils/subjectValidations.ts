@@ -38,8 +38,8 @@ export const validateSubjectFields = (formData: {
   const semestre = parseInt(formData.semestre);
   if (!formData.semestre) {
     errors.semestre = 'El semestre es obligatorio';
-  } else if (isNaN(semestre) || semestre < 1 || semestre > 12) {
-    errors.semestre = 'El semestre debe ser un número entre 1 y 12';
+  } else if (isNaN(semestre) || semestre < 1 || semestre > 9) {
+    errors.semestre = 'El semestre debe ser un número entre 1 y 9';
   }
 
   const isValid = !Object.values(errors).some(error => error !== '');
