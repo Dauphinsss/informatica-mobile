@@ -14,7 +14,7 @@ const theme = MD3LightTheme;
 
 function AppContent() {
   const [user, setUser] = useState<any>(null);
-  const [setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSuspended, setIsSuspended] = useState(false);
 
