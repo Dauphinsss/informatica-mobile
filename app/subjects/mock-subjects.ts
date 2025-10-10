@@ -2,7 +2,6 @@ export interface Subject {
   id: string;
   name: string;
   code: string;
-  professor: string;
   semester: number;
   enrolled: boolean;
   materialsCount: number;
@@ -27,7 +26,6 @@ export const MOCK_SUBJECTS: Subject[] = [
     id: 'inf-101',
     name: 'Introducción a la Programación',
     code: 'INF-101',
-    professor: 'Dr. Carlos Mendoza',
     semester: 1,
     enrolled: true,
     materialsCount: 24,
@@ -38,7 +36,6 @@ export const MOCK_SUBJECTS: Subject[] = [
     id: 'inf-102',
     name: 'Elementos de Programación y Estructura de Datos',
     code: 'INF-102',
-    professor: 'Dra. Ana Gutierrez',
     semester: 2,
     enrolled: true,
     materialsCount: 18,
@@ -49,8 +46,7 @@ export const MOCK_SUBJECTS: Subject[] = [
     id: 'inf-201',
     name: 'Programación Funcional',
     code: 'INF-201',
-    professor: 'Dr. Miguel Rojas',
-    semester: 3,
+    semester: 4,
     enrolled: true,
     materialsCount: 15,
     lastActivity: '2025-10-06',
@@ -60,8 +56,7 @@ export const MOCK_SUBJECTS: Subject[] = [
     id: 'mat-205',
     name: 'Teoría de Grafos',
     code: 'MAT-205',
-    professor: 'Dr. Luis Vargas',
-    semester: 4,
+    semester: 3,
     enrolled: true,
     materialsCount: 12,
     lastActivity: '2025-10-05',
