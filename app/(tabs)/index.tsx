@@ -235,8 +235,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 30,
   },
-  
-  // Header Card
   headerCard: {
     borderRadius: 12,
     marginBottom: 16,
@@ -254,8 +252,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
   },
-  
-  // Stats
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
