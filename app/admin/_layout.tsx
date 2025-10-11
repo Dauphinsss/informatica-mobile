@@ -15,7 +15,7 @@ export default function AdminLayOut() {
       }}
     >
       <Stack.Screen 
-        name="Admin" 
+        name="AdminHome" 
         component={AdminScreen}
         options={{
           title: "Panel Admin"

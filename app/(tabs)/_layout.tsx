@@ -7,7 +7,8 @@ import { StyleSheet } from "react-native";
 import { BottomNavigation } from "react-native-paper";
 import { auth, db } from "../../firebase";
 import AdminLayOut from "../admin/_layout";
-import SubjectsLayout from "../subjects/_layout";
+
+import HomeStack from "./HomeStack";
 import NotificationsScreen from "./notifications";
 import ProfileScreen from "./profile";
 
@@ -46,13 +47,13 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
       }}
-      tabBar={({ navigation, state, descriptors, insets }) => (
+      tabBar={({ navigation, state, descriptors, insets }) =>
         (() => {
           try {
             const activeRoute = state.routes[state.index];
             if (
-              activeRoute.name === 'Admin' &&
-              typeof activeRoute.state?.index === 'number' &&
+              activeRoute.name === "Admin" &&
+              typeof activeRoute.state?.index === "number" &&
               activeRoute.state.index > 0
             ) {
               return null;
@@ -63,50 +64,50 @@ export default function TabLayout() {
 
           return (
             <BottomNavigation.Bar
-          navigationState={state}
-          safeAreaInsets={insets}
-          onTabPress={({ route, preventDefault }) => {
-            const event = navigation.emit({
-              type: "tabPress",
-              target: route.key,
-              canPreventDefault: true,
-            });
+              navigationState={state}
+              safeAreaInsets={insets}
+              onTabPress={({ route, preventDefault }) => {
+                const event = navigation.emit({
+                  type: "tabPress",
+                  target: route.key,
+                  canPreventDefault: true,
+                });
 
-            if (event.defaultPrevented) {
-              preventDefault();
-            } else {
-              navigation.dispatch({
-                ...CommonActions.navigate(route.name, route.params),
-                target: state.key,
-              });
-            }
-          }}
-          renderIcon={({ route, focused, color }) => {
-            const { options } = descriptors[route.key];
-            if (options.tabBarIcon) {
-              return options.tabBarIcon({ focused, color, size: 24 });
-            }
-            return null;
-          }}
-          getLabelText={({ route }) => {
-            const { options } = descriptors[route.key];
-            const label =
-              options.tabBarLabel !== undefined
-                ? options.tabBarLabel
-                : options.title !== undefined
-                ? options.title
-                : route.name;
-            return typeof label === "string" ? label : route.name;
-          }}
-          style={styles.bottomNavigation}
-          />
+                if (event.defaultPrevented) {
+                  preventDefault();
+                } else {
+                  navigation.dispatch({
+                    ...CommonActions.navigate(route.name, route.params),
+                    target: state.key,
+                  });
+                }
+              }}
+              renderIcon={({ route, focused, color }) => {
+                const { options } = descriptors[route.key];
+                if (options.tabBarIcon) {
+                  return options.tabBarIcon({ focused, color, size: 24 });
+                }
+                return null;
+              }}
+              getLabelText={({ route }) => {
+                const { options } = descriptors[route.key];
+                const label =
+                  options.tabBarLabel !== undefined
+                    ? options.tabBarLabel
+                    : options.title !== undefined
+                    ? options.title
+                    : route.name;
+                return typeof label === "string" ? label : route.name;
+              }}
+              style={styles.bottomNavigation}
+            />
           );
         })()
-      )}
+      }
     >
       <Tab.Screen
         name="Home"
-        component={SubjectsLayout}
+        component={HomeStack}
         options={{
           tabBarLabel: "Inicio",
           tabBarIcon: ({ color, focused }) => (
