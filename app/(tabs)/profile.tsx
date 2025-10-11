@@ -1,19 +1,26 @@
+import { useTheme } from "@/contexts/ThemeContext";
 import { auth } from "@/firebase";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { signOut } from "firebase/auth";
+import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import {
   Appbar,
   Avatar,
   Button,
   Card,
+  Dialog,
   Divider,
   List,
+  Portal,
+  RadioButton,
   Text,
 } from "react-native-paper";
 
 export default function ProfileScreen() {
   const user = auth.currentUser;
+  const { themeMode, setThemeMode, theme } = useTheme();
+  const [themeDialogVisible, setThemeDialogVisible] = useState(false);
 
   if (!user) return null;
 
@@ -32,8 +39,23 @@ export default function ProfileScreen() {
     return null;
   }
 
+  const getThemeLabel = () => {
+    switch (themeMode) {
+      case "light":
+        return "Claro";
+      case "dark":
+        return "Oscuro";
+      case "system":
+        return "Automático (sistema)";
+      default:
+        return "Automático (sistema)";
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <Appbar.Header>
         <Appbar.Content title="Perfil" />
       </Appbar.Header>
@@ -84,6 +106,13 @@ export default function ProfileScreen() {
             <Divider style={styles.divider} />
           </Card.Content>
           <List.Item
+            title="Apariencia"
+            description={getThemeLabel()}
+            left={(props) => <List.Icon {...props} icon="theme-light-dark" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => setThemeDialogVisible(true)}
+          />
+          <List.Item
             title="Notificaciones"
             description="Gestionar notificaciones"
             left={(props) => <List.Icon {...props} icon="bell" />}
@@ -115,6 +144,65 @@ export default function ProfileScreen() {
           Cerrar sesión
         </Button>
       </ScrollView>
+
+      {/* Dialog para seleccionar tema */}
+      <Portal>
+        <Dialog
+          visible={themeDialogVisible}
+          onDismiss={() => setThemeDialogVisible(false)}
+        >
+          <Dialog.Title>Apariencia</Dialog.Title>
+          <Dialog.Content>
+            <RadioButton.Group
+              onValueChange={(value) => {
+                setThemeMode(value as "light" | "dark" | "system");
+                setThemeDialogVisible(false);
+              }}
+              value={themeMode}
+            >
+              <List.Item
+                title="Claro"
+                left={(props) => (
+                  <List.Icon {...props} icon="white-balance-sunny" />
+                )}
+                right={() => <RadioButton value="light" />}
+                onPress={() => {
+                  setThemeMode("light");
+                  setThemeDialogVisible(false);
+                }}
+              />
+              <List.Item
+                title="Oscuro"
+                left={(props) => (
+                  <List.Icon {...props} icon="moon-waning-crescent" />
+                )}
+                right={() => <RadioButton value="dark" />}
+                onPress={() => {
+                  setThemeMode("dark");
+                  setThemeDialogVisible(false);
+                }}
+              />
+              <List.Item
+                title="Automático (sistema)"
+                description="Usar configuración del sistema"
+                left={(props) => (
+                  <List.Icon {...props} icon="brightness-auto" />
+                )}
+                right={() => <RadioButton value="system" />}
+                onPress={() => {
+                  setThemeMode("system");
+                  setThemeDialogVisible(false);
+                }}
+              />
+            </RadioButton.Group>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setThemeDialogVisible(false)}>
+              Cancelar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }

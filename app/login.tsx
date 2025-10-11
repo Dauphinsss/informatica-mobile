@@ -1,3 +1,4 @@
+import { useTheme } from "@/contexts/ThemeContext";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
@@ -12,6 +13,7 @@ GoogleSignin.configure({
 });
 
 export default function LoginScreen() {
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
@@ -59,7 +61,12 @@ export default function LoginScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
         <ActivityIndicator size="large" animating={true} />
         <Text variant="bodyLarge" style={styles.loadingText}>
           Iniciando sesión...
@@ -69,7 +76,9 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <View style={styles.content}>
         <Text variant="displaySmall" style={styles.title}>
           Informatica
@@ -96,13 +105,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#ffffff",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#ffffff",
   },
   loadingText: {
     marginTop: 16,

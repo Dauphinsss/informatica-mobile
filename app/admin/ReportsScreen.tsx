@@ -1,33 +1,35 @@
-import { useNavigation } from '@react-navigation/native';
-import React, { useState, useEffect } from 'react';
-import { ScrollView, View } from 'react-native';
 import {
-  Appbar,
-  Card,
-  Text,
-  Chip,
-  Button,
-  Modal,
-  Portal,
-  Divider,
-  List,
-  ActivityIndicator,
-} from 'react-native-paper';
-import { styles } from './ReportsScreen.styles';
-import { Report, FilterType } from "../../scripts/types/Reports.type";
-import {
-  obtenerReportes,
-  completarReportesDePublicacion,
-  eliminarPublicacion as eliminarPublicacionFirestore,
   aplicarStrikeAlAutor,
   banearUsuarioPorNombre,
-} from '@/scripts/services/Reports';
+  completarReportesDePublicacion,
+  eliminarPublicacion as eliminarPublicacionFirestore,
+  obtenerReportes,
+} from "@/scripts/services/Reports";
+import { useNavigation } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
+import { ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Appbar,
+  Button,
+  Card,
+  Chip,
+  Divider,
+  List,
+  Modal,
+  Portal,
+  Text,
+} from "react-native-paper";
+import { FilterType, Report } from "../../scripts/types/Reports.type";
+import { styles } from "./ReportsScreen.styles";
 
 export default function ReportsScreen() {
   const navigation = useNavigation();
-  const [filtroActivo, setFiltroActivo] = useState<FilterType>('pendientes');
+  const [filtroActivo, setFiltroActivo] = useState<FilterType>("pendientes");
   const [modalVisible, setModalVisible] = useState(false);
-  const [reporteSeleccionado, setReporteSeleccionado] = useState<Report | null>(null);
+  const [reporteSeleccionado, setReporteSeleccionado] = useState<Report | null>(
+    null
+  );
   const [reportes, setReportes] = useState<Report[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -43,23 +45,35 @@ export default function ReportsScreen() {
   }, []);
 
   const reportesFiltrados = reportes
-    .filter(reporte => {
-      if (filtroActivo === 'pendientes') return reporte.estado === 'pendiente';
-      if (filtroActivo === 'completados') return reporte.estado === 'completado';
+    .filter((reporte) => {
+      if (filtroActivo === "pendientes") return reporte.estado === "pendiente";
+      if (filtroActivo === "completados")
+        return reporte.estado === "completado";
       return true;
     })
     .sort((a, b) => {
-      const dateA = new Date(a.ultimaFecha.split('/').reverse().join('-'));
-      const dateB = new Date(b.ultimaFecha.split('/').reverse().join('-'));
+      const dateA = new Date(a.ultimaFecha.split("/").reverse().join("-"));
+      const dateB = new Date(b.ultimaFecha.split("/").reverse().join("-"));
       return dateB.getTime() - dateA.getTime();
     });
 
   const getDecisionLabel = (r: Report) => {
-    const text = (r.decision || '').toLowerCase();
-    if (text.includes('bane') || text.includes('usuario baneado') || text.includes('baneado')) return 'BAN';
-    if (text.includes('elimin') || text.includes('eliminada')) return 'Eliminado';
-    if (text.includes('descart') || text.includes('descartado') || text.includes('rechaz')) return 'Rechazado';
-    return 'Resuelto';
+    const text = (r.decision || "").toLowerCase();
+    if (
+      text.includes("bane") ||
+      text.includes("usuario baneado") ||
+      text.includes("baneado")
+    )
+      return "BAN";
+    if (text.includes("elimin") || text.includes("eliminada"))
+      return "Eliminado";
+    if (
+      text.includes("descart") ||
+      text.includes("descartado") ||
+      text.includes("rechaz")
+    )
+      return "Rechazado";
+    return "Resuelto";
   };
 
   const cerrarModal = () => {
@@ -79,10 +93,15 @@ export default function ReportsScreen() {
       "Denuncia descartada - publicación en orden"
     );
     const fechaStr = fecha.toLocaleDateString();
-    setReportes(prev =>
-      prev.map(r =>
+    setReportes((prev) =>
+      prev.map((r) =>
         r.publicacionId === reporteSeleccionado.publicacionId
-          ? { ...r, estado: "completado", decision: "Denuncia descartada - publicación en orden", fechaDecision: fechaStr }
+          ? {
+              ...r,
+              estado: "completado",
+              decision: "Denuncia descartada - publicación en orden",
+              fechaDecision: fechaStr,
+            }
           : r
       )
     );
@@ -98,8 +117,8 @@ export default function ReportsScreen() {
       "Publicación eliminada y strike aplicado al autor"
     );
     const fechaStr = fecha.toLocaleDateString();
-    setReportes(prev =>
-      prev.map(r =>
+    setReportes((prev) =>
+      prev.map((r) =>
         r.publicacionId === reporteSeleccionado.publicacionId
           ? {
               ...r,
@@ -122,8 +141,8 @@ export default function ReportsScreen() {
       "Usuario baneado del sistema"
     );
     const fechaStr = fecha.toLocaleDateString();
-    setReportes(prev =>
-      prev.map(r =>
+    setReportes((prev) =>
+      prev.map((r) =>
         r.publicacionId === reporteSeleccionado.publicacionId
           ? {
               ...r,
@@ -139,7 +158,6 @@ export default function ReportsScreen() {
 
   return (
     <View style={styles.container}>
-
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Denuncias" />
@@ -147,24 +165,24 @@ export default function ReportsScreen() {
 
       <View style={styles.filterContainer}>
         <Button
-          mode={filtroActivo === 'pendientes' ? 'contained' : 'outlined'}
-          onPress={() => setFiltroActivo('pendientes')}
+          mode={filtroActivo === "pendientes" ? "contained" : "outlined"}
+          onPress={() => setFiltroActivo("pendientes")}
           style={styles.filterButton}
           compact
         >
           Pendientes
         </Button>
         <Button
-          mode={filtroActivo === 'completados' ? 'contained' : 'outlined'}
-          onPress={() => setFiltroActivo('completados')}
+          mode={filtroActivo === "completados" ? "contained" : "outlined"}
+          onPress={() => setFiltroActivo("completados")}
           style={styles.filterButton}
           compact
         >
           Completados
         </Button>
         <Button
-          mode={filtroActivo === 'todos' ? 'contained' : 'outlined'}
-          onPress={() => setFiltroActivo('todos')}
+          mode={filtroActivo === "todos" ? "contained" : "outlined"}
+          onPress={() => setFiltroActivo("todos")}
           style={styles.filterButton}
           compact
         >
@@ -192,7 +210,11 @@ export default function ReportsScreen() {
           </View>
         ) : (
           reportesFiltrados.map((reporte) => (
-            <Card key={reporte.id} style={styles.card} onPress={() => abrirDetalles(reporte)}>
+            <Card
+              key={reporte.id}
+              style={styles.card}
+              onPress={() => abrirDetalles(reporte)}
+            >
               <Card.Content>
                 <Text variant="titleMedium" style={styles.cardTitle}>
                   {reporte.titulo}
@@ -209,13 +231,14 @@ export default function ReportsScreen() {
                     {reporte.ultimoMotivo}
                   </Chip>
 
-                  {reporte.estado === 'completado' ? (
+                  {reporte.estado === "completado" ? (
                     <Chip compact style={styles.rightChip}>
                       {getDecisionLabel(reporte)}
                     </Chip>
                   ) : (
                     <Chip icon="alert-circle" compact>
-                      {reporte.totalReportes} {reporte.totalReportes === 1 ? 'reporte' : 'reportes'}
+                      {reporte.totalReportes}{" "}
+                      {reporte.totalReportes === 1 ? "reporte" : "reportes"}
                     </Chip>
                   )}
                 </View>
@@ -243,20 +266,26 @@ export default function ReportsScreen() {
                 {/* Publicación */}
                 <Card style={styles.modalCard}>
                   <Card.Content>
-                    <Text variant="titleLarge" style={styles.publicacionTitulo}>
+                    <Text
+                      variant="headlineMedium"
+                      style={styles.publicacionTitulo}
+                    >
                       {reporteSeleccionado.titulo}
                     </Text>
                     <Text variant="bodyMedium" style={styles.publicacionAutor}>
                       Autor: {reporteSeleccionado.autor}
                     </Text>
-                    <Text variant="bodySmall" style={styles.publicacionContenido}>
+                    <Text
+                      variant="bodySmall"
+                      style={styles.publicacionContenido}
+                    >
                       {reporteSeleccionado.contenido}
                     </Text>
                   </Card.Content>
                 </Card>
 
                 {/* Decisión Tomada */}
-                {reporteSeleccionado.estado === 'completado' && (
+                {reporteSeleccionado.estado === "completado" && (
                   <Card style={styles.modalCard}>
                     <Card.Content>
                       <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -283,9 +312,7 @@ export default function ReportsScreen() {
                   <List.Item
                     title="Total de reportes"
                     right={() => (
-                      <Chip compact>
-                        {reporteSeleccionado.totalReportes}
-                      </Chip>
+                      <Chip compact>{reporteSeleccionado.totalReportes}</Chip>
                     )}
                   />
                   <Divider />
@@ -293,9 +320,7 @@ export default function ReportsScreen() {
                   <List.Item
                     title="Motivo"
                     right={() => (
-                      <Chip compact>
-                        {reporteSeleccionado.ultimoMotivo}
-                      </Chip>
+                      <Chip compact>{reporteSeleccionado.ultimoMotivo}</Chip>
                     )}
                   />
                   <Divider />
@@ -309,9 +334,7 @@ export default function ReportsScreen() {
                   <List.Item
                     title="Strikes del autor"
                     right={() => (
-                      <Chip compact>
-                        {reporteSeleccionado.strikesAutor}
-                      </Chip>
+                      <Chip compact>{reporteSeleccionado.strikesAutor}</Chip>
                     )}
                   />
                 </Card>
@@ -320,36 +343,44 @@ export default function ReportsScreen() {
                 <Card style={styles.modalCard}>
                   <Card.Content>
                     <Text variant="titleMedium" style={styles.sectionTitle}>
-                      {reporteSeleccionado.reportadores.length === 1 
-                      ? 'Denunciante' :
-                        `Denunciantes (${reporteSeleccionado.reportadores.length})` }
+                      {reporteSeleccionado.reportadores.length === 1
+                        ? "Denunciante"
+                        : `Denunciantes (${reporteSeleccionado.reportadores.length})`}
                     </Text>
                     <Divider style={styles.divider} />
                   </Card.Content>
 
-                  {reporteSeleccionado.reportadores.slice(0, 5).map((rep, index) => (
-                    <View key={index}>
-                      <List.Item
-                        title={rep.usuario}
-                        description={`${rep.motivo} • ${rep.fecha}`}
-                        left={(props) => <List.Icon {...props} icon="account-circle" />}
-                      />
-                      <Divider />
-                    </View>
-                  ))}
+                  {reporteSeleccionado.reportadores
+                    .slice(0, 5)
+                    .map((rep, index) => (
+                      <View key={index}>
+                        <List.Item
+                          title={rep.usuario}
+                          description={`${rep.motivo} • ${rep.fecha}`}
+                          left={(props) => (
+                            <List.Icon {...props} icon="account-circle" />
+                          )}
+                        />
+                        <Divider />
+                      </View>
+                    ))}
 
                   {reporteSeleccionado.reportadores.length > 5 && (
                     <Card.Content>
                       <Text variant="bodySmall" style={styles.masReportadores}>
-                        +{reporteSeleccionado.reportadores.length - 5} denunciante
-                        {reporteSeleccionado.reportadores.length - 5 !== 1 ? 's' : ''} más
+                        +{reporteSeleccionado.reportadores.length - 5}{" "}
+                        denunciante
+                        {reporteSeleccionado.reportadores.length - 5 !== 1
+                          ? "s"
+                          : ""}{" "}
+                        más
                       </Text>
                     </Card.Content>
                   )}
                 </Card>
 
                 {/* Administración */}
-                {reporteSeleccionado.estado !== 'completado' && (
+                {reporteSeleccionado.estado !== "completado" && (
                   <View style={styles.accionesContainer}>
                     <Text variant="titleMedium" style={styles.sectionTitle}>
                       Administración
@@ -383,13 +414,17 @@ export default function ReportsScreen() {
                     </Button>
                     <Text variant="bodySmall" style={styles.buttonSubtext}>
                       {reporteSeleccionado.strikesAutor < 2
-                        ? 'Se requieren al menos 2 strikes'
-                        : 'No podrá volver a acceder al sistema'}
+                        ? "Se requieren al menos 2 strikes"
+                        : "No podrá volver a acceder al sistema"}
                     </Text>
                   </View>
                 )}
 
-                <Button mode="text" onPress={cerrarModal} style={styles.closeButton}>
+                <Button
+                  mode="text"
+                  onPress={cerrarModal}
+                  style={styles.closeButton}
+                >
                   Cerrar
                 </Button>
               </>

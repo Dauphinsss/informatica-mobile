@@ -1,6 +1,7 @@
+import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
 import { useNavigation } from "@react-navigation/native";
-import { StackNavigationProp } from '@react-navigation/stack';
+import { StackNavigationProp } from "@react-navigation/stack";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
@@ -14,9 +15,13 @@ type AdminStackParamList = {
   ManageSubjects: undefined;
 };
 
-type AdminScreenNavigationProp = StackNavigationProp<AdminStackParamList, 'Admin'>;
- 
+type AdminScreenNavigationProp = StackNavigationProp<
+  AdminStackParamList,
+  "Admin"
+>;
+
 export default function AdminScreen() {
+  const { theme } = useTheme();
   const [userData, setUserData] = useState<any>(null);
   const [pressed, setPressed] = useState(false);
   const navigation = useNavigation<AdminScreenNavigationProp>();
@@ -34,7 +39,9 @@ export default function AdminScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <Appbar.Header>
         <Appbar.Content title="Panel Admin" />
       </Appbar.Header>
@@ -63,11 +70,11 @@ export default function AdminScreen() {
             description="Gestionar materias y cursos"
             left={(props) => <List.Icon {...props} icon="book-open-variant" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => navigation.navigate('ManageSubjects')}
+            onPress={() => navigation.navigate("ManageSubjects")}
           />
           <TouchableOpacity
             activeOpacity={0.6}
-            onPress={() => navigation.navigate('ManageUsers')}
+            onPress={() => navigation.navigate("ManageUsers")}
             style={[pressed && styles.pressed]}
             onPressIn={() => setPressed(true)}
             onPressOut={() => setPressed(false)}
@@ -79,7 +86,7 @@ export default function AdminScreen() {
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
             />
           </TouchableOpacity>
-          
+
           <List.Item
             title="Reportes"
             description="Ver estadísticas y reportes"
@@ -92,7 +99,7 @@ export default function AdminScreen() {
             description="Gestionar denuncias y moderación"
             left={(props) => <List.Icon {...props} icon="alert-octagon" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => navigation.navigate('Reports')}
+            onPress={() => navigation.navigate("Reports")}
           />
         </Card>
 
@@ -165,7 +172,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   pressed: {
-    backgroundColor: '#e6e6e6',
+    backgroundColor: "#e6e6e6",
     borderRadius: 8,
-  }
+  },
 });

@@ -1,14 +1,18 @@
+import { useTheme } from "@/contexts/ThemeContext";
 import { auth } from "@/firebase";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Appbar, Card, Divider, List, Text } from "react-native-paper";
 
 export default function NotificationsScreen() {
+  const { theme } = useTheme();
   const user = auth.currentUser;
 
   if (!user) return null;
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <Appbar.Header>
         <Appbar.Content title="Notificaciones" />
       </Appbar.Header>
