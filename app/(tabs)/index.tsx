@@ -187,7 +187,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Header con saludo y estadísticas */}
-        <Surface style={styles.headerCard} elevation={2}>
+        <Surface style={styles.headerCard}>
           <View style={styles.headerContent}>
             <Text variant="headlineSmall">
               ¡Hola,{" "}
@@ -264,18 +264,36 @@ export default function HomeScreen() {
             })}
           </View>
         ) : (
-          <Surface style={styles.emptyCard} elevation={1}>
-            <Text
+            <Surface style={styles.emptyCard} elevation={1}>
+            <View style={{ alignItems: "center" }}>
+              <IconButton
+              icon="book-open-outline"
+              size={64}
+              iconColor={theme.colors.primary}
+              style={{ opacity: 0.6 }}
+              />
+              <Text
+              variant="titleMedium"
+              style={{
+                color: theme.colors.onSurface,
+                textAlign: "center",
+                marginBottom: 8,
+                fontWeight: "600",
+              }}
+              >
+              No tienes materias inscritas
+              </Text>
+              <Text
               variant="bodyMedium"
               style={{
                 color: theme.colors.onSurfaceVariant,
                 textAlign: "center",
               }}
-            >
-              No tienes materias inscritas.{"\n"}
-              Presiona el botón Materias para seleccionar.
-            </Text>
-          </Surface>
+              >
+              Presiona el botón Materias para seleccionar
+              </Text>
+            </View>
+            </Surface>
         )}
       </ScrollView>
 
