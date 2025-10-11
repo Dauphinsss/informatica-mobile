@@ -14,30 +14,30 @@ export default function AdminLayOut() {
         headerShown: false, // Ocultamos el header del stack porque cada pantalla maneja el suyo
       }}
     >
-      <Stack.Screen 
-        name="AdminHome" 
+      <Stack.Screen
+        name="AdminHome"
         component={AdminScreen}
         options={{
-          title: "Panel Admin"
+          title: "Panel Admin",
         }}
       />
       <Stack.Screen
         name="ManageSubjects"
         component={ManageSubjectsScreen}
-        options={{ title: 'Gestión de Materias' }}
+        options={{ title: "Gestión de Materias" }}
       />
-      <Stack.Screen 
-        name="ManageUsers" 
+      <Stack.Screen
+        name="ManageUsers"
         component={ManageUsers}
         options={{
-          title: "Administrar Usuarios"
+          title: "Administrar Usuarios",
         }}
       />
       <Stack.Screen
         name="Reports"
         component={ReportsScreen}
         options={{
-          title: "Reportes"
+          title: "Reportes",
         }}
       />
     </Stack.Navigator>
