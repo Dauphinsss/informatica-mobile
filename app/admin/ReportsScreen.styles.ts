@@ -1,8 +1,10 @@
  import { StyleSheet } from 'react-native';
+import { MD3Theme } from 'react-native-paper';
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme: MD3Theme) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -14,6 +16,7 @@ export const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 8,
     gap: 8,
+    backgroundColor: theme.colors.background,
   },
 
   filterButton: {
@@ -21,18 +24,22 @@ export const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 12,
+    backgroundColor: theme.colors.surface,
   },
   cardTitle: {
     fontWeight: 'bold',
     marginBottom: 4,
+    color: theme.colors.onSurface,
   },
   cardAuthor: {
     opacity: 0.7,
     marginBottom: 2,
+    color: theme.colors.onSurface,
   },
   cardDate: {
     opacity: 0.6,
     marginBottom: 8,
+    color: theme.colors.onSurface,
   },
   chipContainer: {
     flexDirection: 'row',
@@ -61,9 +68,10 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.7,
     marginTop: 8,
+    color: theme.colors.onBackground,
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     padding: 20,
     margin: 20,
     borderRadius: 12,
@@ -72,37 +80,45 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontWeight: 'bold',
     marginBottom: 8,
+    color: theme.colors.onSurface,
   },
   divider: {
     marginVertical: 8,
   },
   modalCard: {
     marginBottom: 12,
+    backgroundColor: theme.colors.elevation.level1,
   },
   sectionTitle: {
     fontWeight: 'bold',
     marginBottom: 8,
+    color: theme.colors.onSurface,
   },
   subtitle: {
     opacity: 0.7,
     marginTop: 4,
+    color: theme.colors.onSurface,
   },
   publicacionTitulo: {
     fontWeight: 'bold',
     marginTop: 3,
     marginBottom: 3,
+    color: theme.colors.onSurface,
   },
   publicacionAutor: {
     opacity: 0.7,
     marginTop: 4,
+    color: theme.colors.onSurface,
   },
   publicacionContenido: {
     marginTop: 8,
     opacity: 0.8,
+    color: theme.colors.onSurface,
   },
   masReportadores: {
     textAlign: 'center',
     opacity: 0.7,
+    color: theme.colors.onSurface,
   },
   accionesContainer: {
     marginTop: 16,
@@ -114,10 +130,11 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.7,
     marginTop: 4,
+    color: theme.colors.onSurface,
   },
   closeButton: {
     marginTop: 16,
   },
 });
 
-export default styles;
+export default getStyles;

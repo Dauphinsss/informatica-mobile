@@ -1,3 +1,4 @@
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   aplicarStrikeAlAutor,
   banearUsuarioPorNombre,
@@ -21,10 +22,12 @@ import {
   Text,
 } from "react-native-paper";
 import { FilterType, Report } from "../../scripts/types/Reports.type";
-import { styles } from "./ReportsScreen.styles";
+import { getStyles } from "./ReportsScreen.styles";
 
 export default function ReportsScreen() {
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [filtroActivo, setFiltroActivo] = useState<FilterType>("pendientes");
   const [modalVisible, setModalVisible] = useState(false);
   const [reporteSeleccionado, setReporteSeleccionado] = useState<Report | null>(
@@ -255,7 +258,7 @@ export default function ReportsScreen() {
           onDismiss={cerrarModal}
           contentContainerStyle={styles.modalContent}
         >
-          <ScrollView>
+          <ScrollView showsVerticalScrollIndicator={false}>
             {reporteSeleccionado && (
               <>
                 <Text variant="headlineSmall" style={styles.modalTitle}>
@@ -352,7 +355,7 @@ export default function ReportsScreen() {
 
                   {reporteSeleccionado.reportadores
                     .slice(0, 5)
-                    .map((rep, index) => (
+                    .map((rep, index, array) => (
                       <View key={index}>
                         <List.Item
                           title={rep.usuario}
@@ -361,7 +364,7 @@ export default function ReportsScreen() {
                             <List.Icon {...props} icon="account-circle" />
                           )}
                         />
-                        <Divider />
+                        {index < array.length - 1 && <Divider />}
                       </View>
                     ))}
 
