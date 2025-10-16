@@ -41,6 +41,7 @@ export default function LoginScreen() {
           nombre: user.displayName,
           foto: user.photoURL,
           rol: "usuario",
+          estado: "activo",
           creadoEn: serverTimestamp(),
           ultimoAcceso: serverTimestamp(),
         });

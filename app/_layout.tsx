@@ -1,5 +1,9 @@
 import SuspendedModal from "@/components/ui/suspended-modal";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+import {
+  configurarCanalAndroid,
+  solicitarPermisosNotificaciones
+} from "@/services/pushNotifications";
 import { StatusBar } from "expo-status-bar";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -16,6 +20,14 @@ function AppContent() {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSuspended, setIsSuspended] = useState(false);
+
+  useEffect(() => {
+    const inicializarNotificaciones = async () => {
+      await configurarCanalAndroid();
+      await solicitarPermisosNotificaciones();
+    };
+    inicializarNotificaciones();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {

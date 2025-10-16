@@ -1,23 +1,23 @@
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import {
-  addDoc,
-  collection,
-  doc,
-  getDocs,
-  updateDoc,
+    addDoc,
+    collection,
+    doc,
+    getDocs,
+    updateDoc,
 } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
-  ActivityIndicator,
-  Appbar,
-  FAB,
-  Portal,
-  Searchbar,
-  Snackbar,
-  Text,
-  useTheme,
+    ActivityIndicator,
+    Appbar,
+    FAB,
+    Portal,
+    Searchbar,
+    Snackbar,
+    Text,
+    useTheme,
 } from "react-native-paper";
 import { auth, db } from "../../firebase";
 
@@ -28,8 +28,8 @@ import SubjectCard from "./components/SubjectCard";
 // Utils and Types
 import { AdminStackParamList, Subject } from "./types";
 import {
-  normalizeText,
-  validateSubjectFields,
+    normalizeText,
+    validateSubjectFields,
 } from "./utils/subjectValidations";
 
 type ManageSubjectsScreenNavigationProp = StackNavigationProp<
@@ -153,7 +153,20 @@ export default function ManageSubjectsScreen() {
         createdBy: auth.currentUser?.uid,
       };
 
-      await addDoc(collection(db, "materias"), newSubject);
+      const docRef = await addDoc(collection(db, "materias"), newSubject);
+
+      // 🔔 Enviar notificación push a todos los usuarios
+      try {
+        const { notificarCreacionMateria } = await import('@/services/notifications');
+        
+        await notificarCreacionMateria(
+          docRef.id,
+          nombreNormalizado,
+          formData.descripcion.trim()
+        );
+      } catch (error) {
+        console.error('❌ Error al enviar notificación:', error);
+      }
 
       showSnackbar("Materia creada satisfactoriamente", "success");
 

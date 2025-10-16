@@ -3,9 +3,10 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { StyleSheet } from "react-native";
-import { BottomNavigation } from "react-native-paper";
+import { StyleSheet, View } from "react-native";
+import { Badge, BottomNavigation } from "react-native-paper";
 import { auth, db } from "../../firebase";
+import { obtenerContadorNoLeidas } from "../../services/notifications";
 import AdminLayOut from "../admin/_layout";
 
 import HomeStack from "./HomeStack";
@@ -17,6 +18,7 @@ const Tab = createBottomTabNavigator();
 export default function TabLayout() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -35,6 +37,20 @@ export default function TabLayout() {
       setLoading(false);
     };
     fetchUserRole();
+  }, []);
+
+  // Listener para contador de no leídas
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const unsubscribe = obtenerContadorNoLeidas(
+      auth.currentUser.uid,
+      (count) => {
+        setUnreadCount(count);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
@@ -125,11 +141,25 @@ export default function TabLayout() {
         options={{
           tabBarLabel: "Notificaciones",
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "bell" : "bell-outline"}
-              size={24}
-              color={color}
-            />
+            <View>
+              <MaterialCommunityIcons
+                name={focused ? "bell" : "bell-outline"}
+                size={24}
+                color={color}
+              />
+              {unreadCount > 0 && (
+                <Badge
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -8,
+                  }}
+                  size={18}
+                >
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+            </View>
           ),
         }}
       />

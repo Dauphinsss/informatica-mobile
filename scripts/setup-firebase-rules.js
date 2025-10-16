@@ -16,10 +16,10 @@ function checkFirebaseCLI() {
 
 // Instalar Firebase CLI si no está presente
 function installFirebaseCLI() {
-  console.log('📦 Instalando Firebase CLI...');
+  console.log('Instalando Firebase CLI...');
   try {
     execSync('npm install -g firebase-tools', { stdio: 'inherit' });
-    console.log('✅ Firebase CLI instalado correctamente');
+    console.log('Firebase CLI instalado correctamente');
     return true;
   } catch (error) {
     console.error('❌ Error instalando Firebase CLI:', error.message);
@@ -36,7 +36,7 @@ function setupFirebaseProject() {
   };
   
   fs.writeFileSync('.firebaserc', JSON.stringify(firebaserc, null, 2));
-  console.log('✅ Archivo .firebaserc creado');
+  console.log('Archivo .firebaserc creado');
 }
 
 // Crear firebase.json
@@ -48,38 +48,38 @@ function createFirebaseConfig() {
   };
   
   fs.writeFileSync('firebase.json', JSON.stringify(firebaseConfig, null, 2));
-  console.log('✅ Archivo firebase.json creado');
+  console.log('Archivo firebase.json creado');
 }
 
 // Función principal
 async function deployRules() {
-  console.log('🚀 Configurando reglas de Firestore...\n');
+  console.log('Configurando reglas de Firestore...\n');
   
   // Verificar Firebase CLI
   if (!checkFirebaseCLI()) {
-    console.log('⚠️  Firebase CLI no encontrado');
+    console.log('Firebase CLI no encontrado');
     if (!installFirebaseCLI()) {
-      console.log('\n❌ No se pudo instalar Firebase CLI automáticamente.');
+      console.log('\nNo se pudo instalar Firebase CLI automáticamente.');
       console.log('Por favor, instálalo manualmente con: npm install -g firebase-tools');
       process.exit(1);
     }
   } else {
-    console.log('✅ Firebase CLI encontrado');
+    console.log('Firebase CLI encontrado');
   }
   
   // Configurar archivos de proyecto
   setupFirebaseProject();
   createFirebaseConfig();
   
-  console.log('\n📋 Pasos para completar la configuración:');
+  console.log('\nPasos para completar la configuración:');
   console.log('1. Ejecuta: firebase login');
   console.log('2. Ejecuta: firebase deploy --only firestore:rules');
   console.log('\nO usa el comando rápido: npm run deploy-rules');
   
-  console.log('\n🔐 Las reglas permitirán:');
+  console.log('\nLas reglas permitirán:');
   console.log('- Lectura y escritura en la colección "usuarios"');
   console.log('- Acceso denegado a otras colecciones');
-  console.log('\n⚠️  IMPORTANTE: Estas reglas son para desarrollo.');
+  console.log('\nIMPORTANTE: Estas reglas son para desarrollo.');
   console.log('En producción, deberías restringir el acceso con autenticación.');
 }
 

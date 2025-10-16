@@ -91,12 +91,10 @@ const ManageUsers = () => {
         uid: doc.id 
       }));
       setUsers(usersList);
-      console.log('👥 Usuarios actualizados en tiempo real:', usersList.length);
     }, (error) => {
       console.error('Error al escuchar cambios de usuarios:', error);
     });
 
-    // Cleanup: cancelar suscripción cuando el componente se desmonte
     return () => unsubscribe();
   }, []);
 

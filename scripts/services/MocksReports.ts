@@ -77,7 +77,7 @@ export const crearDatosMock = async () => {
         ultimaActividad: new Date(),
     });
 
-    console.log("✅ Datos mock creados con éxito:", {
+    console.log("Datos mock creados con éxito:", {
       usuarioId: usuarioRef.id,
       publicacionId: publicacionRef.id,
       reporteId: reporteRef.id,
