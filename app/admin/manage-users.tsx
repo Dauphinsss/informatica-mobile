@@ -1,14 +1,18 @@
+import { useTheme } from '@/contexts/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { Appbar, Button, Card, Dialog, Divider, List, Paragraph, Portal, Searchbar, Text } from 'react-native-paper';
+import { Appbar, Button, Card, Dialog, Divider, List, Portal, Searchbar, Text } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../firebase';
 
 const ManageUsers = () => {
+  const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [users, setUsers] = useState<any[]>([]);
-  const [filter, setFilter] = useState<'all' | 'admin' | 'user'>('all');
+  const [filter, setFilter] = useState<'all' | 'admin' | 'usuario'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const navigation = useNavigation();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -24,8 +28,8 @@ const ManageUsers = () => {
     { /* Filtrar por rol */ }
     if (filter === 'admin') {
       filtered = filtered.filter(user => user.rol === 'admin');
-    } else if (filter === 'user') {
-      filtered = filtered.filter(user => user.rol === 'user');
+    } else if (filter === 'usuario') {
+      filtered = filtered.filter(user => user.rol === 'usuario');
     }
     
     { /* Filtrar por búsqueda */ }
@@ -41,18 +45,10 @@ const ManageUsers = () => {
   
   const filteredUsers = getFilteredUsers();
   const adminUsers = filteredUsers.filter(user => user.rol === 'admin');
-  const normalUsers = filteredUsers.filter(user => user.rol === 'user');
+  const normalUsers = filteredUsers.filter(user => user.rol === 'usuario');
   
   const totalAdmins = users.filter(user => user.rol === 'admin').length;
-  const totalUsers = users.filter(user => user.rol === 'user').length;
-
-  { /* Función para obtener los usuarios de Firestore */}
-  const fetchUsers = async () => {
-    const usersCollection = collection(db, 'usuarios');
-    const userSnapshot = await getDocs(usersCollection);
-    const usersList = userSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id }));
-    setUsers(usersList);
-  }
+  const totalUsers = users.filter(user => user.rol === 'usuario').length;
 
   const handleToggleExpand = (userId: string) => {
     setExpandedUser(prevState => (prevState === userId ? null : userId));
@@ -77,10 +73,7 @@ const ManageUsers = () => {
       const userRef = doc(db, 'usuarios', selectedUser.uid);
       await updateDoc(userRef, { estado: newStatus });
       
-      setUsers(users.map(user =>
-        user.uid === selectedUser.uid ? { ...user, estado: newStatus } : user
-      ));
-      
+      // Ya no necesitamos actualizar manualmente, onSnapshot lo hará automáticamente
       setDialogVisible(false);
       setSelectedUser(null);
     } catch (error) {
@@ -88,19 +81,40 @@ const ManageUsers = () => {
     }
   };
 
+  // Listener en tiempo real para usuarios
   useEffect(() => {
-    fetchUsers();
+    const usersCollection = collection(db, 'usuarios');
+    
+    const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
+      const usersList = snapshot.docs.map(doc => ({ 
+        ...doc.data(), 
+        uid: doc.id 
+      }));
+      setUsers(usersList);
+      console.log('👥 Usuarios actualizados en tiempo real:', usersList.length);
+    }, (error) => {
+      console.error('Error al escuchar cambios de usuarios:', error);
+    });
+
+    // Cleanup: cancelar suscripción cuando el componente se desmonte
+    return () => unsubscribe();
   }, []);
 
   return (
     <TouchableWithoutFeedback onPress={handleCloseCollapse}>
-      <View style={styles.container}>
+      <View style={[styles.container, { 
+        backgroundColor: theme.colors.background,
+        paddingBottom: insets.bottom 
+      }]}>
         <Appbar.Header>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
           <Appbar.Content title="Administrar Usuarios" />
         </Appbar.Header>
 
-        <ScrollView style={styles.content}>
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
           
           {/* Buscador dinámico */}
           <Searchbar
@@ -121,12 +135,12 @@ const ManageUsers = () => {
               Todos {users.length}
             </Button>
             <Button
-              mode={filter === 'user' ? 'contained' : 'outlined'}
-              onPress={() => setFilter('user')}
+              mode={filter === 'usuario' ? 'contained' : 'outlined'}
+              onPress={() => setFilter('usuario')}
               style={styles.filterButton}
               compact
             >
-              Users {totalUsers}
+              Usuarios {totalUsers}
             </Button>
             <Button
               mode={filter === 'admin' ? 'contained' : 'outlined'}
@@ -137,9 +151,9 @@ const ManageUsers = () => {
               Admins {totalAdmins}
             </Button>
           </View>
-          
-          {/* Card para Users */}
-          {normalUsers.length > 0 && (filter === 'all' || filter === 'user') && (
+
+          {/* Card para Usuarios */}
+          {normalUsers.length > 0 && (filter === 'all' || filter === 'usuario') && (
             <Card style={styles.card}>
               <Card.Content>
                 <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -173,8 +187,11 @@ const ManageUsers = () => {
                       {/* Collapse personalizado */}
                       {expandedUser === user.uid && (
                         <TouchableWithoutFeedback>
-                          <View style={styles.collapseContent}>
-                            <Text variant="bodySmall" style={styles.actionsLabel}>
+                          <View style={[styles.collapseContent, { 
+                            backgroundColor: theme.colors.surfaceVariant,
+                            borderLeftColor: theme.colors.primary,
+                          }]}>
+                            <Text variant="bodySmall" style={[styles.actionsLabel, { color: theme.colors.onSurfaceVariant }]}>
                               Acciones de usuario:
                             </Text>
                             <View style={styles.actionButtons}>
@@ -182,8 +199,8 @@ const ManageUsers = () => {
                                 mode="contained"
                                 onPress={() => openConfirmDialog(user, 'suspend')}
                                 disabled={user.estado === 'suspendido' || user.uid === auth.currentUser?.uid}
-                                buttonColor="#ffebee"
-                                textColor="#c62828"
+                                buttonColor={theme.colors.errorContainer}
+                                textColor={theme.colors.onErrorContainer}
                                 style={styles.actionButton}
                                 icon="account-cancel"
                               >
@@ -193,8 +210,8 @@ const ManageUsers = () => {
                                 mode="contained"
                                 onPress={() => openConfirmDialog(user, 'activate')}
                                 disabled={user.estado === 'activo' || user.uid === auth.currentUser?.uid}
-                                buttonColor="#e8f5e8"
-                                textColor="#2e7d32"
+                                buttonColor={theme.colors.primaryContainer}
+                                textColor={theme.colors.onPrimaryContainer}
                                 style={styles.actionButton}
                                 icon="account-check"
                               >
@@ -247,8 +264,11 @@ const ManageUsers = () => {
                       {/* Collapse personalizado */}
                       {expandedUser === user.uid && (
                         <TouchableWithoutFeedback>
-                          <View style={styles.collapseContent}>
-                            <Text variant="bodySmall" style={styles.actionsLabel}>
+                          <View style={[styles.collapseContent, { 
+                            backgroundColor: theme.colors.surfaceVariant,
+                            borderLeftColor: theme.colors.primary,
+                          }]}>
+                            <Text variant="bodySmall" style={[styles.actionsLabel, { color: theme.colors.onSurfaceVariant }]}>
                               Acciones de administrador:
                             </Text>
                             <View style={styles.actionButtons}>
@@ -256,8 +276,8 @@ const ManageUsers = () => {
                                 mode="contained"
                                 onPress={() => openConfirmDialog(user, 'suspend')}
                                 disabled={user.estado === 'suspendido' || user.uid === auth.currentUser?.uid}
-                                buttonColor="#ffebee"
-                                textColor="#c62828"
+                                buttonColor={theme.colors.errorContainer}
+                                textColor={theme.colors.onErrorContainer}
                                 style={styles.actionButton}
                                 icon="account-cancel"
                               >
@@ -267,8 +287,8 @@ const ManageUsers = () => {
                                 mode="contained"
                                 onPress={() => openConfirmDialog(user, 'activate')}
                                 disabled={user.estado === 'activo' || user.uid === auth.currentUser?.uid}
-                                buttonColor="#e8f5e8"
-                                textColor="#2e7d32"
+                                buttonColor={theme.colors.primaryContainer}
+                                textColor={theme.colors.onPrimaryContainer}
                                 style={styles.actionButton}
                                 icon="account-check"
                               >
@@ -290,12 +310,12 @@ const ManageUsers = () => {
 
         {/* Dialog de confirmación */}
         <Portal>
-          <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
-            <Dialog.Title>
+          <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)} style={{ backgroundColor: theme.colors.surface }}>
+            <Dialog.Title style={{ color: theme.colors.onSurface }}>
               {actionType === 'activate' ? 'Activar Usuario' : 'Suspender Usuario'}
             </Dialog.Title>
             <Dialog.Content>
-              <Text>
+              <Text style={{ color: theme.colors.onSurface }}>
                 {actionType === 'activate' 
                   ? `¿Estás seguro de que quieres activar a ${selectedUser?.nombre}?`
                   : `¿Estás seguro de que quieres suspender a ${selectedUser?.nombre}?`
@@ -306,8 +326,6 @@ const ManageUsers = () => {
               <Button onPress={() => setDialogVisible(false)}>Cancelar</Button>
               <Button 
                 onPress={confirmAction}
-                buttonColor={actionType === 'activate' ? '#2e7d32' : '#c62828'}
-                textColor="white"
                 mode="contained"
               >
                 {actionType === 'activate' ? 'Activar' : 'Suspender'}
@@ -356,18 +374,15 @@ const styles = StyleSheet.create({
   
   // Nuevos estilos para collapse
   collapseContent: {
-    backgroundColor: '#f8f9fa',
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 8,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#6200ea',
   },
   actionsLabel: {
     marginBottom: 12,
     fontWeight: 'bold',
-    color: '#333',
   },
   actionButtons: {
     flexDirection: 'row',
