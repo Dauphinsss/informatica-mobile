@@ -1,22 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Reglas para la colección de usuarios
+    
     match /usuarios/{userId} {
-      // Permitir lectura y escritura para desarrollo
-      // En producción deberías restringir esto con autenticación
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     
-    // Si tienes otras colecciones, puedes agregar reglas aquí
-    // Por ejemplo:
-    // match /posts/{postId} {
-    //   allow read, write: if request.auth != null;
-    // }
+    match /materias/{materiaId} {
+      allow read, write: if request.auth != null;
+    }
     
-    // Denegar acceso a cualquier otra colección por defecto
-    match /{document=**} {
-      allow read, write: if false;
+    match /inscripciones/{inscripcionId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /reportes/{reporteId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /publicaciones/{publicacionId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /estadisticasUsuario/{estadisticaId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /notificaciones/{notificationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+    
+    match /notificacionesUsuario/{notifUsuarioId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+    
+    match /archivos/{archivoId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /tiposArchivo/{tipoId} {
+      allow read, write: if request.auth != null;
     }
   }
 }
