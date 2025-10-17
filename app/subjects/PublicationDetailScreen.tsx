@@ -76,10 +76,12 @@ export default function PublicationDetailScreen() {
     if (tipo.includes("imagen")) return "image";
     if (tipo.includes("video")) return "video";
     if (tipo.includes("zip")) return "folder-zip";
+    if (tipo.includes("word") || tipo.includes("doc")) return "file-word";
+    if (tipo.includes("excel") || tipo.includes("xls")) return "file-excel";
+    if (tipo.includes("powerpoint") || tipo.includes("ppt")) return "file-powerpoint";
     return "file-document";
   };
 
-  // Función para abrir la galería - CAMBIO IMPORTANTE
   const abrirGaleria = (archivo: ArchivoPublicacion) => {
     const indice = archivos.findIndex((a) => a.id === archivo.id);
     // @ts-ignore
@@ -99,7 +101,6 @@ export default function PublicationDetailScreen() {
         { 
           text: "Descargar", 
           onPress: () => {
-            // Implementar descarga aquí
             Alert.alert("Info", "La función de descarga estará disponible próximamente");
           }
         }
@@ -227,26 +228,26 @@ export default function PublicationDetailScreen() {
                   />
                   
                   <Card.Content>
-                  <View style={styles.archivoIconContainer}>
-                    <IconButton
-                      icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
-                      size={40}
-                      iconColor={theme.colors.primary}
-                    />
-                  </View>
+                    <View style={styles.archivoIconContainer}>
+                      <IconButton
+                        icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
+                        size={40}
+                        iconColor={theme.colors.primary}
+                      />
+                    </View>
 
-                  <View style={styles.archivoInfo}>
-                    <Text
-                      variant="bodyMedium"
-                      style={styles.archivoNombre}
-                      numberOfLines={2}
-                    >
-                      {archivo.titulo}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.archivoTamano}>
-                      {formatearTamano(archivo.tamanoBytes)}
-                    </Text>
-                  </View>
+                    <View style={styles.archivoInfo}>
+                      <Text
+                        variant="bodyMedium"
+                        style={styles.archivoNombre}
+                        numberOfLines={2}
+                      >
+                        {archivo.titulo}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.archivoTamano}>
+                        {formatearTamano(archivo.tamanoBytes)}
+                      </Text>
+                    </View>
                   </Card.Content>
                 </Card>
               ))}
