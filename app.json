@@ -6,7 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "informatica",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -37,7 +41,10 @@
               "scheme": "informatica"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -60,7 +67,8 @@
         }
       ],
       "expo-dev-client",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

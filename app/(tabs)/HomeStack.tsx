@@ -4,6 +4,7 @@ import SubjectDetailScreen from "../subjects/SubjectDetailScreen";
 import HomeScreen from "./index";
 import CreatePublicationScreen from "../subjects/CreatePublicationScreen";
 import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
+import FileGalleryScreen from "../subjects/FileGalleryScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -29,6 +30,14 @@ export default function HomeStack() {
       <Stack.Screen 
         name="PublicationDetail" 
         component={PublicationDetailScreen} 
+      />
+      <Stack.Screen 
+        name="FileGallery" 
+        component={FileGalleryScreen}
+        options={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
+        }}
       />
     </Stack.Navigator>
   );

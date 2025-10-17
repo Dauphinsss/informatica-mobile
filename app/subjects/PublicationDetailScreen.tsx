@@ -1,7 +1,7 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, View, TouchableOpacity, Alert } from "react-native";
 import {
   Appbar,
   Card,
@@ -14,8 +14,8 @@ import {
 import {
   obtenerPublicacionPorId,
   incrementarVistas,
+  obtenerArchivosConTipo,
 } from "@/scripts/services/Publications";
-import { obtenerArchivosConTipo } from "@/scripts/services/Publications";
 import { Publicacion, ArchivoPublicacion } from "@/scripts/types/Publication.type";
 import { getStyles } from "./PublicationDetailScreen.styles";
 
@@ -48,7 +48,6 @@ export default function PublicationDetailScreen() {
       setPublicacion(pub);
       await incrementarVistas(publicacionId);
       
-      // Cargar archivos
       const archivosData = await obtenerArchivosConTipo(publicacionId);
       setArchivos(archivosData);
     }
@@ -80,13 +79,32 @@ export default function PublicationDetailScreen() {
     return "file-document";
   };
 
-  const obtenerColorPorTipo = (tipoNombre: string): string => {
-    const tipo = tipoNombre.toLowerCase();
-    if (tipo.includes("pdf")) return "#D32F2F";
-    if (tipo.includes("imagen")) return "#1976D2";
-    if (tipo.includes("video")) return "#7B1FA2";
-    if (tipo.includes("zip")) return "#F57C00";
-    return theme.colors.primary;
+  // Función para abrir la galería - CAMBIO IMPORTANTE
+  const abrirGaleria = (archivo: ArchivoPublicacion) => {
+    const indice = archivos.findIndex((a) => a.id === archivo.id);
+    // @ts-ignore
+    navigation.navigate("FileGallery" as never, {
+      archivos,
+      indiceInicial: indice,
+      materiaNombre,
+    } as never);
+  };
+
+  const descargarArchivo = (archivo: ArchivoPublicacion) => {
+    Alert.alert(
+      "Descargar",
+      `¿Descargar ${archivo.titulo}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Descargar", 
+          onPress: () => {
+            // Implementar descarga aquí
+            Alert.alert("Info", "La función de descarga estará disponible próximamente");
+          }
+        }
+      ]
+    );
   };
 
   if (cargando) {
@@ -172,62 +190,57 @@ export default function PublicationDetailScreen() {
           </Card.Content>
         </Card>
 
-        {/* Archivos adjuntos */}
+        {/* Archivos adjuntos - Grid mejorado estilo Classroom */}
         {archivos.length > 0 && (
-          <Card style={styles.archivosCard}>
-            <Card.Content>
-              <Text variant="titleMedium" style={styles.archivosTitle}>
-                Archivos adjuntos ({archivos.length})
-              </Text>
-            </Card.Content>
+          <View style={styles.archivosContainer}>
+            <Text variant="titleMedium" style={styles.archivosTitle}>
+              Archivos adjuntos ({archivos.length})
+            </Text>
 
-            {archivos.map((archivo, index) => (
-              <View key={archivo.id}>
-                {index > 0 && <Divider />}
-                <Card.Content style={styles.archivoItem}>
-                  <View style={styles.archivoContent}>
-                    <View
-                      style={[
-                        styles.archivoIconContainer,
-                        { backgroundColor: obtenerColorPorTipo(archivo.tipoNombre || "") + "20" },
-                      ]}
-                    >
-                      <IconButton
-                        icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
-                        size={28}
-                        iconColor={obtenerColorPorTipo(archivo.tipoNombre || "")}
-                        style={styles.archivoIcon}
-                      />
-                    </View>
-                    <View style={styles.archivoInfo}>
-                      <Text
-                        variant="bodyLarge"
-                        style={styles.archivoNombre}
-                        numberOfLines={2}
-                      >
-                        {archivo.titulo}
-                      </Text>
-                      <View style={styles.archivoMeta}>
-                        <Chip
-                          compact
-                          style={[
-                            styles.tipoChip,
-                            { backgroundColor: obtenerColorPorTipo(archivo.tipoNombre || "") + "20" },
-                          ]}
-                          textStyle={{ color: obtenerColorPorTipo(archivo.tipoNombre || "") }}
-                        >
-                          {archivo.tipoNombre}
-                        </Chip>
-                        <Text variant="bodySmall" style={styles.archivoTamano}>
-                          {formatearTamano(archivo.tamanoBytes)}
-                        </Text>
-                      </View>
-                    </View>
+            <View style={styles.archivosGrid}>
+              {archivos.map((archivo) => (
+                <TouchableOpacity
+                  key={archivo.id}
+                  style={styles.archivoCard}
+                  onPress={() => abrirGaleria(archivo)}
+                  onLongPress={() => descargarArchivo(archivo)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.archivoIconContainer}>
+                    <IconButton
+                      icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
+                      size={40}
+                      iconColor={theme.colors.primary}
+                    />
                   </View>
-                </Card.Content>
-              </View>
-            ))}
-          </Card>
+
+                  <View style={styles.archivoInfo}>
+                    <Text
+                      variant="bodyMedium"
+                      style={styles.archivoNombre}
+                      numberOfLines={2}
+                    >
+                      {archivo.titulo}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.archivoTamano}>
+                      {formatearTamano(archivo.tamanoBytes)}
+                    </Text>
+                  </View>
+
+                  {/* Botón de descarga más visible */}
+                  <IconButton
+                    icon="download"
+                    size={20}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      descargarArchivo(archivo);
+                    }}
+                    style={styles.downloadButton}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         )}
 
         {/* Sección de comentarios (placeholder) */}

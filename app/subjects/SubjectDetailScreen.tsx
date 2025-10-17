@@ -1,6 +1,6 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
-import { Publicacion } from "@/scripts/types/Publication.type";
+import { ArchivoPublicacion, Publicacion } from "@/scripts/types/Publication.type";
 import { NavigationProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { getAuth } from "firebase/auth";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
@@ -22,7 +22,11 @@ export default function SubjectDetailScreen() {
   type RootStackParamList = {
     CreatePublication: { materiaId: string; materiaNombre: string };
     PublicationDetail: { publicacionId: string; materiaNombre: string };
-    // Add other screens if needed
+    FileGallery: {
+    archivos: ArchivoPublicacion[];
+    indiceInicial: number;
+    materiaNombre: string;
+  };
   };
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute();

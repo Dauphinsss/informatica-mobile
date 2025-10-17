@@ -58,6 +58,14 @@ export default function TabLayout() {
             ) {
               return null;
             }
+            if (
+              activeRoute.name === "Home" &&
+              activeRoute.state &&
+              typeof activeRoute.state.index === "number" &&
+              activeRoute.state.index > 0
+            ) {
+              return null;
+            }
           } catch {
             // Si hay un error, mostramos la barra por defecto
           }

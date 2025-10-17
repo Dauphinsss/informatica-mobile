@@ -9,6 +9,7 @@ import "react-native-reanimated";
 import { auth, db } from "../firebase";
 import TabsLayout from "./(tabs)/_layout";
 import LoginScreen from "./login";
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 function AppContent() {
   const { theme, isDark } = useTheme();
@@ -65,9 +66,11 @@ function AppContent() {
 
 export default function RootLayout() {
   return (
+    <SafeAreaProvider>
     <ThemeProvider>
       <ThemedApp />
     </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
