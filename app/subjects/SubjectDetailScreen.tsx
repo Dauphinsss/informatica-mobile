@@ -181,12 +181,22 @@ export default function SubjectDetailScreen() {
 
                 <View style={styles.statsContainer}>
                   {publicacion.vistas > 0 && (
-                    <Chip icon="eye" compact style={styles.statChip}>
+                    <Chip 
+                      icon="eye" 
+                      compact 
+                      style={styles.statChip}
+                      textStyle={styles.statText}
+                    >
                       {publicacion.vistas}
                     </Chip>
                   )}
                   {publicacion.totalComentarios > 0 && (
-                    <Chip icon="comment" compact style={styles.statChip}>
+                    <Chip 
+                      icon="comment" 
+                      compact 
+                      style={styles.statChip}
+                      textStyle={styles.statText}
+                    >
                       {publicacion.totalComentarios}
                     </Chip>
                   )}
@@ -201,7 +211,6 @@ export default function SubjectDetailScreen() {
         icon="plus"
         style={styles.fab}
         onPress={abrirNuevaPublicacion}
-        label="Nueva publicación"
       />
     </View>
   );

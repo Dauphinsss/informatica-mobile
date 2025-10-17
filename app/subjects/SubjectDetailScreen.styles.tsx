@@ -9,11 +9,11 @@ export const getStyles = (theme: MD3Theme) =>
     },
     content: {
       flex: 1,
-      padding: 16,
+      paddingHorizontal: "4%",
+      paddingVertical: 16,
     },
     card: {
       marginBottom: 12,
-      backgroundColor: theme.colors.surface,
       elevation: 1,
     },
     cardHeader: {
@@ -64,7 +64,12 @@ export const getStyles = (theme: MD3Theme) =>
       flexWrap: "wrap",
     },
     statChip: {
-      height: 28,
+      backgroundColor: "transparent",
+      borderWidth: 0,
+      elevation: 0,
+    },
+    statText: {
+      color: theme.colors.onSurfaceVariant,
     },
     emptyContainer: {
       flex: 1,
@@ -86,7 +91,8 @@ export const getStyles = (theme: MD3Theme) =>
     },
     fab: {
       position: "absolute",
-      margin: 16,
+      marginHorizontal: "4%",
+      marginVertical: 16,
       right: 0,
       bottom: 0,
       backgroundColor: theme.colors.primaryContainer,
