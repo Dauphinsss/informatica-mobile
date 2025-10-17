@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions } from "react-native";
+import { Dimensions, StyleSheet } from "react-native";
 import { MD3Theme } from "react-native-paper";
 
 const { width } = Dimensions.get("window");
@@ -17,7 +17,8 @@ export const getStyles = (theme: MD3Theme) =>
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
-      padding: 32,
+      paddingHorizontal: "8%",
+      paddingVertical: 32,
     },
     loadingText: {
       textAlign: "center",
@@ -26,9 +27,9 @@ export const getStyles = (theme: MD3Theme) =>
       color: theme.colors.onBackground,
     },
     headerCard: {
-      margin: 16,
+      marginHorizontal: "4%",
+      marginVertical: 16,
       marginBottom: 12,
-      backgroundColor: theme.colors.surface,
       elevation: 2,
       borderRadius: 12,
     },
@@ -36,7 +37,7 @@ export const getStyles = (theme: MD3Theme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      marginBottom: 16,
+      marginBottom: 4,
     },
     avatar: {
       width: 48,
@@ -69,12 +70,10 @@ export const getStyles = (theme: MD3Theme) =>
     titulo: {
       fontWeight: "bold",
       marginBottom: 12,
-      color: theme.colors.onSurface,
     },
     descripcion: {
       lineHeight: 24,
       marginBottom: 16,
-      color: theme.colors.onSurface,
     },
     statsContainer: {
       flexDirection: "row",
@@ -82,77 +81,68 @@ export const getStyles = (theme: MD3Theme) =>
       flexWrap: "wrap",
     },
     statChip: {
-      height: 28,
+      backgroundColor: "transparent",
+      borderWidth: 0,
+      elevation: 0,
     },
-    
-    // Estilos mejorados para archivos - estilo Classroom
+    statText: {
+      color: theme.colors.onSurfaceVariant,
+    },
     archivosContainer: {
-      marginHorizontal: 16,
+      marginHorizontal: "4%",
       marginBottom: 12,
     },
     archivosTitle: {
       fontWeight: "bold",
       marginBottom: 12,
-      color: theme.colors.onBackground,
     },
     archivosGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 12,
+      justifyContent: "flex-start",
     },
     archivoCard: {
       width: cardWidth,
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
+      minWidth: 140,
+      maxWidth: "48%",
       padding: 12,
       elevation: 2,
       position: "relative",
-      // Sombra más pronunciada estilo Classroom
-      shadowColor: "#000",
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
+      overflow: "visible",
     },
     archivoIconContainer: {
       alignItems: "center",
       paddingVertical: 16,
-      backgroundColor: theme.colors.surfaceVariant,
-      borderRadius: 8,
-      marginBottom: 8,
     },
     archivoInfo: {
       alignItems: "center",
       marginTop: 8,
-      paddingHorizontal: 4,
+      paddingHorizontal: "5%",
     },
     archivoNombre: {
       fontWeight: "500",
-      color: theme.colors.onSurface,
       textAlign: "center",
       marginBottom: 4,
     },
     archivoTamano: {
       opacity: 0.7,
-      color: theme.colors.onSurface,
       fontSize: 12,
       textAlign: "center",
     },
     downloadButton: {
       position: "absolute",
-      top: 4,
-      right: 4,
+      top: 0,
+      right: 0,
       margin: 0,
-      backgroundColor: theme.colors.surfaceVariant,
+      zIndex: 10,
     },
     
     // Comentarios
     comentariosCard: {
-      margin: 16,
+      marginHorizontal: "4%",
+      marginVertical: 16,
       marginTop: 12,
-      backgroundColor: theme.colors.surface,
       elevation: 1,
       borderRadius: 12,
     },

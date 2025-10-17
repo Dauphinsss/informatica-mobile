@@ -1,22 +1,22 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
-import { ScrollView, View, TouchableOpacity, Alert } from "react-native";
 import {
-  Appbar,
-  Card,
-  Text,
-  ActivityIndicator,
-  Chip,
-  IconButton,
-  Divider,
-} from "react-native-paper";
-import {
-  obtenerPublicacionPorId,
   incrementarVistas,
   obtenerArchivosConTipo,
+  obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
-import { Publicacion, ArchivoPublicacion } from "@/scripts/types/Publication.type";
+import { ArchivoPublicacion, Publicacion } from "@/scripts/types/Publication.type";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
+import { Alert, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Appbar,
+  Card,
+  Chip,
+  Divider,
+  IconButton,
+  Text,
+} from "react-native-paper";
 import { getStyles } from "./PublicationDetailScreen.styles";
 
 export default function PublicationDetailScreen() {
@@ -178,11 +178,21 @@ export default function PublicationDetailScreen() {
             </Text>
 
             <View style={styles.statsContainer}>
-              <Chip icon="eye" compact style={styles.statChip}>
-                {publicacion.vistas} vistas
+              <Chip 
+                icon="eye" 
+                compact 
+                style={styles.statChip}
+                textStyle={styles.statText}
+              >
+                {publicacion.vistas}
               </Chip>
               {publicacion.totalComentarios > 0 && (
-                <Chip icon="comment" compact style={styles.statChip}>
+                <Chip 
+                  icon="comment" 
+                  compact 
+                  style={styles.statChip}
+                  textStyle={styles.statText}
+                >
                   {publicacion.totalComentarios}
                 </Chip>
               )}
@@ -190,7 +200,7 @@ export default function PublicationDetailScreen() {
           </Card.Content>
         </Card>
 
-        {/* Archivos adjuntos - Grid mejorado estilo Classroom */}
+        {/* Archivos adjuntos */}
         {archivos.length > 0 && (
           <View style={styles.archivosContainer}>
             <Text variant="titleMedium" style={styles.archivosTitle}>
@@ -199,13 +209,24 @@ export default function PublicationDetailScreen() {
 
             <View style={styles.archivosGrid}>
               {archivos.map((archivo) => (
-                <TouchableOpacity
+                <Card
                   key={archivo.id}
                   style={styles.archivoCard}
                   onPress={() => abrirGaleria(archivo)}
                   onLongPress={() => descargarArchivo(archivo)}
-                  activeOpacity={0.7}
                 >
+                  {/* Botón de descarga */}
+                  <IconButton
+                    icon="download"
+                    size={18}
+                    onPress={(e) => {
+                      descargarArchivo(archivo);
+                    }}
+                    style={styles.downloadButton}
+                    iconColor={theme.colors.onSurfaceVariant}
+                  />
+                  
+                  <Card.Content>
                   <View style={styles.archivoIconContainer}>
                     <IconButton
                       icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
@@ -226,18 +247,8 @@ export default function PublicationDetailScreen() {
                       {formatearTamano(archivo.tamanoBytes)}
                     </Text>
                   </View>
-
-                  {/* Botón de descarga más visible */}
-                  <IconButton
-                    icon="download"
-                    size={20}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      descargarArchivo(archivo);
-                    }}
-                    style={styles.downloadButton}
-                  />
-                </TouchableOpacity>
+                  </Card.Content>
+                </Card>
               ))}
             </View>
           </View>

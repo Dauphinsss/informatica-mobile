@@ -1,28 +1,28 @@
 import { useTheme } from "@/contexts/ThemeContext";
+import {
+  eliminarArchivo,
+  obtenerTiposArchivo,
+  seleccionarArchivo,
+  subirArchivo,
+} from "@/scripts/services/Files";
+import { crearPublicacion } from "@/scripts/services/Publications";
+import { TipoArchivo } from "@/scripts/types/Files.type";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useState, useEffect } from "react";
-import { ScrollView, View, Alert } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
+import { getAuth } from "firebase/auth";
+import React, { useEffect, useState } from "react";
+import { Alert, ScrollView, View } from "react-native";
 import {
   Appbar,
-  TextInput,
   Button,
   Card,
-  Text,
+  Chip,
   IconButton,
   ProgressBar,
-  Chip,
+  Text,
+  TextInput,
 } from "react-native-paper";
-import { getAuth } from "firebase/auth";
-import { crearPublicacion } from "@/scripts/services/Publications";
-import {
-  subirArchivo,
-  seleccionarArchivo,
-  obtenerTiposArchivo,
-  eliminarArchivo,
-} from "@/scripts/services/Files";
 import { getStyles } from "./CreatePublicationScreen.styles";
-import { TipoArchivo } from "@/scripts/types/Files.type";
-import * as DocumentPicker from "expo-document-picker";
 
 interface ArchivoTemp {
   id?: string; // Si ya está subido
@@ -299,28 +299,28 @@ export default function CreatePublicationScreen() {
             <Text variant="labelMedium" style={styles.label}>
               Materia: {materiaNombre}
             </Text>
+
+            <TextInput
+              label="Título *"
+              value={titulo}
+              onChangeText={setTitulo}
+              mode="outlined"
+              style={styles.input}
+              disabled={publicando}
+            />
+
+            <TextInput
+              label="Descripción *"
+              value={descripcion}
+              onChangeText={setDescripcion}
+              mode="outlined"
+              multiline
+              numberOfLines={6}
+              style={styles.input}
+              disabled={publicando}
+            />
           </Card.Content>
         </Card>
-
-        <TextInput
-          label="Título *"
-          value={titulo}
-          onChangeText={setTitulo}
-          mode="outlined"
-          style={styles.input}
-          disabled={publicando}
-        />
-
-        <TextInput
-          label="Descripción *"
-          value={descripcion}
-          onChangeText={setDescripcion}
-          mode="outlined"
-          multiline
-          numberOfLines={6}
-          style={styles.input}
-          disabled={publicando}
-        />
 
         <Card style={styles.card}>
           <Card.Content>
@@ -359,12 +359,16 @@ export default function CreatePublicationScreen() {
                           <Text
                             variant="bodyMedium"
                             style={styles.archivoNombre}
-                            numberOfLines={1}
+                            numberOfLines={2}
                           >
                             {archivo.asset.name}
                           </Text>
                           <View style={styles.archivoMeta}>
-                            <Chip compact style={styles.tipoChip}>
+                            <Chip 
+                              compact 
+                              style={styles.tipoChip}
+                              textStyle={{ fontSize: 12 }}
+                            >
                               {tipo?.nombre || "Archivo"}
                             </Chip>
                             <Text variant="bodySmall" style={styles.archivoTamano}>
@@ -378,6 +382,7 @@ export default function CreatePublicationScreen() {
                         size={20}
                         onPress={() => eliminarArchivoLocal(index)}
                         disabled={archivo.subiendo}
+                        style={{ margin: 0 }}
                       />
                     </Card.Content>
                     

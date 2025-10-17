@@ -9,18 +9,18 @@ export const getStyles = (theme: MD3Theme) =>
     },
     content: {
       flex: 1,
-      padding: 16,
+      paddingHorizontal: "4%",
+      paddingVertical: 16,
     },
     card: {
       marginBottom: 16,
-      backgroundColor: theme.colors.surface,
     },
     label: {
       opacity: 0.7,
       color: theme.colors.onSurface,
     },
     input: {
-      marginBottom: 16,
+      marginTop: 16,
       backgroundColor: theme.colors.surface,
     },
     archivosHeader: {
@@ -46,34 +46,42 @@ export const getStyles = (theme: MD3Theme) =>
     },
     archivoContent: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
       paddingVertical: 8,
+      gap: 8,
     },
     archivoInfo: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       flex: 1,
       gap: 8,
+      minWidth: 0,
     },
     archivoIcon: {
       margin: 0,
+      flexShrink: 0,
     },
     archivoTexto: {
       flex: 1,
+      minWidth: 0,
+      paddingRight: 4,
     },
     archivoNombre: {
       fontWeight: "500",
       color: theme.colors.onSurface,
-      marginBottom: 4,
+      marginBottom: 8,
+      flexWrap: "wrap",
     },
     archivoMeta: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
+      flexWrap: "wrap",
     },
     tipoChip: {
-      height: 24,
+      alignSelf: "flex-start",
+      flexShrink: 0,
     },
     archivoTamano: {
       opacity: 0.7,

@@ -8,12 +8,14 @@ export const getStyles = (theme: MD3Theme) => StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: "4%",
+    paddingVertical: 16,
   },  
   filterContainer: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
-    padding: 16,
+    paddingHorizontal: "4%",
+    paddingVertical: 16,
     paddingBottom: 8,
     gap: 8,
     backgroundColor: theme.colors.background,
@@ -24,7 +26,6 @@ export const getStyles = (theme: MD3Theme) => StyleSheet.create({
   },
   card: {
     marginBottom: 12,
-    backgroundColor: theme.colors.surface,
   },
   cardTitle: {
     fontWeight: 'bold',
@@ -72,8 +73,10 @@ export const getStyles = (theme: MD3Theme) => StyleSheet.create({
   },
   modalContent: {
     backgroundColor: theme.colors.surface,
-    padding: 20,
-    margin: 20,
+    paddingHorizontal: "5%",
+    paddingVertical: 20,
+    marginHorizontal: "5%",
+    marginVertical: 20,
     borderRadius: 12,
     maxHeight: '90%',
   },
@@ -118,7 +121,6 @@ export const getStyles = (theme: MD3Theme) => StyleSheet.create({
   masReportadores: {
     textAlign: 'center',
     opacity: 0.7,
-    color: theme.colors.onSurface,
   },
   accionesContainer: {
     marginTop: 16,
