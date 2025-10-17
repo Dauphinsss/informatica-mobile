@@ -1,6 +1,8 @@
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Divider, Menu, Modal, Text, TextInput, useTheme } from 'react-native-paper';
+import { storage } from '../../../firebase';
 import ImageUploader from './ImageUploader';
 
 interface CreateSubjectModalProps {
@@ -9,8 +11,8 @@ interface CreateSubjectModalProps {
   formData: {
     nombre: string;
     descripcion: string;
-    semestre: string;
-    imagen?: string;
+    semestre: string; // almacenamos "10" para Electiva
+    imagenUrl?: string; // puede ser URL remota (http...) o uri local (staging)
   };
   setFormData: (data: any) => void;
   errors: {
@@ -18,8 +20,8 @@ interface CreateSubjectModalProps {
     descripcion: string;
     semestre: string;
   };
-  loading: boolean;
-  onSave: () => void;
+  loading: boolean; // loading general (por ejemplo durante guardado de la entidad)
+  onSave: (finalData?: any) => void | Promise<void>;
   isSaveDisabled: boolean;
 }
 
@@ -37,21 +39,86 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 }) => {
   const theme = useTheme();
   const [menuVisible, setMenuVisible] = React.useState(false);
+  const [uploadingImage, setUploadingImage] = React.useState(false);
 
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
 
   const selectSemestre = (semestre: string) => {
-    setFormData({ ...formData, semestre: semestre.toString() });
+    if (semestre === 'Electiva') {
+      setFormData({ ...formData, semestre: '10' });
+    } else {
+      setFormData({ ...formData, semestre: semestre.toString() });
+    }
     closeMenu();
   };
 
-  const handleImageUploaded = (url: string) => {
-    setFormData({ ...formData, imagenUrl: url });
+  const handleImageSelected = (localUri: string) => {
+    setFormData({ ...formData, imagenUrl: localUri });
   };
+
+  const handleImageRemoved = () => {
+    setFormData({ ...formData, imagenUrl: undefined });
+  };
+
   const getSemestreText = (semestre: string) => {
-    return semestre === 'Electiva' ? 'Electiva' : `Semestre ${semestre}`;
+    return semestre === '10' ? 'Electiva' : `Semestre ${semestre}`;
   };
+
+  // Normaliza una opción del array a su valor interno (string)
+  const optionValue = (opt: number | string) => {
+    if (opt === 'Electiva') return '10';
+    return String(opt);
+  };
+
+  const handleSave = async () => {
+    if (uploadingImage) return;
+
+    let finalData = { ...formData };
+
+    try {
+      const img = formData.imagenUrl;
+
+      if (img && !(img.startsWith('http://') || img.startsWith('https://'))) {
+        setUploadingImage(true);
+        try {
+          const response = await fetch(img);
+          const blob = await response.blob();
+          const timestamp = Date.now();
+          const randomStr = Math.random().toString(36).substring(7);
+          const filename = `materias/${timestamp}-${randomStr}.jpg`;
+          const storageRef = ref(storage, filename);
+          await uploadBytes(storageRef, blob);
+          const downloadUrl = await getDownloadURL(storageRef);
+          finalData = { ...formData, imagenUrl: downloadUrl };
+          setFormData(finalData);
+        } catch (uploadError) {
+          console.error('Error subiendo imagen desde modal:', uploadError);
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+
+      try {
+        const maybePromise = onSave(finalData);
+        if (maybePromise && typeof (maybePromise as any).then === 'function') {
+          await maybePromise;
+        }
+      } catch (callErr) {
+        console.error('onSave threw an error:', callErr);
+      }
+    } catch (error) {
+      console.error('Error en handleSave:', error);
+      try {
+        onSave(finalData);
+      } catch (e) {
+        console.error('onSave fallback error:', e);
+      }
+    }
+  };
+
+  // Valor seleccionado actual normalizado (string)
+  const selectedValue = formData?.semestre ? String(formData.semestre) : '';
 
   return (
     <Modal
@@ -64,21 +131,13 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           Nueva Materia
         </Text>
 
-        {/* Componente ImageUploader */}
-        <View style={styles.imageUploaderContainer}>
-          <Text variant="bodyMedium" style={styles.uploaderLabel}>
-            Imagen de la materia
-          </Text>
-          <Text variant="bodySmall" style={styles.demoText}>
-            MODO DEMO
-          </Text>
-          <ImageUploader
-            currentImageUrl={formData.imagen}
-            onImageUploaded={handleImageUploaded}
-            demoMode={true}
-          />
-        </View>
-        
+        <ImageUploader
+          currentImageUrl={formData.imagenUrl}
+          onImageSelected={handleImageSelected}
+          onImageRemoved={handleImageRemoved}
+          uploading={uploadingImage}
+        />
+
         <TextInput
           label="Nombre de la materia *"
           value={formData.nombre}
@@ -89,7 +148,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           mode="outlined"
         />
         {errors.nombre ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.nombre}</Text> : null}
-        
+
         <TextInput
           label="Descripción breve *"
           value={formData.descripcion}
@@ -101,36 +160,43 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
           mode="outlined"
         />
         {errors.descripcion ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.descripcion}</Text> : null}
-        
-        {/* Selector de Semestre */}
+
         <View style={styles.semestreContainer}>
           <Text variant="labelLarge" style={styles.semestreLabel}>
             Semestre *
           </Text>
+
+          {/* Menu: key fuerza remount cuando cambia el selection (fix de apertura única). */}
           <Menu
+            key={String(formData.semestre ?? '')}
             visible={menuVisible}
             onDismiss={closeMenu}
             anchor={
-              <Button 
-                mode="outlined" 
-                onPress={openMenu} 
-                style={styles.semestreButton}
-                icon="chevron-down"
-                contentStyle={styles.semestreButtonContent}
-              >
-                {formData.semestre ? getSemestreText(formData.semestre) : 'Seleccionar semestre'}
-              </Button>
+              <View style={{ width: '100%' }}>
+                <Button
+                  mode="outlined"
+                  onPress={openMenu}
+                  style={styles.semestreButton}
+                  icon="chevron-down"
+                  contentStyle={styles.semestreButtonContent}
+                >
+                  {formData.semestre ? getSemestreText(formData.semestre) : 'Seleccionar semestre'}
+                </Button>
+              </View>
             }
+            style={{ zIndex: 9999 }}
           >
-            {semestres.map((semestre, index) => (
-              <React.Fragment key={semestre}>
-                <Menu.Item
-                  onPress={() => selectSemestre(semestre.toString())}
-                  title={getSemestreText(semestre.toString())}
-                />
-                {index < semestres.length - 1 && <Divider />}
-              </React.Fragment>
-            ))}
+            {semestres
+              .filter((sem) => optionValue(sem) !== selectedValue) // <-- filtro: no mostrar la opción ya seleccionada
+              .map((semestre, index) => (
+                <React.Fragment key={`${semestre}-${index}`}>
+                  <Menu.Item
+                    onPress={() => selectSemestre(semestre.toString())}
+                    title={semestre === 'Electiva' ? 'Electiva' : `Semestre ${semestre}`}
+                  />
+                  {index < semestres.length - 1 && <Divider />}
+                </React.Fragment>
+              ))}
           </Menu>
         </View>
         {errors.semestre ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.semestre}</Text> : null}
@@ -140,16 +206,16 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
             mode="outlined"
             onPress={onDismiss}
             style={styles.button}
-            disabled={loading}
+            disabled={loading || uploadingImage}
           >
             Cancelar
           </Button>
           <Button
             mode="contained"
-            onPress={onSave}
+            onPress={handleSave}
             style={styles.button}
-            disabled={isSaveDisabled}
-            loading={loading}
+            disabled={isSaveDisabled || loading || uploadingImage}
+            loading={loading || uploadingImage}
           >
             Guardar
           </Button>
@@ -160,62 +226,17 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 };
 
 const styles = {
-  modal: {
-    maxHeight: '80%',
-    margin: 20,
-    borderRadius: 8,
-  },
-  scrollContent: {
-    padding: 24,
-  },
-  modalTitle: {
-    marginBottom: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  imageUploaderContainer: {
-    marginBottom: 16,
-  },
-  uploaderLabel: {
-    marginBottom: 4,
-    fontWeight: '600',
-  },
-  demoText: {
-    fontStyle: 'italic',
-    marginBottom: 8,
-    opacity: 0.6,
-  },
-  input: {
-    marginBottom: 4,
-  },
-  errorText: {
-    fontSize: 12,
-    marginBottom: 12,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  semestreContainer: {
-    marginBottom: 16,
-  },
-  semestreLabel: {
-    marginBottom: 8,
-  },
-  semestreButton: {
-    width: '100%',
-  },
-  semestreButtonContent: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 16,
-  },
-  button: {
-    minWidth: 100,
-  },
+  modal: { maxHeight: '90%', margin: 20, borderRadius: 8 },
+  scrollContent: { padding: 24 },
+  modalTitle: { marginBottom: 20, fontWeight: 'bold', textAlign: 'center' },
+  input: { marginBottom: 4 },
+  errorText: { fontSize: 12, marginBottom: 12, marginLeft: 4, fontWeight: '500' },
+  semestreContainer: { marginBottom: 16 },
+  semestreLabel: { marginBottom: 8 },
+  semestreButton: { width: '100%' },
+  semestreButtonContent: { flexDirection: 'row-reverse', justifyContent: 'space-between' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
+  button: { minWidth: 100 },
 } as const;
 
 export default CreateSubjectModal;

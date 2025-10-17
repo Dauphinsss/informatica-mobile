@@ -1,4 +1,3 @@
-// app/admin/components/SubjectCard.tsx
 import React from 'react';
 import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Card, Chip, Text, useTheme } from 'react-native-paper';
@@ -23,15 +22,24 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
     onEdit(subject);
   };
 
-  const getSemestreText = (semestre: number | 'Electiva') => {
-    return typeof semestre === 'number' ? `Semestre ${semestre}` : semestre;
+  // ahora robusto: acepta number, '10', 10, 'Electiva' o cualquier string
+  const getSemestreText = (semestre: any) => {
+    // normalizar
+    if (semestre === 10 || semestre === '10' || String(semestre).toLowerCase() === 'electiva') {
+      return 'Electiva';
+    }
+    const n = Number(semestre);
+    if (!Number.isNaN(n) && n > 0) {
+      return `Semestre ${n}`;
+    }
+    // fallback: mostrar tal cual si es texto o vacío
+    return String(semestre || '');
   };
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
       <Card style={styles.subjectCard} mode='elevated'>
         <Card.Content style={styles.cardContent}>
-          {/* ✅ VALIDACIÓN AÑADIDA AQUÍ */}
           {subject?.imagenUrl && (
             <View style={styles.imageContainer}>
               <Image source={{ uri: subject.imagenUrl }} style={styles.image} />
@@ -77,7 +85,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
           
           <View style={styles.cardFooter}>
             <Text variant="labelSmall" style={styles.createdDate}>
-              Creada: {subject.createdAt.toLocaleDateString()}
+              Creada: {subject.createdAt instanceof Date ? subject.createdAt.toLocaleDateString() : String(subject.createdAt)}
             </Text>
           </View>
         </Card.Content>

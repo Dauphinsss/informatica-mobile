@@ -1,3 +1,4 @@
+// (reemplaza tu ManageSubjectsScreen actual con este contenido)
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import {
@@ -7,6 +8,7 @@ import {
   getDocs,
   updateDoc,
 } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage"; // <-- funciones storage
 import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
@@ -19,15 +21,15 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
-import { auth, db } from "../../firebase";
+import { auth, db, storage } from "../../firebase"; // <-- agregué storage
 
 // Components
 import CreateSubjectModal from "./components/CreateSubjectModal";
-import EditSubjectModal from "./components/EditSubjectModal"; // ✅ Agregar import
+import EditSubjectModal from "./components/EditSubjectModal";
 import SubjectCard from "./components/SubjectCard";
 
 // Utils and Types
-import { AdminStackParamList, SemestreOption, Subject } from "./types"; // ✅ Agregar SemestreOption
+import { AdminStackParamList, SemestreOption, Subject } from "./types";
 import {
   normalizeText,
   validateSubjectFields,
@@ -45,10 +47,10 @@ export default function ManageSubjectsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false); // ✅ Nuevo estado para modal de edición
-  const [editingSubject, setEditingSubject] = useState<Subject | null>(null); // ✅ Materia en edición
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [loading, setLoading] = useState(false);
-  const [updateLoading, setUpdateLoading] = useState(false); // ✅ Loading para actualización
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [updatingSubjectId, setUpdatingSubjectId] = useState<string | null>(
     null
@@ -64,6 +66,7 @@ export default function ManageSubjectsScreen() {
     nombre: "",
     descripcion: "",
     semestre: "" as string,
+    imagenUrl: undefined as string | undefined,
   });
   const [errors, setErrors] = useState({
     nombre: "",
@@ -71,18 +74,36 @@ export default function ManageSubjectsScreen() {
     semestre: "",
   });
 
-  // ✅ Estado del formulario de EDICIÓN
+  // Estado del formulario de EDICIÓN
   const [editFormData, setEditFormData] = useState({
     nombre: "",
     descripcion: "",
     semestre: 1 as SemestreOption,
-    imagenUrl: "",
+    imagenUrl: "" as string | undefined,
   });
   const [editErrors, setEditErrors] = useState({
     nombre: "",
     descripcion: "",
     semestre: "",
   });
+
+  // Util: subir imagen local a storage y devolver downloadURL
+  const uploadLocalImageAndGetUrl = async (localUri: string) => {
+    try {
+      const response = await fetch(localUri);
+      const blob = await response.blob();
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(7);
+      const filename = `materias/${timestamp}-${randomStr}.jpg`;
+      const storageRef = ref(storage, filename);
+      await uploadBytes(storageRef, blob);
+      const downloadUrl = await getDownloadURL(storageRef);
+      return downloadUrl;
+    } catch (err) {
+      console.error("Error subiendo imagen (parent):", err);
+      throw err;
+    }
+  };
 
   // Función para obtener materias de Firebase
   const fetchSubjects = useCallback(async () => {
@@ -92,18 +113,18 @@ export default function ManageSubjectsScreen() {
       const subjectSnapshot = await getDocs(subjectsCollection);
       const subjectsList = subjectSnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        ...(doc.data() as any),
+        createdAt: (doc.data() as any).createdAt?.toDate
+          ? (doc.data() as any).createdAt.toDate()
+          : (doc.data() as any).createdAt || new Date(),
       })) as Subject[];
 
-      // ✅ ORDENAR POR SEMESTRE (ascendente) y luego por nombre
+      // Ordenar por semestre (numérico) y luego por nombre
       subjectsList.sort((a, b) => {
-        // Primero por semestre (de menor a mayor)
-        if (a.semestre !== b.semestre) {
-          return a.semestre - b.semestre;
-        }
-        // Si tienen el mismo semestre, ordenar alfabéticamente por nombre
-        return a.nombre.localeCompare(b.nombre);
+        const sa = Number(a.semestre ?? 0);
+        const sb = Number(b.semestre ?? 0);
+        if (!Number.isNaN(sa) && !Number.isNaN(sb) && sa !== sb) return sa - sb;
+        return (a.nombre || "").localeCompare(b.nombre || "");
       });
 
       setSubjects(subjectsList);
@@ -115,8 +136,11 @@ export default function ManageSubjectsScreen() {
     }
   }, []);
 
-  // Verificar si existe materia con mismo nombre (sin importar semestre)
-  const checkDuplicateSubject = async (nombre: string, excludeId?: string): Promise<boolean> => {
+  // Verificar duplicados (excluir id opcional)
+  const checkDuplicateSubject = async (
+    nombre: string,
+    excludeId?: string
+  ): Promise<boolean> => {
     try {
       const subjectsCollection = collection(db, "materias");
       const querySnapshot = await getDocs(subjectsCollection);
@@ -124,10 +148,9 @@ export default function ManageSubjectsScreen() {
       const normalizedNewNombre = normalizeText(nombre);
 
       const exists = querySnapshot.docs.some((doc) => {
+        if (excludeId && doc.id === excludeId) return false;
         const subjectData = doc.data();
         const existingNombre = subjectData.nombre || "";
-        // ✅ Excluir la materia actual cuando estamos editando
-        if (excludeId && doc.id === excludeId) return false;
         return normalizeText(existingNombre) === normalizedNewNombre;
       });
 
@@ -138,10 +161,12 @@ export default function ManageSubjectsScreen() {
     }
   };
 
-  // Función para crear nueva materia
-  const handleCreateSubject = async () => {
-    const { isValid, errors: validationErrors } =
-      validateSubjectFields(formData);
+  // Crear nueva materia
+  // ahora acepta optional finalData (para cuando el modal le pase el objeto final)
+  const handleCreateSubject = async (finalData?: any) => {
+    const data = finalData ?? formData;
+
+    const { isValid, errors: validationErrors } = validateSubjectFields(data);
     if (!isValid) {
       setErrors(validationErrors);
       return;
@@ -150,8 +175,7 @@ export default function ManageSubjectsScreen() {
     setLoading(true);
 
     try {
-      const semestre = parseInt(formData.semestre);
-      const nombreNormalizado = formData.nombre.trim();
+      const nombreNormalizado = (data.nombre || "").trim();
 
       const exists = await checkDuplicateSubject(nombreNormalizado);
       if (exists) {
@@ -163,33 +187,57 @@ export default function ManageSubjectsScreen() {
         return;
       }
 
+      // Si tiene imagen local (no empieza por http), subir aquí y reemplazar
+      let imagenUrlToSave = data.imagenUrl;
+      if (imagenUrlToSave && !imagenUrlToSave.startsWith("http")) {
+        try {
+          imagenUrlToSave = await uploadLocalImageAndGetUrl(imagenUrlToSave);
+        } catch (err) {
+          console.error("Error subiendo imagen antes de crear subject:", err);
+          // opcional: mostrar alerta, pero seguimos intentando guardar sin imagen
+          imagenUrlToSave = undefined;
+        }
+      }
+
+      const semestreNum =
+        typeof data.semestre === "string"
+          ? parseInt(data.semestre) || 0
+          : Number(data.semestre || 0);
+
       const newSubject = {
         nombre: nombreNormalizado,
-        descripcion: formData.descripcion.trim(),
-        semestre: semestre,
+        descripcion: (data.descripcion || "").trim(),
+        semestre: semestreNum,
         estado: "active",
         createdAt: new Date(),
         createdBy: auth.currentUser?.uid,
+        imagenUrl: imagenUrlToSave,
       };
 
       const docRef = await addDoc(collection(db, "materias"), newSubject);
 
-      // 🔔 Enviar notificación push a todos los usuarios
+      // Notificación (opcional)
       try {
-        const { notificarCreacionMateria } = await import('@/services/notifications');
-        
+        const { notificarCreacionMateria } = await import(
+          "@/services/notifications"
+        );
         await notificarCreacionMateria(
           docRef.id,
           nombreNormalizado,
-          formData.descripcion.trim()
+          (data.descripcion || "").trim()
         );
       } catch (error) {
-        console.error('❌ Error al enviar notificación:', error);
+        console.error("❌ Error al enviar notificación:", error);
       }
 
       showSnackbar("Materia creada satisfactoriamente", "success");
 
-      setFormData({ nombre: "", descripcion: "", semestre: "" });
+      setFormData({
+        nombre: "",
+        descripcion: "",
+        semestre: "",
+        imagenUrl: undefined,
+      });
       setModalVisible(false);
       setErrors({ nombre: "", descripcion: "", semestre: "" });
 
@@ -202,12 +250,12 @@ export default function ManageSubjectsScreen() {
     }
   };
 
-  // ✅ Función para editar materia
+  // Editar materia (subir imagen local si existe)
   const handleEditSubject = async () => {
     if (!editingSubject) return;
 
-    // Validar campos de edición
-    const { isValid, errors: validationErrors } = validateEditFields(editFormData);
+    const { isValid, errors: validationErrors } =
+      validateEditFields(editFormData);
     if (!isValid) {
       setEditErrors(validationErrors);
       return;
@@ -218,8 +266,10 @@ export default function ManageSubjectsScreen() {
     try {
       const nombreNormalizado = editFormData.nombre.trim();
 
-      // Verificar duplicados excluyendo la materia actual
-      const exists = await checkDuplicateSubject(nombreNormalizado, editingSubject.id);
+      const exists = await checkDuplicateSubject(
+        nombreNormalizado,
+        editingSubject.id
+      );
       if (exists) {
         setEditErrors((prev) => ({
           ...prev,
@@ -229,73 +279,88 @@ export default function ManageSubjectsScreen() {
         return;
       }
 
+      // Si imagen local, subirla
+      let imagenUrlToSave = editFormData.imagenUrl;
+      if (imagenUrlToSave && !imagenUrlToSave.startsWith("http")) {
+        try {
+          imagenUrlToSave = await uploadLocalImageAndGetUrl(imagenUrlToSave);
+        } catch (err) {
+          console.error("Error subiendo imagen en editar:", err);
+          imagenUrlToSave = undefined;
+        }
+      }
+
       const subjectRef = doc(db, "materias", editingSubject.id);
       await updateDoc(subjectRef, {
         nombre: nombreNormalizado,
         descripcion: editFormData.descripcion.trim(),
         semestre: editFormData.semestre,
-        imagenUrl: editFormData.imagenUrl,
+        imagenUrl: imagenUrlToSave,
         updatedAt: new Date(),
       });
 
       showSnackbar("Materia actualizada satisfactoriamente", "success");
       setEditModalVisible(false);
       fetchSubjects();
-
     } catch (error) {
       console.error("Error updating subject:", error);
-      showSnackbar("No se pudo actualizar la materia, intente nuevamente", "error");
+      showSnackbar(
+        "No se pudo actualizar la materia, intente nuevamente",
+        "error"
+      );
     } finally {
       setUpdateLoading(false);
     }
   };
 
-  // ✅ Función para abrir modal de edición
+  // Abrir modal de edición
   const handleOpenEditModal = (subject: Subject) => {
     setEditingSubject(subject);
     setEditFormData({
       nombre: subject.nombre,
       descripcion: subject.descripcion,
-      semestre: subject.semestre,
+      semestre: subject.semestre as SemestreOption,
       imagenUrl: subject.imagenUrl || "",
     });
     setEditErrors({ nombre: "", descripcion: "", semestre: "" });
     setEditModalVisible(true);
   };
 
-  // ✅ Validación para edición
-  const validateEditFields = (formData: { nombre: string; descripcion: string; semestre: SemestreOption }) => {
+  // Validación edición
+  const validateEditFields = (formData: {
+    nombre: string;
+    descripcion: string;
+    semestre: SemestreOption;
+  }) => {
     const errors = {
       nombre: "",
       descripcion: "",
-      semestre: ""
+      semestre: "",
     };
 
     const nombreRegex = /^[a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑüÜ,.;:()\-]+$/;
     if (!formData.nombre.trim()) {
-      errors.nombre = 'El nombre es obligatorio';
+      errors.nombre = "El nombre es obligatorio";
     } else if (formData.nombre.length > 30) {
-      errors.nombre = 'El nombre no puede tener más de 30 caracteres';
+      errors.nombre = "El nombre no puede tener más de 30 caracteres";
     } else if (!nombreRegex.test(formData.nombre)) {
-      errors.nombre = 'El nombre contiene caracteres no válidos';
+      errors.nombre = "El nombre contiene caracteres no válidos";
     }
 
     if (!formData.descripcion.trim()) {
-      errors.descripcion = 'La descripción es obligatoria';
+      errors.descripcion = "La descripción es obligatoria";
     }
 
-    const isValid = !Object.values(errors).some(error => error !== '');
+    const isValid = !Object.values(errors).some((error) => error !== "");
     return { isValid, errors };
   };
 
-  // Función para mostrar snackbar
   const showSnackbar = (message: string, type: "success" | "error") => {
     setSnackbarMessage(message);
     setSnackbarType(type);
     setSnackbarVisible(true);
   };
 
-  // Función optimizada para cambiar estado de la materia
   const toggleSubjectStatus = async (
     subjectId: string,
     currentStatus: "active" | "inactive"
@@ -325,7 +390,6 @@ export default function ManageSubjectsScreen() {
     }
   };
 
-  // Filtrar materias según búsqueda
   const filteredSubjects = subjects.filter((subject) => {
     const nombre = subject.nombre || "";
     const descripcion = subject.descripcion || "";
@@ -338,19 +402,16 @@ export default function ManageSubjectsScreen() {
     );
   });
 
-  // Cargar materias al montar el componente
   useEffect(() => {
     fetchSubjects();
   }, [fetchSubjects]);
 
-  // Verificar si el botón debe estar deshabilitado
   const isSaveDisabled =
     !formData.nombre.trim() ||
     !formData.descripcion.trim() ||
     !formData.semestre ||
     loading;
 
-  // ✅ Verificar si el botón de edición debe estar deshabilitado
   const isEditSaveDisabled =
     !editFormData.nombre.trim() ||
     !editFormData.descripcion.trim() ||
@@ -388,7 +449,7 @@ export default function ManageSubjectsScreen() {
                 key={subject.id}
                 subject={subject}
                 onToggleStatus={toggleSubjectStatus}
-                onEdit={handleOpenEditModal} // ✅ Pasar la función onEdit
+                onEdit={handleOpenEditModal}
                 isUpdating={updatingSubjectId === subject.id}
               />
             ))}
@@ -410,7 +471,6 @@ export default function ManageSubjectsScreen() {
         )}
       </View>
 
-      {/* Modal para crear nueva materia */}
       <Portal>
         <CreateSubjectModal
           visible={modalVisible}
@@ -422,12 +482,11 @@ export default function ManageSubjectsScreen() {
           setFormData={setFormData}
           errors={errors}
           loading={loading}
-          onSave={handleCreateSubject}
+          onSave={handleCreateSubject} // ahora acepta optional finalData
           isSaveDisabled={isSaveDisabled}
         />
       </Portal>
 
-      {/* ✅ Modal para editar materia */}
       <Portal>
         <EditSubjectModal
           visible={editModalVisible}
@@ -446,14 +505,12 @@ export default function ManageSubjectsScreen() {
         />
       </Portal>
 
-      {/* FAB para abrir modal */}
       <FAB
         icon="plus"
         style={styles.fab}
         onPress={() => setModalVisible(true)}
       />
 
-      {/* Snackbar para mensajes */}
       <Snackbar
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}

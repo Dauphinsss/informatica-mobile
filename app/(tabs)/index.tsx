@@ -13,10 +13,11 @@ import {
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import {
   ActivityIndicator,
@@ -37,6 +38,7 @@ interface Subject {
   id: string;
   nombre: string;
   descripcion: string;
+  imagenUrl?: string;
   semestre: number;
   estado: "active" | "inactive";
 }
@@ -155,6 +157,14 @@ export default function HomeScreen() {
   const getSubjectColor = (index: number) => {
     return SUBJECT_COLORS[index % SUBJECT_COLORS.length];
   };
+  // Muestra "Electiva" cuando semestre === 10 (o '10'), si no devuelve "Semestre N"
+  const formatSemestre = (sem: any) => {
+    const n = Number(sem);
+    if (!Number.isNaN(n) && n === 10) return 'Electiva';
+    if (!Number.isNaN(n) && n > 0) return `Semestre ${n}`;
+    if (String(sem).toLowerCase() === 'electiva') return 'Electiva';
+    return String(sem || '');
+  };
 
   const handleOpenModal = () => {
     setModalVisible(true);
@@ -218,6 +228,7 @@ export default function HomeScreen() {
           <View >
             {getEnrolledSubjects().map((subject, index) => {
               const colorScheme = getSubjectColor(index);
+              const hasImage = !!subject.imagenUrl;
               return (
                 <TouchableOpacity
                   key={subject.id}
@@ -232,23 +243,30 @@ export default function HomeScreen() {
                   }
                 >
                   <Card style={styles.classroomCard} elevation={2}>
-                    {/* Header con color - usando Card.Cover estilizado */}
-                    <View
-                      style={[
-                        styles.cardHeader,
-                        { backgroundColor: colorScheme.bg },
-                      ]}
-                    >
-                      <Text variant="titleLarge" style={styles.cardTitle}>
-                        {subject.nombre}
-                      </Text>
-                      {/* Patrón decorativo */}
-                      <View
-                        style={[
-                          styles.decorativePattern,
-                          { backgroundColor: colorScheme.accent },
-                        ]}
-                      />
+                    {/* Header: si tiene imagen la mostramos; si no, usamos color */}
+                    <View style={styles.cardHeader}>
+                      {hasImage ? (
+                        <>
+                          <Image source={{ uri: subject.imagenUrl }} style={styles.cardHeaderImage} />
+                          <View style={styles.cardHeaderImageOverlay} />
+                          <Text variant="titleLarge" style={[styles.cardTitle, styles.cardTitleOnImage]}>
+                            {subject.nombre}
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <View style={[styles.cardHeaderColor, { backgroundColor: colorScheme.bg }]} />
+                          <Text variant="titleLarge" style={styles.cardTitle}>
+                            {subject.nombre}
+                          </Text>
+                          <View
+                            style={[
+                              styles.decorativePattern,
+                              { backgroundColor: colorScheme.accent },
+                            ]}
+                          />
+                        </>
+                      )}
                     </View>
                     {/* Footer con semestre - usando Card.Content */}
                     <Card.Content style={styles.cardFooter}>
@@ -256,7 +274,7 @@ export default function HomeScreen() {
                         variant="bodySmall"
                         style={{ color: theme.colors.onSurfaceVariant }}
                       >
-                        Semestre {subject.semestre}
+                        {formatSemestre(subject.semestre)}
                       </Text>
                     </Card.Content>
                   </Card>
@@ -412,10 +430,38 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cardHeader: {
-    height: 100,
+    height: 140,
     padding: 16,
     justifyContent: "flex-end",
     position: "relative",
+    overflow: 'hidden',
+  },
+  /* background color block when no image */
+  cardHeaderColor: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  /* image that fills header (covers the same area as the color block) */
+  cardHeaderImage: {
+    ...StyleSheet.absoluteFillObject,
+    resizeMode: 'cover',
+  },
+  /* dark overlay on top of image for contrast */
+  cardHeaderImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  /* title styling when on image (ensure visibility) */
+  cardTitleOnImage: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+    zIndex: 3,
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 20,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   cardTitle: {
     color: "white",
