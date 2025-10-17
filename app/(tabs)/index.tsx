@@ -227,6 +227,7 @@ export default function HomeScreen() {
                       nombre: subject.nombre,
                       id: subject.id,
                       semestre: subject.semestre,
+                      userId: user.uid,
                     })
                   }
                 >
