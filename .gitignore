@@ -44,3 +44,6 @@ app-example
 
 # Archivo .json
 package-lock.json
+
+#.env
+.env
