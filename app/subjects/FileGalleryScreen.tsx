@@ -83,13 +83,23 @@ export default function FileGalleryScreen() {
 
   const onPageSelected = useCallback((e: any) => {
     setIndiceActual(e.nativeEvent.position);
-  }, []);
+    // Deshabilitar PagerView si el nuevo archivo es PDF
+    const nuevoArchivo = archivosVisualizables[e.nativeEvent.position];
+    const nuevoTipo = obtenerTipoArchivo(nuevoArchivo?.tipoNombre || "");
+    setPagerEnabled(nuevoTipo !== "pdf");
+  }, [archivosVisualizables]);
 
   const toggleControls = () => {
     setControlsVisible(!controlsVisible);
   };
 
   const archivoActual = archivosVisualizables[indiceActual];
+  
+  // Actualizar pagerEnabled cuando cambie el índice actual
+  React.useEffect(() => {
+    const tipoActual = obtenerTipoArchivo(archivoActual?.tipoNombre || "");
+    setPagerEnabled(tipoActual !== "pdf");
+  }, [indiceActual, archivoActual]);
 
   if (archivosVisualizables.length === 0) {
     return (
@@ -216,6 +226,67 @@ export default function FileGalleryScreen() {
             );
           })}
         </PagerView>
+        
+        {/* Botones de navegación para PDFs */}
+        {!pagerEnabled && archivosVisualizables.length > 1 && (
+          <>
+            {indiceActual > 0 && (
+              <TouchableOpacity
+                style={{
+                  position: 'absolute',
+                  left: 16,
+                  top: '50%',
+                  transform: [{ translateY: -24 }],
+                  backgroundColor: 'rgba(0,0,0,0.7)',
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  zIndex: 99,
+                }}
+                onPress={() => {
+                  pagerRef.current?.setPage(indiceActual - 1);
+                }}
+              >
+                <IconButton
+                  icon="chevron-left"
+                  iconColor="#fff"
+                  size={28}
+                  style={{ margin: 0 }}
+                />
+              </TouchableOpacity>
+            )}
+            
+            {indiceActual < archivosVisualizables.length - 1 && (
+              <TouchableOpacity
+                style={{
+                  position: 'absolute',
+                  right: 16,
+                  top: '50%',
+                  transform: [{ translateY: -24 }],
+                  backgroundColor: 'rgba(0,0,0,0.7)',
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  zIndex: 99,
+                }}
+                onPress={() => {
+                  pagerRef.current?.setPage(indiceActual + 1);
+                }}
+              >
+                <IconButton
+                  icon="chevron-right"
+                  iconColor="#fff"
+                  size={28}
+                  style={{ margin: 0 }}
+                />
+              </TouchableOpacity>
+            )}
+          </>
+        )}
       </View>
     </GestureHandlerRootView>
   );
