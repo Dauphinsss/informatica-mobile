@@ -23,10 +23,11 @@ import { auth, db } from "../../firebase";
 
 // Components
 import CreateSubjectModal from "./components/CreateSubjectModal";
+import EditSubjectModal from "./components/EditSubjectModal"; // ✅ Agregar import
 import SubjectCard from "./components/SubjectCard";
 
 // Utils and Types
-import { AdminStackParamList, Subject } from "./types";
+import { AdminStackParamList, SemestreOption, Subject } from "./types"; // ✅ Agregar SemestreOption
 import {
   normalizeText,
   validateSubjectFields,
@@ -44,7 +45,10 @@ export default function ManageSubjectsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false); // ✅ Nuevo estado para modal de edición
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null); // ✅ Materia en edición
   const [loading, setLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false); // ✅ Loading para actualización
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [updatingSubjectId, setUpdatingSubjectId] = useState<string | null>(
     null
@@ -55,13 +59,26 @@ export default function ManageSubjectsScreen() {
     "success"
   );
 
-  // Estado del formulario
+  // Estado del formulario de CREACIÓN
   const [formData, setFormData] = useState({
+    nombre: "",
+    descripcion: "",
+    semestre: "" as string,
+  });
+  const [errors, setErrors] = useState({
     nombre: "",
     descripcion: "",
     semestre: "",
   });
-  const [errors, setErrors] = useState({
+
+  // ✅ Estado del formulario de EDICIÓN
+  const [editFormData, setEditFormData] = useState({
+    nombre: "",
+    descripcion: "",
+    semestre: 1 as SemestreOption,
+    imagenUrl: "",
+  });
+  const [editErrors, setEditErrors] = useState({
     nombre: "",
     descripcion: "",
     semestre: "",
@@ -99,7 +116,7 @@ export default function ManageSubjectsScreen() {
   }, []);
 
   // Verificar si existe materia con mismo nombre (sin importar semestre)
-  const checkDuplicateSubject = async (nombre: string): Promise<boolean> => {
+  const checkDuplicateSubject = async (nombre: string, excludeId?: string): Promise<boolean> => {
     try {
       const subjectsCollection = collection(db, "materias");
       const querySnapshot = await getDocs(subjectsCollection);
@@ -109,6 +126,8 @@ export default function ManageSubjectsScreen() {
       const exists = querySnapshot.docs.some((doc) => {
         const subjectData = doc.data();
         const existingNombre = subjectData.nombre || "";
+        // ✅ Excluir la materia actual cuando estamos editando
+        if (excludeId && doc.id === excludeId) return false;
         return normalizeText(existingNombre) === normalizedNewNombre;
       });
 
@@ -153,7 +172,20 @@ export default function ManageSubjectsScreen() {
         createdBy: auth.currentUser?.uid,
       };
 
-      await addDoc(collection(db, "materias"), newSubject);
+      const docRef = await addDoc(collection(db, "materias"), newSubject);
+
+      // 🔔 Enviar notificación push a todos los usuarios
+      try {
+        const { notificarCreacionMateria } = await import('@/services/notifications');
+        
+        await notificarCreacionMateria(
+          docRef.id,
+          nombreNormalizado,
+          formData.descripcion.trim()
+        );
+      } catch (error) {
+        console.error('❌ Error al enviar notificación:', error);
+      }
 
       showSnackbar("Materia creada satisfactoriamente", "success");
 
@@ -168,6 +200,92 @@ export default function ManageSubjectsScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ Función para editar materia
+  const handleEditSubject = async () => {
+    if (!editingSubject) return;
+
+    // Validar campos de edición
+    const { isValid, errors: validationErrors } = validateEditFields(editFormData);
+    if (!isValid) {
+      setEditErrors(validationErrors);
+      return;
+    }
+
+    setUpdateLoading(true);
+
+    try {
+      const nombreNormalizado = editFormData.nombre.trim();
+
+      // Verificar duplicados excluyendo la materia actual
+      const exists = await checkDuplicateSubject(nombreNormalizado, editingSubject.id);
+      if (exists) {
+        setEditErrors((prev) => ({
+          ...prev,
+          nombre: "Ya existe una materia con ese nombre",
+        }));
+        setUpdateLoading(false);
+        return;
+      }
+
+      const subjectRef = doc(db, "materias", editingSubject.id);
+      await updateDoc(subjectRef, {
+        nombre: nombreNormalizado,
+        descripcion: editFormData.descripcion.trim(),
+        semestre: editFormData.semestre,
+        imagenUrl: editFormData.imagenUrl,
+        updatedAt: new Date(),
+      });
+
+      showSnackbar("Materia actualizada satisfactoriamente", "success");
+      setEditModalVisible(false);
+      fetchSubjects();
+
+    } catch (error) {
+      console.error("Error updating subject:", error);
+      showSnackbar("No se pudo actualizar la materia, intente nuevamente", "error");
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  // ✅ Función para abrir modal de edición
+  const handleOpenEditModal = (subject: Subject) => {
+    setEditingSubject(subject);
+    setEditFormData({
+      nombre: subject.nombre,
+      descripcion: subject.descripcion,
+      semestre: subject.semestre,
+      imagenUrl: subject.imagenUrl || "",
+    });
+    setEditErrors({ nombre: "", descripcion: "", semestre: "" });
+    setEditModalVisible(true);
+  };
+
+  // ✅ Validación para edición
+  const validateEditFields = (formData: { nombre: string; descripcion: string; semestre: SemestreOption }) => {
+    const errors = {
+      nombre: "",
+      descripcion: "",
+      semestre: ""
+    };
+
+    const nombreRegex = /^[a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑüÜ,.;:()\-]+$/;
+    if (!formData.nombre.trim()) {
+      errors.nombre = 'El nombre es obligatorio';
+    } else if (formData.nombre.length > 30) {
+      errors.nombre = 'El nombre no puede tener más de 30 caracteres';
+    } else if (!nombreRegex.test(formData.nombre)) {
+      errors.nombre = 'El nombre contiene caracteres no válidos';
+    }
+
+    if (!formData.descripcion.trim()) {
+      errors.descripcion = 'La descripción es obligatoria';
+    }
+
+    const isValid = !Object.values(errors).some(error => error !== '');
+    return { isValid, errors };
   };
 
   // Función para mostrar snackbar
@@ -232,6 +350,12 @@ export default function ManageSubjectsScreen() {
     !formData.semestre ||
     loading;
 
+  // ✅ Verificar si el botón de edición debe estar deshabilitado
+  const isEditSaveDisabled =
+    !editFormData.nombre.trim() ||
+    !editFormData.descripcion.trim() ||
+    updateLoading;
+
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -264,6 +388,7 @@ export default function ManageSubjectsScreen() {
                 key={subject.id}
                 subject={subject}
                 onToggleStatus={toggleSubjectStatus}
+                onEdit={handleOpenEditModal} // ✅ Pasar la función onEdit
                 isUpdating={updatingSubjectId === subject.id}
               />
             ))}
@@ -299,6 +424,25 @@ export default function ManageSubjectsScreen() {
           loading={loading}
           onSave={handleCreateSubject}
           isSaveDisabled={isSaveDisabled}
+        />
+      </Portal>
+
+      {/* ✅ Modal para editar materia */}
+      <Portal>
+        <EditSubjectModal
+          visible={editModalVisible}
+          onDismiss={() => {
+            setEditModalVisible(false);
+            setEditingSubject(null);
+            setEditErrors({ nombre: "", descripcion: "", semestre: "" });
+          }}
+          subject={editingSubject}
+          formData={editFormData}
+          setFormData={setEditFormData}
+          errors={editErrors}
+          loading={updateLoading}
+          onSave={handleEditSubject}
+          isSaveDisabled={isEditSaveDisabled}
         />
       </Portal>
 

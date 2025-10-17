@@ -1,18 +1,20 @@
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Divider, Menu, Modal, Text, TextInput, useTheme } from 'react-native-paper';
+import { SemestreOption, Subject } from '../types';
 import ImageUploader from './ImageUploader';
 
-interface CreateSubjectModalProps {
+interface EditSubjectModalProps {
   visible: boolean;
   onDismiss: () => void;
+  subject: Subject | null;
   formData: {
     nombre: string;
     descripcion: string;
-    semestre: string;
-    imagen?: string;
+    semestre: SemestreOption;
+    imagenUrl?: string;
   };
-  setFormData: (data: any) => void;
+  setFormData: (data: { nombre: string; descripcion: string; semestre: SemestreOption; imagenUrl?: string }) => void;
   errors: {
     nombre: string;
     descripcion: string;
@@ -23,11 +25,12 @@ interface CreateSubjectModalProps {
   isSaveDisabled: boolean;
 }
 
-const semestres = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'Electiva'];
+const semestres: SemestreOption[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'Electiva'];
 
-const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
+const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
   visible,
   onDismiss,
+  subject,
   formData,
   setFormData,
   errors,
@@ -41,16 +44,21 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
 
-  const selectSemestre = (semestre: string) => {
-    setFormData({ ...formData, semestre: semestre.toString() });
+  const selectSemestre = (semestre: SemestreOption) => {
+    setFormData({ ...formData, semestre });
     closeMenu();
   };
 
   const handleImageUploaded = (url: string) => {
     setFormData({ ...formData, imagenUrl: url });
   };
-  const getSemestreText = (semestre: string) => {
-    return semestre === 'Electiva' ? 'Electiva' : `Semestre ${semestre}`;
+
+  const handleImageRemoved = () => {
+    setFormData({ ...formData, imagenUrl: '' });
+  };
+
+  const getSemestreText = (semestre: SemestreOption) => {
+    return typeof semestre === 'number' ? `Semestre ${semestre}` : semestre;
   };
 
   return (
@@ -59,25 +67,16 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
       onDismiss={onDismiss}
       contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.background }]}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView>
         <Text variant="headlineSmall" style={styles.modalTitle}>
-          Nueva Materia
+          Editar Materia
         </Text>
 
-        {/* Componente ImageUploader */}
-        <View style={styles.imageUploaderContainer}>
-          <Text variant="bodyMedium" style={styles.uploaderLabel}>
-            Imagen de la materia
-          </Text>
-          <Text variant="bodySmall" style={styles.demoText}>
-            MODO DEMO
-          </Text>
-          <ImageUploader
-            currentImageUrl={formData.imagen}
-            onImageUploaded={handleImageUploaded}
-            demoMode={true}
-          />
-        </View>
+        <ImageUploader
+          currentImageUrl={formData.imagenUrl}
+          onImageUploaded={handleImageUploaded}
+          onImageRemoved={handleImageRemoved}
+        />
         
         <TextInput
           label="Nombre de la materia *"
@@ -102,7 +101,6 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
         />
         {errors.descripcion ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.descripcion}</Text> : null}
         
-        {/* Selector de Semestre */}
         <View style={styles.semestreContainer}>
           <Text variant="labelLarge" style={styles.semestreLabel}>
             Semestre *
@@ -118,15 +116,15 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
                 icon="chevron-down"
                 contentStyle={styles.semestreButtonContent}
               >
-                {formData.semestre ? getSemestreText(formData.semestre) : 'Seleccionar semestre'}
+                {getSemestreText(formData.semestre)}
               </Button>
             }
           >
             {semestres.map((semestre, index) => (
               <React.Fragment key={semestre}>
                 <Menu.Item
-                  onPress={() => selectSemestre(semestre.toString())}
-                  title={getSemestreText(semestre.toString())}
+                  onPress={() => selectSemestre(semestre)}
+                  title={getSemestreText(semestre)}
                 />
                 {index < semestres.length - 1 && <Divider />}
               </React.Fragment>
@@ -151,7 +149,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
             disabled={isSaveDisabled}
             loading={loading}
           >
-            Guardar
+            Actualizar
           </Button>
         </View>
       </ScrollView>
@@ -161,29 +159,15 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 
 const styles = {
   modal: {
-    maxHeight: '80%',
+    padding: 24,
     margin: 20,
     borderRadius: 8,
-  },
-  scrollContent: {
-    padding: 24,
+    maxHeight: '80%',
   },
   modalTitle: {
     marginBottom: 20,
     fontWeight: 'bold',
     textAlign: 'center',
-  },
-  imageUploaderContainer: {
-    marginBottom: 16,
-  },
-  uploaderLabel: {
-    marginBottom: 4,
-    fontWeight: '600',
-  },
-  demoText: {
-    fontStyle: 'italic',
-    marginBottom: 8,
-    opacity: 0.6,
   },
   input: {
     marginBottom: 4,
@@ -212,10 +196,13 @@ const styles = {
     justifyContent: 'flex-end',
     gap: 12,
     marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.12)',
   },
   button: {
     minWidth: 100,
   },
 } as const;
 
-export default CreateSubjectModal;
+export default EditSubjectModal;

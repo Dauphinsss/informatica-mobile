@@ -1,3 +1,4 @@
+import { useTheme } from "@/contexts/ThemeContext";
 import { auth } from "@/firebase";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { signOut } from "firebase/auth";
@@ -13,6 +14,7 @@ interface SuspendedModalProps {
 const { width: screenWidth, height: screenHeight } = Dimensions.get('screen');
 
 const SuspendedModal: React.FC<SuspendedModalProps> = ({ visible, onDismiss }) => {
+  const { theme, isDark } = useTheme();
   const handleLogout = async () => {
     try {
       await GoogleSignin.signOut();
@@ -25,54 +27,57 @@ const SuspendedModal: React.FC<SuspendedModalProps> = ({ visible, onDismiss }) =
   if (!visible) return null;
 
   return (
-    <View style={styles.overlayContainer}>
-      <StatusBar backgroundColor="#f8e6e7" barStyle="dark-content" />
+    <View style={[styles.overlayContainer, { backgroundColor: theme.colors.background }]}>
+      <StatusBar 
+        backgroundColor={theme.colors.background}
+        barStyle={isDark ? "light-content" : "dark-content"} 
+      />
       
       <View style={styles.content}>
-        {/* Icono de advertencia con fondo */}
+        {/* Icono de advertencia - Estilo Material Design */}
         <View style={styles.iconContainer}>
           <IconButton 
             icon="alert-circle" 
             size={80} 
-            iconColor="#000000"
-            style={styles.iconBackground}
+            iconColor={theme.colors.error}
+            style={[styles.iconBackground, { backgroundColor: theme.colors.errorContainer }]}
           />
         </View>
 
         {/* Título principal */}
-        <Text variant="headlineLarge" style={styles.title}>
+        <Text variant="headlineLarge" style={[styles.title, { color: theme.colors.onBackground }]}>
           Cuenta Suspendida
         </Text>
 
         {/* Card con información */}
-        <Card style={styles.infoCard}>
+        <Card style={[styles.infoCard, { backgroundColor: theme.colors.surface }]}>
           <Card.Content>
-            <Text variant="titleMedium" style={styles.cardTitle}>
+            <Text variant="titleMedium" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
               Acceso Restringido
             </Text>
-            <Divider style={styles.divider} />
-            <Text variant="bodyLarge" style={styles.description}>
+            <Divider style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
+            <Text variant="bodyLarge" style={[styles.description, { color: theme.colors.onSurface }]}>
               Tu cuenta ha sido suspendida temporalmente. No puedes acceder a la aplicación en este momento.
             </Text>
             
-            <Text variant="bodyMedium" style={styles.contactInfo}>
+            <Text variant="bodyMedium" style={[styles.contactInfo, { color: theme.colors.onSurfaceVariant }]}>
               Para obtener más información sobre tu suspensión, contacta con el equipo de soporte.
             </Text>
 
-            <Divider style={styles.divider} />
+            <Divider style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
 
             <View style={styles.importantSection}>
               <IconButton 
                 icon="information" 
                 size={20} 
-                iconColor="#000000"
-                style={styles.infoIcon}
+                iconColor={theme.colors.primary}
+                style={[styles.infoIcon, { backgroundColor: theme.colors.primaryContainer }]}
               />
-              <Text variant="titleSmall" style={styles.importantNote}>
+              <Text variant="titleSmall" style={[styles.importantNote, { color: theme.colors.onSurface }]}>
                 Información importante:
               </Text>
             </View>
-            <Text variant="bodyMedium" style={styles.noteText}>
+            <Text variant="bodyMedium" style={[styles.noteText, { color: theme.colors.onSurfaceVariant }]}>
               En caso de que tu cuenta haya sido reactivada, será necesario que vuelvas a iniciar sesión para acceder a la aplicación.
             </Text>
           </Card.Content>
@@ -86,14 +91,14 @@ const SuspendedModal: React.FC<SuspendedModalProps> = ({ visible, onDismiss }) =
           contentStyle={styles.logoutButtonContent}
           labelStyle={styles.logoutButtonText}
           icon="logout"
-          buttonColor="#e8c5ca"
-          textColor="#000000"
+          buttonColor={theme.colors.errorContainer}
+          textColor={theme.colors.onErrorContainer}
         >
           Cerrar Sesión
         </Button>
 
         {/* Texto adicional */}
-        <Text variant="bodySmall" style={styles.footerText}>
+        <Text variant="bodySmall" style={[styles.footerText, { color: theme.colors.onSurfaceVariant }]}>
           Esta acción cerrará tu sesión actual
         </Text>
       </View>
@@ -110,7 +115,6 @@ const styles = StyleSheet.create({
     bottom: -100,
     width: screenWidth,
     height: screenHeight + 200,
-    backgroundColor: '#f8e6e7',
     zIndex: 999999,
     elevation: 999999,
     justifyContent: 'center',
@@ -127,11 +131,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconBackground: {
-    backgroundColor: '#e8d5d7',
     borderRadius: 50,
   },
   title: {
-    color: '#000000',
     textAlign: 'center',
     marginBottom: 30,
     fontWeight: 'bold',
@@ -139,29 +141,24 @@ const styles = StyleSheet.create({
   infoCard: {
     width: '100%',
     marginBottom: 30,
-    backgroundColor: '#f5f0f0',
     elevation: 4,
   },
   cardTitle: {
     textAlign: 'center',
-    color: '#000000',
     fontWeight: 'bold',
   },
   divider: {
     marginVertical: 12,
-    backgroundColor: '#e0d4d5',
   },
   description: {
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 24,
-    color: '#000000',
   },
   contactInfo: {
     textAlign: 'center',
     opacity: 0.8,
     marginBottom: 16,
-    color: '#000000',
   },
   importantSection: {
     flexDirection: 'row',
@@ -171,16 +168,13 @@ const styles = StyleSheet.create({
   },
   infoIcon: {
     margin: 0,
-    backgroundColor: '#e8d5d7',
     borderRadius: 15,
   },
   importantNote: {
     fontWeight: 'bold',
-    color: '#000000',
     marginLeft: 8,
   },
   noteText: {
-    color: '#000000',
     opacity: 0.9,
     lineHeight: 20,
     fontStyle: 'italic',
@@ -196,10 +190,8 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000000',
   },
   footerText: {
-    color: '#000000',
     textAlign: 'center',
     opacity: 0.7,
   },

@@ -1,74 +1,115 @@
+// app/admin/components/SubjectCard.tsx
 import React from 'react';
-import { View } from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Card, Chip, Text, useTheme } from 'react-native-paper';
 import { Subject } from '../types';
 
 interface SubjectCardProps {
   subject: Subject;
   onToggleStatus: (subjectId: string, currentStatus: 'active' | 'inactive') => void;
+  onEdit: (subject: Subject) => void;
   isUpdating?: boolean;
 }
 
 const SubjectCard: React.FC<SubjectCardProps> = ({ 
   subject, 
   onToggleStatus, 
+  onEdit,
   isUpdating = false 
 }) => {
   const theme = useTheme();
 
+  const handlePress = () => {
+    onEdit(subject);
+  };
+
+  const getSemestreText = (semestre: number | 'Electiva') => {
+    return typeof semestre === 'number' ? `Semestre ${semestre}` : semestre;
+  };
+
   return (
-    <Card style={styles.subjectCard} mode='elevated'>
-      <Card.Content style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <View style={styles.subjectMainInfo}>
-            <Text variant="titleMedium" style={styles.subjectName} numberOfLines={1}>
-              {subject.nombre}
-            </Text>
-            <View style={styles.metaInfo}>
-              {/* ✅ Usamos color primario del tema */}
-              <View style={[styles.semesterBadge, { backgroundColor: theme.colors.primary }]}>
-                <Text style={styles.semesterText}>
-                  Semestre {subject.semestre}
-                </Text>
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+      <Card style={styles.subjectCard} mode='elevated'>
+        <Card.Content style={styles.cardContent}>
+          {/* ✅ VALIDACIÓN AÑADIDA AQUÍ */}
+          {subject?.imagenUrl && (
+            <View style={styles.imageContainer}>
+              <Image source={{ uri: subject.imagenUrl }} style={styles.image} />
+              <View style={styles.imageOverlay} />
+            </View>
+          )}
+          
+          <View style={styles.cardHeader}>
+            <View style={styles.subjectMainInfo}>
+              <Text variant="titleMedium" style={styles.subjectName} numberOfLines={1}>
+                {subject.nombre}
+              </Text>
+              <View style={styles.metaInfo}>
+                <View style={[styles.semesterBadge, { backgroundColor: theme.colors.primary }]}>
+                  <Text style={styles.semesterText}>
+                    {getSemestreText(subject.semestre)}
+                  </Text>
+                </View>
+                <Chip
+                  mode="outlined"
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    !isUpdating && onToggleStatus(subject.id, subject.estado);
+                  }}
+                  style={[
+                    styles.statusChip,
+                    subject.estado === 'active' 
+                      ? styles.activeChip 
+                      : styles.inactiveChip
+                  ]}
+                  disabled={isUpdating}
+                  textStyle={styles.chipText}
+                >
+                  {isUpdating ? '...' : (subject.estado === 'active' ? 'Activa' : 'Inactiva')}
+                </Chip>
               </View>
-              <Chip
-                mode="outlined"
-                onPress={() => !isUpdating && onToggleStatus(subject.id, subject.estado)}
-                style={[
-                  styles.statusChip,
-                  subject.estado === 'active' 
-                    ? styles.activeChip 
-                    : styles.inactiveChip
-                ]}
-                disabled={isUpdating}
-                textStyle={styles.chipText}
-              >
-                {isUpdating ? '...' : (subject.estado === 'active' ? 'Activa' : 'Inactiva')}
-              </Chip>
             </View>
           </View>
-        </View>
-        
-        <Text variant="bodyMedium" style={styles.subjectDescription} numberOfLines={2}>
-          {subject.descripcion}
-        </Text>
-        
-        <View style={styles.cardFooter}>
-          <Text variant="labelSmall" style={styles.createdDate}>
-            Creada: {subject.createdAt.toLocaleDateString()}
+          
+          <Text variant="bodyMedium" style={styles.subjectDescription} numberOfLines={2}>
+            {subject.descripcion}
           </Text>
-        </View>
-      </Card.Content>
-    </Card>
+          
+          <View style={styles.cardFooter}>
+            <Text variant="labelSmall" style={styles.createdDate}>
+              Creada: {subject.createdAt.toLocaleDateString()}
+            </Text>
+          </View>
+        </Card.Content>
+      </Card>
+    </TouchableOpacity>
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   subjectCard: {
     marginBottom: 16,
   },
   cardContent: {
     padding: 16,
+  },
+  imageContainer: {
+    position: 'relative',
+    marginBottom: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  image: {
+    width: '100%',
+    height: 120,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
   cardHeader: {
     marginBottom: 12,
@@ -122,6 +163,6 @@ const styles = {
   createdDate: {
     fontStyle: 'italic',
   },
-} as const;
+});
 
 export default SubjectCard;
