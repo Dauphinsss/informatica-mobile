@@ -16,9 +16,9 @@ import LoginScreen from "./login";
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 function AppContent() {
-  const { theme, isDark } = useTheme();
+  const { isDark } = useTheme();
   const [user, setUser] = useState<any>(null);
-  const [userData, setUserData] = useState<any>(null);
+  const [, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSuspended, setIsSuspended] = useState(false);
 

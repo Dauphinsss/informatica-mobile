@@ -2,7 +2,7 @@
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Divider, Menu, Modal, Text, TextInput, useTheme } from 'react-native-paper';
-import { SemestreOption, Subject } from '../types';
+import { SemestreOption, Subject } from '../_types';
 import ImageUploader from './ImageUploader';
 
 interface EditSubjectModalProps {

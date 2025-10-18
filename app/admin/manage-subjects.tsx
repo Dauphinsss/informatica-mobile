@@ -79,7 +79,7 @@ export default function ManageSubjectsScreen() {
     nombre: "",
     descripcion: "",
     semestre: 1 as SemestreOption,
-    imagenUrl: "" as string | undefined,
+    imagenUrl: undefined as string | undefined,
   });
   const [editErrors, setEditErrors] = useState({
     nombre: "",
@@ -497,7 +497,9 @@ export default function ManageSubjectsScreen() {
           }}
           subject={editingSubject}
           formData={editFormData}
-          setFormData={setEditFormData}
+          setFormData={(data) =>
+            setEditFormData({ ...data, imagenUrl: data.imagenUrl })
+          }
           errors={editErrors}
           loading={updateLoading}
           onSave={handleEditSubject}

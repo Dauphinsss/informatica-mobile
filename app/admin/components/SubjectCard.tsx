@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Card, Chip, Text, useTheme } from 'react-native-paper';
-import { Subject } from '../types';
+import { Subject } from '../_types';
 
 interface SubjectCardProps {
   subject: Subject;

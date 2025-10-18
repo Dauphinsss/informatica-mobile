@@ -10,7 +10,6 @@ import {
   useNavigation,
   useRoute,
 } from "@react-navigation/native";
-import { getAuth } from "firebase/auth";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import React, { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -38,7 +37,6 @@ export default function SubjectDetailScreen() {
   };
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute();
-  const auth = getAuth();
 
   const params = route.params as {
     nombre?: string;

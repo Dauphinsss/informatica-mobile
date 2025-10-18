@@ -1,4 +1,4 @@
-import { db } from '@/firebase';
+import { db } from "@/firebase";
 import {
   addDoc,
   collection,
@@ -10,16 +10,16 @@ import {
   serverTimestamp,
   updateDoc,
   where,
-  writeBatch
-} from 'firebase/firestore';
-import { enviarNotificacionLocal } from './pushNotifications';
+  writeBatch,
+} from "firebase/firestore";
+import { enviarNotificacionLocal } from "./pushNotifications";
 
 export interface NotificacionBase {
   id: string;
   titulo: string;
   descripcion: string;
   icono: string;
-  tipo: 'info' | 'exito' | 'advertencia' | 'error';
+  tipo: "info" | "exito" | "advertencia" | "error";
   creadoEn: any;
   metadata?: {
     materiaId?: string;
@@ -43,13 +43,12 @@ export const crearNotificacionMasiva = async (
   userIds: string[],
   titulo: string,
   descripcion: string,
-  tipo: 'info' | 'exito' | 'advertencia' | 'error' = 'info',
-  icono: string = 'bell',
+  tipo: "info" | "exito" | "advertencia" | "error" = "info",
+  icono: string = "bell",
   metadata?: any
 ) => {
   try {
-    
-    const notificacionRef = await addDoc(collection(db, 'notificaciones'), {
+    const notificacionRef = await addDoc(collection(db, "notificaciones"), {
       titulo,
       descripcion,
       icono,
@@ -57,14 +56,14 @@ export const crearNotificacionMasiva = async (
       creadoEn: serverTimestamp(),
       metadata: metadata || {},
     });
-    
+
     const batch = writeBatch(db);
     const timestamp = serverTimestamp();
-    
+
     userIds.forEach((userId) => {
       const refId = `${userId}_${notificacionRef.id}`;
-      const notifUsuarioRef = doc(db, 'notificacionesUsuario', refId);
-      
+      const notifUsuarioRef = doc(db, "notificacionesUsuario", refId);
+
       batch.set(notifUsuarioRef, {
         notificacionId: notificacionRef.id,
         userId,
@@ -85,21 +84,28 @@ export const crearNotificacion = async (
   userId: string,
   titulo: string,
   descripcion: string,
-  tipo: 'info' | 'exito' | 'advertencia' | 'error' = 'info',
-  icono: string = 'bell',
+  tipo: "info" | "exito" | "advertencia" | "error" = "info",
+  icono: string = "bell",
   metadata?: any,
   enviarPush: boolean = true
 ) => {
-  const notifId = await crearNotificacionMasiva([userId], titulo, descripcion, tipo, icono, metadata);
-  
+  const notifId = await crearNotificacionMasiva(
+    [userId],
+    titulo,
+    descripcion,
+    tipo,
+    icono,
+    metadata
+  );
+
   if (enviarPush) {
     try {
       await enviarNotificacionLocal(titulo, descripcion, metadata);
     } catch (error) {
-      console.error('Error al enviar push:', error);
+      console.error("Error al enviar push:", error);
     }
   }
-  
+
   return notifId;
 };
 
@@ -109,13 +115,10 @@ export const escucharNotificaciones = (
   onError?: (error: Error) => void
 ) => {
   try {
-    const notifUsuarioRef = collection(db, 'notificacionesUsuario');
-    
+    const notifUsuarioRef = collection(db, "notificacionesUsuario");
+
     // ✅ Solo where() - NO requiere índice compuesto
-    const q = query(
-      notifUsuarioRef,
-      where('userId', '==', userId)
-    );
+    const q = query(notifUsuarioRef, where("userId", "==", userId));
 
     return onSnapshot(
       q,
@@ -124,18 +127,24 @@ export const escucharNotificaciones = (
           // Obtener todas las referencias de notificaciones del usuario
           // ✅ Filtrar las eliminadas en el cliente
           const notificacionesUsuario = snapshot.docs
-            .map(doc => ({
+            .map((doc) => ({
               id: doc.id,
-              ...doc.data()
+              ...doc.data(),
             }))
-            .filter((notif: any) => !notif.eliminada) as (NotificacionUsuario & { id: string })[];
+            .filter(
+              (notif: any) => !notif.eliminada
+            ) as (NotificacionUsuario & { id: string })[];
 
           // Obtener los datos completos de cada notificación
           const notificacionesCompletas: NotificacionCompleta[] = [];
 
           for (const notifUsuario of notificacionesUsuario) {
             try {
-              const notifRef = doc(db, 'notificaciones', notifUsuario.notificacionId);
+              const notifRef = doc(
+                db,
+                "notificaciones",
+                notifUsuario.notificacionId
+              );
               const notifSnap = await getDoc(notifRef);
 
               if (notifSnap.exists()) {
@@ -147,7 +156,7 @@ export const escucharNotificaciones = (
                 } as NotificacionCompleta);
               }
             } catch (err) {
-              console.error('Error al obtener notificación:', err);
+              console.error("Error al obtener notificación:", err);
             }
           }
 
@@ -160,17 +169,17 @@ export const escucharNotificaciones = (
 
           onSuccess(notificacionesCompletas);
         } catch (err) {
-          console.error('Error al procesar notificaciones:', err);
+          console.error("Error al procesar notificaciones:", err);
           if (onError) onError(err as Error);
         }
       },
       (error) => {
-        console.error('Error en listener:', error);
+        console.error("Error en listener:", error);
         if (onError) onError(error);
       }
     );
   } catch (error) {
-    console.error('Error al configurar listener:', error);
+    console.error("Error al configurar listener:", error);
     if (onError) onError(error as Error);
     return () => {};
   }
@@ -181,12 +190,16 @@ export const escucharNotificaciones = (
  */
 export const marcarComoLeida = async (notificacionUsuarioId: string) => {
   try {
-    const notifUsuarioRef = doc(db, 'notificacionesUsuario', notificacionUsuarioId);
+    const notifUsuarioRef = doc(
+      db,
+      "notificacionesUsuario",
+      notificacionUsuarioId
+    );
     await updateDoc(notifUsuarioRef, {
       leida: true,
     });
   } catch (error) {
-    console.error('Error al marcar como leída:', error);
+    console.error("Error al marcar como leída:", error);
     throw error;
   }
 };
@@ -194,14 +207,20 @@ export const marcarComoLeida = async (notificacionUsuarioId: string) => {
 /**
  * Eliminar la relación usuario-notificación (no elimina la notificación original)
  */
-export const eliminarNotificacionUsuario = async (notificacionUsuarioId: string) => {
+export const eliminarNotificacionUsuario = async (
+  notificacionUsuarioId: string
+) => {
   try {
-    const notifUsuarioRef = doc(db, 'notificacionesUsuario', notificacionUsuarioId);
+    const notifUsuarioRef = doc(
+      db,
+      "notificacionesUsuario",
+      notificacionUsuarioId
+    );
     await updateDoc(notifUsuarioRef, {
       eliminada: true,
     });
   } catch (error) {
-    console.error('❌ Error al eliminar notificación:', error);
+    console.error("❌ Error al eliminar notificación:", error);
     throw error;
   }
 };
@@ -213,16 +232,13 @@ export const obtenerContadorNoLeidas = (
   userId: string,
   onUpdate: (count: number) => void
 ) => {
-  const notifUsuarioRef = collection(db, 'notificacionesUsuario');
+  const notifUsuarioRef = collection(db, "notificacionesUsuario");
   // ✅ Solo where() por userId, filtrar leida en el cliente
-  const q = query(
-    notifUsuarioRef,
-    where('userId', '==', userId)
-  );
+  const q = query(notifUsuarioRef, where("userId", "==", userId));
 
   return onSnapshot(q, (snapshot) => {
     // Filtrar no leídas y no eliminadas en el cliente
-    const noLeidas = snapshot.docs.filter(doc => {
+    const noLeidas = snapshot.docs.filter((doc) => {
       const data = doc.data();
       return data.leida === false && !data.eliminada;
     });
@@ -238,53 +254,42 @@ export const notificarUsuariosMateria = async (
   materiaNombre: string,
   titulo: string,
   descripcion: string,
-  tipo: 'info' | 'exito' | 'advertencia' | 'error' = 'info',
-  icono: string = 'school'
+  tipo: "info" | "exito" | "advertencia" | "error" = "info",
+  icono: string = "school"
 ) => {
   try {
     // Obtener usuarios inscritos en la materia
-    const inscripcionesRef = collection(db, 'inscripciones');
-    const q = query(inscripcionesRef, where('materiaId', '==', materiaId));
+    const inscripcionesRef = collection(db, "inscripciones");
+    const q = query(inscripcionesRef, where("materiaId", "==", materiaId));
     const snapshot = await getDocs(q);
 
-    const userIds = snapshot.docs.map(doc => doc.data().userId);
+    const userIds = snapshot.docs.map((doc) => doc.data().userId);
 
     if (userIds.length === 0) {
-      console.log('No hay usuarios inscritos en esta materia');
+      console.log("No hay usuarios inscritos en esta materia");
       return;
     }
 
     // Crear notificación masiva
-    await crearNotificacionMasiva(
-      userIds,
-      titulo,
-      descripcion,
-      tipo,
-      icono,
-      {
-        materiaId,
-        materiaNombre,
-        accion: 'notificacion_materia',
-      }
-    );
-    
+    await crearNotificacionMasiva(userIds, titulo, descripcion, tipo, icono, {
+      materiaId,
+      materiaNombre,
+      accion: "notificacion_materia",
+    });
+
     // Enviar notificación push local a cada usuario
     try {
-      await enviarNotificacionLocal(
-        titulo,
-        descripcion,
-        {
-          tipo: 'materia',
-          materiaId,
-          materiaNombre,
-          accion: 'ver_materia',
-        }
-      );
+      await enviarNotificacionLocal(titulo, descripcion, {
+        tipo: "materia",
+        materiaId,
+        materiaNombre,
+        accion: "ver_materia",
+      });
     } catch (error) {
-      console.error('Error al enviar push:', error);
+      console.error("Error al enviar push:", error);
     }
   } catch (error) {
-    console.error('Error al notificar usuarios de materia:', error);
+    console.error("Error al notificar usuarios de materia:", error);
     throw error;
   }
 };
@@ -298,55 +303,53 @@ export const notificarCreacionMateria = async (
   materiaDescripcion: string
 ) => {
   try {
-    
     // Obtener todos los usuarios (sin filtrar por estado para debug)
-    const usuariosRef = collection(db, 'usuarios');
+    const usuariosRef = collection(db, "usuarios");
     const snapshot = await getDocs(usuariosRef);
 
     // Filtrar usuarios activos en el cliente
-    const usuariosActivos = snapshot.docs.filter(doc => {
+    const usuariosActivos = snapshot.docs.filter((doc) => {
       const data = doc.data();
-      return data.estado === 'activo';
+      return data.estado === "activo";
     });
 
-    const userIds = usuariosActivos.map(doc => doc.id);
+    const userIds = usuariosActivos.map((doc) => doc.id);
 
     if (userIds.length === 0) {
       return;
     }
 
     // Crear notificación masiva
-    const notifId = await crearNotificacionMasiva(
+    await crearNotificacionMasiva(
       userIds,
-      'Nueva materia disponible',
+      "Nueva materia disponible",
       `Se ha creado la materia: ${materiaNombre}`,
-      'info',
-      'school',
+      "info",
+      "school",
       {
         materiaId,
         materiaNombre,
-        accion: 'ver_materia',
+        accion: "ver_materia",
       }
     );
 
     // Enviar notificación push local
     try {
       await enviarNotificacionLocal(
-        'Nueva materia disponible',
+        "Nueva materia disponible",
         `Se ha creado la materia: ${materiaNombre}`,
         {
-          tipo: 'materia',
+          tipo: "materia",
           materiaId,
           materiaNombre,
-          accion: 'ver_materia',
+          accion: "ver_materia",
         }
       );
-    } catch (pushError) {
-      console.log('Push notification no disponible (Expo Go)');
+    } catch {
+      console.log("Push notification no disponible (Expo Go)");
     }
-
   } catch (error) {
-    console.error('Error al notificar creación de materia:', error);
+    console.error("Error al notificar creación de materia:", error);
     throw error;
   }
 };

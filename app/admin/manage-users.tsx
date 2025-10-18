@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../firebase';
 
 const ManageUsers = () => {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [users, setUsers] = useState<any[]>([]);
   const [filter, setFilter] = useState<'all' | 'admin' | 'usuario'>('all');

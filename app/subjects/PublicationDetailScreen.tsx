@@ -9,7 +9,7 @@ import {
   Publicacion,
 } from "@/scripts/types/Publication.type";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import {
   ActivityIndicator,
@@ -40,22 +40,21 @@ export default function PublicationDetailScreen() {
   const [archivos, setArchivos] = useState<ArchivoPublicacion[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
-    cargarPublicacion();
-  }, [publicacionId]);
-
-  const cargarPublicacion = async () => {
+  const cargarPublicacion = useCallback(async () => {
     setCargando(true);
     const pub = await obtenerPublicacionPorId(publicacionId);
     if (pub) {
       setPublicacion(pub);
       await incrementarVistas(publicacionId);
-
       const archivosData = await obtenerArchivosConTipo(publicacionId);
       setArchivos(archivosData);
     }
     setCargando(false);
-  };
+  }, [publicacionId]);
+
+  useEffect(() => {
+    cargarPublicacion();
+  }, [cargarPublicacion]);
 
   const formatearFecha = (fecha: Date): string => {
     return fecha.toLocaleDateString("es-BO", {
@@ -98,15 +97,11 @@ export default function PublicationDetailScreen() {
           : a.fechaSubida,
     }));
 
-    // @ts-ignore
-    navigation.navigate(
-      "FileGallery" as never,
-      {
-        archivos: archivosSerializados,
-        indiceInicial: indice,
-        materiaNombre,
-      } as never
-    );
+    (navigation.navigate as any)("FileGallery", {
+      archivos: archivosSerializados,
+      indiceInicial: indice,
+      materiaNombre,
+    });
   };
 
   const descargarArchivo = (archivo: ArchivoPublicacion) => {

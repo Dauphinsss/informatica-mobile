@@ -364,8 +364,6 @@ function ImageViewerWithZoom({
   const focalX = useSharedValue(0);
   const focalY = useSharedValue(0);
 
-  const lastTap = useRef(0);
-
   // Función para aplicar límites
   const clampOffset = (offset: number, maxOffset: number) => {
     "worklet";
