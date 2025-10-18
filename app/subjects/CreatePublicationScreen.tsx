@@ -182,6 +182,7 @@ export default function CreatePublicationScreen() {
         materiaId,
         user.uid,
         nombreUsuario,
+        user.photoURL || null,
         titulo,
         descripcion
       );

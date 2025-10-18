@@ -39,19 +39,6 @@ export const getStyles = (theme: MD3Theme) =>
       gap: 12,
       marginBottom: 4,
     },
-    avatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: theme.colors.primaryContainer,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    avatarText: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: theme.colors.onPrimaryContainer,
-    },
     autorInfo: {
       flex: 1,
     },

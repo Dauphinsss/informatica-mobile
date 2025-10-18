@@ -14,6 +14,7 @@ import { Alert, ScrollView, View } from "react-native";
 import {
   ActivityIndicator,
   Appbar,
+  Avatar,
   Card,
   Chip,
   Divider,
@@ -164,11 +165,19 @@ export default function PublicationDetailScreen() {
         <Card style={styles.headerCard}>
           <Card.Content>
             <View style={styles.autorContainer}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {publicacion.autorNombre.charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              {publicacion.autorFoto ? (
+                <Avatar.Image
+                  size={48}
+                  source={{ uri: publicacion.autorFoto }}
+                />
+              ) : (
+                <Avatar.Text
+                  size={48}
+                  label={
+                    publicacion.autorNombre?.charAt(0).toUpperCase() || "?"
+                  }
+                />
+              )}
               <View style={styles.autorInfo}>
                 <Text variant="titleMedium" style={styles.autorNombre}>
                   {publicacion.autorNombre}

@@ -177,15 +177,15 @@ export default function TabLayout() {
           component={AdminLayOut}
           options={{
             tabBarLabel: "Admin",
-            tabBarIcon: ({ color, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? "shield-account" : "shield-account-outline"}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? "shield-account" : "shield-account-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
       )}
       <Tab.Screen
         name="Profile"

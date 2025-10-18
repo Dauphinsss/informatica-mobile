@@ -27,19 +27,6 @@ export const getStyles = (theme: MD3Theme) =>
       alignItems: "center",
       gap: 12,
     },
-    avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.primaryContainer,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    avatarText: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: theme.colors.onPrimaryContainer,
-    },
     autorNombre: {
       fontWeight: "600",
       color: theme.colors.onSurface,

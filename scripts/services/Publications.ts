@@ -20,6 +20,7 @@ export const crearPublicacion = async (
   materiaId: string,
   autorUid: string,
   autorNombre: string,
+  autorFoto: string | null,
   titulo: string,
   descripcion: string
 ): Promise<string> => {
@@ -28,6 +29,7 @@ export const crearPublicacion = async (
       materiaId,
       autorUid,
       autorNombre,
+      autorFoto: autorFoto || null,
       titulo,
       descripcion,
       fechaPublicacion: Timestamp.now(),
@@ -67,6 +69,7 @@ export const obtenerPublicacionesPorMateria = async (
       publicaciones.push({
         id: docSnap.id,
         ...data,
+        autorFoto: data.autorFoto ?? null,
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion);
     });
@@ -89,6 +92,7 @@ export const obtenerPublicacionPorId = async (
       return {
         id: publicacionDoc.id,
         ...data,
+        autorFoto: data.autorFoto ?? null,
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion;
     }

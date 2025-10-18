@@ -16,6 +16,7 @@ import { ScrollView, View } from "react-native";
 import {
   ActivityIndicator,
   Appbar,
+  Avatar,
   Card,
   Chip,
   FAB,
@@ -72,6 +73,7 @@ export default function SubjectDetailScreen() {
               titulo: data.titulo,
               descripcion: data.descripcion,
               autorNombre: data.autorNombre,
+              autorFoto: data.autorFoto ?? null,
               fechaPublicacion: fecha,
               vistas: data.vistas ?? 0,
               totalComentarios: data.totalComentarios ?? 0,
@@ -160,11 +162,19 @@ export default function SubjectDetailScreen() {
               <Card.Content>
                 <View style={styles.cardHeader}>
                   <View style={styles.avatarContainer}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>
-                        {publicacion.autorNombre.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
+                    {publicacion.autorFoto ? (
+                      <Avatar.Image
+                        size={40}
+                        source={{ uri: publicacion.autorFoto }}
+                      />
+                    ) : (
+                      <Avatar.Text
+                        size={40}
+                        label={
+                          publicacion.autorNombre?.charAt(0).toUpperCase() || "?"
+                        }
+                      />
+                    )}
                     <View>
                       <Text variant="bodyMedium" style={styles.autorNombre}>
                         {publicacion.autorNombre}

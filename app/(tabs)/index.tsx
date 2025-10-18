@@ -68,13 +68,22 @@ export default function HomeScreen() {
   const [enrolledSubjectIds, setEnrolledSubjectIds] = useState<string[]>([]);
   const [savingSubject, setSavingSubject] = useState<string | null>(null);
   const [subjectMaterials, setSubjectMaterials] = useState<Record<string, number>>({});
+  const enrolledSubjects = useMemo(() => {
+    if (subjects.length === 0 || enrolledSubjectIds.length === 0) {
+      return [];
+    }
+    const validIds = new Set(
+      enrolledSubjectIds.filter((id) => typeof id === "string" && id.trim() !== "")
+    );
+    return subjects.filter((subject) => validIds.has(subject.id));
+  }, [subjects, enrolledSubjectIds]);
   const totalMaterials = useMemo(
     () =>
-      Object.values(subjectMaterials).reduce(
-        (acc, value) => acc + (typeof value === "number" ? value : 0),
+      enrolledSubjects.reduce(
+        (acc, subject) => acc + (subjectMaterials[subject.id] ?? 0),
         0
       ),
-    [subjectMaterials]
+    [enrolledSubjects, subjectMaterials]
   );
   const totalMaterialsLabel = totalMaterials === 1 ? "Material" : "Materiales";
 
@@ -87,7 +96,11 @@ export default function HomeScreen() {
         if (doc.exists()) {
           const data = doc.data();
           setUserData(data);
-          const materias = data.materiasInscritas || [];
+          const materias = Array.isArray(data.materiasInscritas)
+            ? data.materiasInscritas.filter(
+                (id): id is string => typeof id === "string" && id.trim() !== ""
+              )
+            : [];
           setEnrolledSubjectIds(materias);
         }
       });
@@ -207,12 +220,6 @@ export default function HomeScreen() {
     }
   };
 
-  const getEnrolledSubjects = () => {
-    return subjects.filter((subject) =>
-      enrolledSubjectIds.includes(subject.id)
-    );
-  };
-
   const getSubjectColor = (index: number) => {
     return SUBJECT_COLORS[index % SUBJECT_COLORS.length];
   };
@@ -284,7 +291,7 @@ export default function HomeScreen() {
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
                 <Text variant="headlineMedium" style={styles.statNumber}>
-                  {enrolledSubjectIds.length}
+                  {enrolledSubjects.length}
                 </Text>
                 <Text variant="bodySmall">Materias</Text>
               </View>
@@ -300,9 +307,9 @@ export default function HomeScreen() {
         </Surface>
 
         {/* Materias inscritas - Estilo Classroom */}
-        {getEnrolledSubjects().length > 0 ? (
+        {enrolledSubjects.length > 0 ? (
           <View >
-            {getEnrolledSubjects().map((subject, index) => {
+            {enrolledSubjects.map((subject, index) => {
               const colorScheme = getSubjectColor(index);
               const hasImage = !!subject.imagenUrl;
               const materialsForSubject = subjectMaterials[subject.id] ?? 0;
@@ -537,7 +544,7 @@ const styles = StyleSheet.create({
   },
   headerCard: {
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerContent: {
     padding: 20,
@@ -545,7 +552,7 @@ const styles = StyleSheet.create({
 
   classroomCard: {
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 12,
     overflow: "hidden",
   },
   cardHeader: {

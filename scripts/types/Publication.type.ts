@@ -3,6 +3,7 @@ export interface Publicacion {
   materiaId: string;
   autorUid: string;
   autorNombre: string;
+  autorFoto?: string | null;
   titulo: string;
   descripcion: string;
   fechaPublicacion: Date;
