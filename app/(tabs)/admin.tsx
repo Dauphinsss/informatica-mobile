@@ -58,13 +58,11 @@ export default function AdminScreen() {
           </Card.Content>
         </Card>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Gestión del Sistema
-            </Text>
-            <Divider style={styles.divider} />
-          </Card.Content>
+        <View style={styles.section}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Gestión del Sistema
+          </Text>
+          <Divider style={styles.divider} />
           <List.Item
             title="Materias"
             description="Gestionar materias y cursos"
@@ -101,15 +99,13 @@ export default function AdminScreen() {
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => navigation.navigate("Reports")}
           />
-        </Card>
+        </View>
 
-        <Card style={[styles.card, { marginBottom: 32 }]}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Actividad Reciente
-            </Text>
-            <Divider style={styles.divider} />
-          </Card.Content>
+        <View style={[styles.section, styles.lastSection]}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Actividad Reciente
+          </Text>
+          <Divider style={styles.divider} />
 
           <List.Section>
             <List.Subheader>Denuncias Recientes</List.Subheader>
@@ -141,7 +137,7 @@ export default function AdminScreen() {
               left={(props) => <List.Icon {...props} icon="information" />}
             />
           </List.Section>
-        </Card>
+        </View>
       </ScrollView>
     </View>
   );
@@ -157,6 +153,12 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 16,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  lastSection: {
+    marginBottom: 32,
   },
   welcomeText: {
     fontWeight: "bold",

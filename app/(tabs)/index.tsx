@@ -8,7 +8,9 @@ import {
   doc,
   getDocs,
   onSnapshot,
+  query,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
@@ -33,6 +35,7 @@ import {
   Surface,
   Text,
 } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 interface Subject {
   id: string;
@@ -64,6 +67,8 @@ export default function HomeScreen() {
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [enrolledSubjectIds, setEnrolledSubjectIds] = useState<string[]>([]);
   const [savingSubject, setSavingSubject] = useState<string | null>(null);
+  const [materialsCount, setMaterialsCount] = useState(0);
+  const [subjectMaterials, setSubjectMaterials] = useState<Record<string, number>>({});
 
   const user = auth.currentUser;
 
@@ -86,6 +91,59 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchSubjects();
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchMaterialsCount = async () => {
+      if (enrolledSubjectIds.length === 0) {
+        if (isMounted) {
+          setSubjectMaterials({});
+          setMaterialsCount(0);
+        }
+        return;
+      }
+
+      try {
+        const uniqueSubjectIds = Array.from(new Set(enrolledSubjectIds));
+        const publicacionesRef = collection(db, "publicaciones");
+        const materialsBySubject: Record<string, number> = {};
+
+        await Promise.all(
+          uniqueSubjectIds.map(async (subjectId) => {
+            const publicacionesQuery = query(
+              publicacionesRef,
+              where("materiaId", "==", subjectId),
+              where("estado", "==", "activo")
+            );
+            const snapshot = await getDocs(publicacionesQuery);
+            materialsBySubject[subjectId] = snapshot.size;
+          })
+        );
+
+        if (isMounted) {
+          setSubjectMaterials(materialsBySubject);
+          const total = Object.values(materialsBySubject).reduce(
+            (acc, value) => acc + value,
+            0
+          );
+          setMaterialsCount(total);
+        }
+      } catch (error) {
+        console.error("Error al obtener materiales:", error);
+        if (isMounted) {
+          setSubjectMaterials({});
+          setMaterialsCount(0);
+        }
+      }
+    };
+
+    fetchMaterialsCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enrolledSubjectIds]);
 
   const fetchSubjects = async () => {
     setLoadingSubjects(true);
@@ -157,13 +215,30 @@ export default function HomeScreen() {
   const getSubjectColor = (index: number) => {
     return SUBJECT_COLORS[index % SUBJECT_COLORS.length];
   };
-  // Muestra "Electiva" cuando semestre === 10 (o '10'), si no devuelve "Semestre N"
   const formatSemestre = (sem: any) => {
+    if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
+      return "Electiva";
+    }
+
     const n = Number(sem);
-    if (!Number.isNaN(n) && n === 10) return 'Electiva';
-    if (!Number.isNaN(n) && n > 0) return `Semestre ${n}`;
-    if (String(sem).toLowerCase() === 'electiva') return 'Electiva';
-    return String(sem || '');
+    if (Number.isNaN(n)) {
+      return String(sem || "");
+    }
+
+    const labels: Record<number, string> = {
+      1: "1er Semestre",
+      2: "2do Semestre",
+      3: "3er Semestre",
+      4: "4to Semestre",
+      5: "5to Semestre",
+      6: "6to Semestre",
+      7: "7mo Semestre",
+      8: "8vo Semestre",
+      9: "9no Semestre",
+      10: "Electiva",
+    };
+
+    return labels[n] || `${n}º Semestre`;
   };
 
   const handleOpenModal = () => {
@@ -215,7 +290,7 @@ export default function HomeScreen() {
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text variant="headlineMedium" style={styles.statNumber}>
-                  0
+                  {materialsCount}
                 </Text>
                 <Text variant="bodySmall">Materiales</Text>
               </View>
@@ -229,6 +304,14 @@ export default function HomeScreen() {
             {getEnrolledSubjects().map((subject, index) => {
               const colorScheme = getSubjectColor(index);
               const hasImage = !!subject.imagenUrl;
+              const materialsForSubject = subjectMaterials[subject.id] ?? 0;
+              const materialsLabel =
+                materialsForSubject === 0
+                  ? "Sin materiales"
+                  : materialsForSubject === 1
+                  ? "1 material"
+                  : `${materialsForSubject} materiales`;
+              const semesterLabel = formatSemestre(subject.semestre);
               return (
                 <TouchableOpacity
                   key={subject.id}
@@ -243,40 +326,75 @@ export default function HomeScreen() {
                   }
                 >
                   <Card style={styles.classroomCard} elevation={2}>
-                    {/* Header: si tiene imagen la mostramos; si no, usamos color */}
                     <View style={styles.cardHeader}>
                       {hasImage ? (
                         <>
-                          <Image source={{ uri: subject.imagenUrl }} style={styles.cardHeaderImage} />
+                          <Image
+                            source={{ uri: subject.imagenUrl }}
+                            style={styles.cardHeaderImage}
+                          />
                           <View style={styles.cardHeaderImageOverlay} />
-                          <Text variant="titleLarge" style={[styles.cardTitle, styles.cardTitleOnImage]}>
-                            {subject.nombre}
-                          </Text>
                         </>
                       ) : (
                         <>
-                          <View style={[styles.cardHeaderColor, { backgroundColor: colorScheme.bg }]} />
-                          <Text variant="titleLarge" style={styles.cardTitle}>
-                            {subject.nombre}
-                          </Text>
                           <View
                             style={[
-                              styles.decorativePattern,
+                              styles.cardHeaderColor,
+                              { backgroundColor: colorScheme.bg },
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.cardHeaderOverlayTint,
+                              { backgroundColor: "rgba(0,0,0,0.2)" },
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.cardAccentCircle,
+                              { backgroundColor: colorScheme.accent },
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.cardAccentStripe,
                               { backgroundColor: colorScheme.accent },
                             ]}
                           />
                         </>
                       )}
+                      <View style={styles.cardHeaderContent}>
+                        <View style={styles.cardBadgeRow}>
+                          <View
+                            style={[
+                              styles.cardBadge,
+                              styles.cardBadgeSecondary,
+                              styles.cardBadgeMaterials,
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name={
+                                materialsForSubject > 0
+                                  ? "folder-multiple-outline"
+                                  : "bookmark-outline"
+                              }
+                              size={14}
+                              color="#fff"
+                              style={styles.cardBadgeIcon}
+                            />
+                            <Text style={styles.cardBadgeText}>
+                              {materialsLabel}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.cardTitleBlock}>
+                          <Text numberOfLines={2} style={styles.cardTitle}>
+                            {subject.nombre}
+                          </Text>
+                          <Text style={styles.cardMetaInline}>{semesterLabel}</Text>
+                        </View>
+                      </View>
                     </View>
-                    {/* Footer con semestre - usando Card.Content */}
-                    <Card.Content style={styles.cardFooter}>
-                      <Text
-                        variant="bodySmall"
-                        style={{ color: theme.colors.onSurfaceVariant }}
-                      >
-                        {formatSemestre(subject.semestre)}
-                      </Text>
-                    </Card.Content>
                   </Card>
                 </TouchableOpacity>
               );
@@ -430,11 +548,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cardHeader: {
-    height: 140,
-    padding: 16,
-    justifyContent: "flex-end",
+    height: 150,
     position: "relative",
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   /* background color block when no image */
   cardHeaderColor: {
@@ -450,37 +566,83 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  /* title styling when on image (ensure visibility) */
-  cardTitleOnImage: {
-    position: 'absolute',
-    bottom: 12,
+  cardHeaderOverlayTint: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cardAccentCircle: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    opacity: 0.35,
+    top: -40,
+    right: -40,
+    transform: [{ scale: 1.1 }],
+  },
+  cardAccentStripe: {
+    position: "absolute",
+    width: 220,
+    height: 40,
+    opacity: 0.25,
+    bottom: -20,
+    left: -40,
+    transform: [{ rotate: "-25deg" }],
+    borderRadius: 20,
+  },
+  cardHeaderContent: {
+    position: "absolute",
+    top: 14,
     left: 16,
-    zIndex: 3,
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 20,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    right: 16,
+    bottom: 14,
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  cardBadgeRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "flex-start",
+  },
+  cardBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  cardBadgeIcon: {
+    marginRight: 2,
+  },
+  cardBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+  cardBadgeSecondary: {
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  cardBadgeMaterials: {
+    marginLeft: "auto",
+  },
+  cardTitleBlock: {
+    gap: 12,
   },
   cardTitle: {
     color: "white",
     fontWeight: "bold",
-    fontSize: 18,
-    zIndex: 2,
+    fontSize: 20,
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  decorativePattern: {
-    position: "absolute",
-    right: -20,
-    top: -20,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    opacity: 0.3,
-  },
-  cardFooter: {
-    paddingTop: 8,
-    paddingBottom: 12,
+  cardMetaInline: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 14,
+    fontWeight: "500",
+    letterSpacing: 0.2,
   },
   sectionTitle: {
     padding: 16,

@@ -8,7 +8,6 @@ import {
   Appbar,
   Avatar,
   Button,
-  Card,
   Dialog,
   Divider,
   List,
@@ -61,50 +60,44 @@ export default function ProfileScreen() {
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
-        <Card style={styles.card}>
-          <Card.Content style={styles.profileContent}>
-            {user.photoURL && (
-              <Avatar.Image
-                size={100}
-                source={{ uri: user.photoURL }}
-                style={styles.avatar}
-              />
-            )}
-            <Text variant="headlineSmall" style={styles.name}>
-              {user.displayName || "Usuario"}
-            </Text>
-            <Text variant="bodyMedium" style={styles.email}>
-              {user.email}
-            </Text>
-          </Card.Content>
-        </Card>
+        <View style={[styles.section, styles.profileSection]}>
+          {user.photoURL && (
+            <Avatar.Image
+              size={100}
+              source={{ uri: user.photoURL }}
+              style={styles.avatar}
+            />
+          )}
+          <Text variant="headlineSmall" style={styles.name}>
+            {user.displayName || "Usuario"}
+          </Text>
+          <Text variant="bodyMedium" style={styles.email}>
+            {user.email}
+          </Text>
+        </View>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Información de la cuenta
-            </Text>
-            <Divider style={styles.divider} />
-          </Card.Content>
+        <View style={styles.section}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Informacion de la cuenta
+          </Text>
+          <Divider style={styles.divider} />
           <List.Item
             title="Nombre completo"
             description={user.displayName || "No disponible"}
             left={(props) => <List.Icon {...props} icon="account" />}
           />
           <List.Item
-            title="Correo electrónico"
+            title="Correo electronico"
             description={user.email || "No disponible"}
             left={(props) => <List.Icon {...props} icon="email" />}
           />
-        </Card>
+        </View>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Configuración
-            </Text>
-            <Divider style={styles.divider} />
-          </Card.Content>
+        <View style={styles.section}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Configuracion
+          </Text>
+          <Divider style={styles.divider} />
           <List.Item
             title="Apariencia"
             description={getThemeLabel()}
@@ -133,7 +126,7 @@ export default function ProfileScreen() {
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => {}}
           />
-        </Card>
+        </View>
 
         <Button
           mode="contained"
@@ -215,10 +208,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  card: {
+  section: {
     marginBottom: 16,
   },
-  profileContent: {
+  profileSection: {
     alignItems: "center",
     paddingVertical: 20,
   },
