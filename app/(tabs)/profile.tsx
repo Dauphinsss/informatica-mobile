@@ -206,14 +206,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-
+    padding: 16,
   },
   section: {
     marginBottom: 16,
   },
   profileSection: {
     alignItems: "center",
-    paddingVertical: 20,
+    paddingBottom: 24,
   },
   avatar: {
     marginBottom: 16,

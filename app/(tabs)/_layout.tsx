@@ -1,10 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { Badge, BottomNavigation } from "react-native-paper";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Badge, useTheme } from "react-native-paper";
 import { auth, db } from "../../firebase";
 import { obtenerContadorNoLeidas } from "../../services/notifications";
 import AdminLayOut from "../admin/_layout";
@@ -14,6 +15,189 @@ import NotificationsScreen from "./notifications";
 import ProfileScreen from "./profile";
 
 const Tab = createBottomTabNavigator();
+
+type AnimatedTabBarProps = BottomTabBarProps & {
+  unreadCount: number;
+};
+
+const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
+  state,
+  descriptors,
+  navigation,
+  insets,
+  unreadCount,
+}) => {
+  const theme = useTheme();
+  const animatedValuesRef = useRef<Record<string, Animated.Value>>({});
+
+  // Ensure we have an Animated.Value for each route
+  state.routes.forEach((route, index) => {
+    if (!animatedValuesRef.current[route.key]) {
+      animatedValuesRef.current[route.key] = new Animated.Value(
+        state.index === index ? 1 : 0
+      );
+    }
+  });
+
+  // Clean up values when routes change
+  useEffect(() => {
+    const keys = state.routes.map((route) => route.key);
+    Object.keys(animatedValuesRef.current).forEach((key) => {
+      if (!keys.includes(key)) {
+        delete animatedValuesRef.current[key];
+      }
+    });
+  }, [state.routes]);
+
+  useEffect(() => {
+    state.routes.forEach((route, index) => {
+      Animated.timing(animatedValuesRef.current[route.key], {
+        toValue: state.index === index ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [state.index, state.routes]);
+
+  const paddingBottom = useMemo(
+    () => Math.max(insets.bottom, 12),
+    [insets.bottom]
+  );
+
+  return (
+    <View
+      style={[
+        styles.customTabBar,
+        {
+          paddingBottom,
+          backgroundColor: theme.colors.elevation.level2,
+          borderTopColor: theme.colors.outlineVariant,
+        },
+      ]}
+    >
+      {state.routes.map((route, index) => {
+        const focused = state.index === index;
+        const animatedValue = animatedValuesRef.current[route.key];
+        const scale = animatedValue.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, 1.08],
+        });
+        const labelOpacity = animatedValue.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.6, 1],
+        });
+        const backgroundOpacity = animatedValue.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 1],
+        });
+        const backgroundScale = animatedValue.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.6, 1],
+        });
+        const iconColor = focused
+          ? theme.colors.onPrimaryContainer
+          : theme.colors.onSurfaceVariant;
+        const labelColor = focused
+          ? theme.colors.onSurface
+          : theme.colors.onSurfaceVariant;
+
+        const { options } = descriptors[route.key];
+        const label =
+          options.tabBarLabel !== undefined
+            ? options.tabBarLabel
+            : options.title !== undefined
+            ? options.title
+            : route.name;
+
+        const iconElement =
+          options.tabBarIcon?.({
+            focused,
+            color: iconColor,
+            size: 24,
+          }) ?? null;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: "tabPress",
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!event.defaultPrevented) {
+            navigation.dispatch({
+              ...CommonActions.navigate(route.name, route.params),
+              target: state.key,
+            });
+          }
+        };
+
+        const onLongPress = () => {
+          navigation.emit({
+            type: "tabLongPress",
+            target: route.key,
+          });
+        };
+
+        const showBadge = route.name === "Notifications" && unreadCount > 0;
+
+        return (
+          <Pressable
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={focused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            testID={options.tabBarButtonTestID}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            style={styles.tabItem}
+          >
+            <View style={styles.iconContainer}>
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.focusBackground,
+                  {
+                    backgroundColor: theme.colors.primaryContainer,
+                    opacity: backgroundOpacity,
+                    transform: [{ scale: backgroundScale }],
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.iconWrapper,
+                  {
+                    transform: [{ scale }],
+                  },
+                ]}
+              >
+                <View>
+                  {iconElement}
+                  {showBadge && (
+                    <Badge style={styles.badge} size={18}>
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </Badge>
+                  )}
+                </View>
+              </Animated.View>
+            </View>
+            <Animated.Text
+              style={[
+                styles.tabLabel,
+                {
+                  color: labelColor,
+                  opacity: labelOpacity,
+                },
+              ]}
+            >
+              {typeof label === "string" ? label : route.name}
+            </Animated.Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
 
 export default function TabLayout() {
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -57,77 +241,38 @@ export default function TabLayout() {
     return null;
   }
 
+  const renderTabBar = (props: BottomTabBarProps) => {
+    try {
+      const activeRoute = props.state.routes[props.state.index];
+      if (
+        activeRoute.name === "Admin" &&
+        typeof activeRoute.state?.index === "number" &&
+        activeRoute.state.index > 0
+      ) {
+        return null;
+      }
+      if (
+        activeRoute.name === "Home" &&
+        activeRoute.state &&
+        typeof activeRoute.state.index === "number" &&
+        activeRoute.state.index > 0
+      ) {
+        return null;
+      }
+    } catch {
+      // ignore and fall back to showing tab bar
+    }
+
+    return <AnimatedTabBar {...props} unreadCount={unreadCount} />;
+  };
+
   return (
     <Tab.Navigator
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
       }}
-      tabBar={({ navigation, state, descriptors, insets }) =>
-        (() => {
-          try {
-            const activeRoute = state.routes[state.index];
-            if (
-              activeRoute.name === "Admin" &&
-              typeof activeRoute.state?.index === "number" &&
-              activeRoute.state.index > 0
-            ) {
-              return null;
-            }
-            if (
-              activeRoute.name === "Home" &&
-              activeRoute.state &&
-              typeof activeRoute.state.index === "number" &&
-              activeRoute.state.index > 0
-            ) {
-              return null;
-            }
-          } catch {
-            // Si hay un error, mostramos la barra por defecto
-          }
-
-          return (
-            <BottomNavigation.Bar
-              navigationState={state}
-              safeAreaInsets={insets}
-              onTabPress={({ route, preventDefault }) => {
-                const event = navigation.emit({
-                  type: "tabPress",
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-
-                if (event.defaultPrevented) {
-                  preventDefault();
-                } else {
-                  navigation.dispatch({
-                    ...CommonActions.navigate(route.name, route.params),
-                    target: state.key,
-                  });
-                }
-              }}
-              renderIcon={({ route, focused, color }) => {
-                const { options } = descriptors[route.key];
-                if (options.tabBarIcon) {
-                  return options.tabBarIcon({ focused, color, size: 24 });
-                }
-                return null;
-              }}
-              getLabelText={({ route }) => {
-                const { options } = descriptors[route.key];
-                const label =
-                  options.tabBarLabel !== undefined
-                    ? options.tabBarLabel
-                    : options.title !== undefined
-                    ? options.title
-                    : route.name;
-                return typeof label === "string" ? label : route.name;
-              }}
-              style={styles.bottomNavigation}
-            />
-          );
-        })()
-      }
+      tabBar={renderTabBar}
     >
       <Tab.Screen
         name="Home"
@@ -137,7 +282,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? "home" : "home-outline"}
-              size={24}
+              size={26}
               color={color}
             />
           ),
@@ -149,25 +294,11 @@ export default function TabLayout() {
         options={{
           tabBarLabel: "Notificaciones",
           tabBarIcon: ({ color, focused }) => (
-            <View>
-              <MaterialCommunityIcons
-                name={focused ? "bell" : "bell-outline"}
-                size={24}
-                color={color}
-              />
-              {unreadCount > 0 && (
-                <Badge
-                  style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -8,
-                  }}
-                  size={18}
-                >
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Badge>
-              )}
-            </View>
+            <MaterialCommunityIcons
+              name={focused ? "bell" : "bell-outline"}
+              size={26}
+              color={color}
+            />
           ),
         }}
       />
@@ -177,15 +308,15 @@ export default function TabLayout() {
           component={AdminLayOut}
           options={{
             tabBarLabel: "Admin",
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "shield-account" : "shield-account-outline"}
-              size={24}
-              color={color}
-            />
-          ),
-        }}
-      />
+            tabBarIcon: ({ color, focused }) => (
+              <MaterialCommunityIcons
+                name={focused ? "shield-account" : "shield-account-outline"}
+                size={26}
+                color={color}
+              />
+            ),
+          }}
+        />
       )}
       <Tab.Screen
         name="Profile"
@@ -195,7 +326,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? "account-circle" : "account-circle-outline"}
-              size={24}
+              size={26}
               color={color}
             />
           ),
@@ -206,7 +337,43 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  bottomNavigation: {
-    elevation: 8,
+  customTabBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    elevation: 12,
+  },
+  tabItem: {
+    marginTop: 2,
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  iconContainer: {
+    width: 72,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrapper: {
+    marginBottom: 0,
+  },
+  tabLabel: {
+    fontSize:12,
+    fontWeight: "600",
+  },
+  focusBackground: {
+    position: "absolute",
+    width: 64,
+    height: 32,
+    borderRadius: 18,
+  },
+  badge: {
+    position: "absolute",
+    top: -6,
+    right: -12,
   },
 });
