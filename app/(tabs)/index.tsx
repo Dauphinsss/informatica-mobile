@@ -12,7 +12,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
@@ -67,8 +67,16 @@ export default function HomeScreen() {
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [enrolledSubjectIds, setEnrolledSubjectIds] = useState<string[]>([]);
   const [savingSubject, setSavingSubject] = useState<string | null>(null);
-  const [materialsCount, setMaterialsCount] = useState(0);
   const [subjectMaterials, setSubjectMaterials] = useState<Record<string, number>>({});
+  const totalMaterials = useMemo(
+    () =>
+      Object.values(subjectMaterials).reduce(
+        (acc, value) => acc + (typeof value === "number" ? value : 0),
+        0
+      ),
+    [subjectMaterials]
+  );
+  const totalMaterialsLabel = totalMaterials === 1 ? "Material" : "Materiales";
 
   const user = auth.currentUser;
 
@@ -99,7 +107,6 @@ export default function HomeScreen() {
       if (enrolledSubjectIds.length === 0) {
         if (isMounted) {
           setSubjectMaterials({});
-          setMaterialsCount(0);
         }
         return;
       }
@@ -123,17 +130,11 @@ export default function HomeScreen() {
 
         if (isMounted) {
           setSubjectMaterials(materialsBySubject);
-          const total = Object.values(materialsBySubject).reduce(
-            (acc, value) => acc + value,
-            0
-          );
-          setMaterialsCount(total);
         }
       } catch (error) {
         console.error("Error al obtener materiales:", error);
         if (isMounted) {
           setSubjectMaterials({});
-          setMaterialsCount(0);
         }
       }
     };
@@ -290,9 +291,9 @@ export default function HomeScreen() {
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text variant="headlineMedium" style={styles.statNumber}>
-                  {materialsCount}
+                  {totalMaterials}
                 </Text>
-                <Text variant="bodySmall">Materiales</Text>
+                <Text variant="bodySmall">{totalMaterialsLabel}</Text>
               </View>
             </View>
           </View>
@@ -591,10 +592,10 @@ const styles = StyleSheet.create({
   },
   cardHeaderContent: {
     position: "absolute",
-    top: 14,
+    top: 10,
     left: 16,
     right: 16,
-    bottom: 14,
+    bottom: 12,
     justifyContent: "space-between",
     gap: 12,
   },
