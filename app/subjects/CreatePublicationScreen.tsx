@@ -22,7 +22,7 @@ import {
   Text,
   TextInput,
 } from "react-native-paper";
-import { getStyles } from "./CreatePublicationScreen.styles";
+import { getStyles } from "./_CreatePublicationScreen.styles";
 
 interface ArchivoTemp {
   id?: string; // Si ya está subido
@@ -79,11 +79,14 @@ export default function CreatePublicationScreen() {
     return "file-document";
   };
 
-  const detectarTipoArchivo = (mimeType: string, nombre: string): string | null => {
+  const detectarTipoArchivo = (
+    mimeType: string,
+    nombre: string
+  ): string | null => {
     console.log("Detectando tipo de archivo:");
     console.log("- mimeType:", mimeType);
     console.log("- nombre:", nombre);
-    
+
     // Buscar por mimetype
     for (const tipo of tipos) {
       if (tipo.mimetype.some((mime) => mimeType && mimeType.includes(mime))) {
@@ -95,7 +98,7 @@ export default function CreatePublicationScreen() {
     // Buscar por extensión
     const extension = "." + nombre.split(".").pop()?.toLowerCase();
     console.log("- extensión:", extension);
-    
+
     for (const tipo of tipos) {
       if (tipo.extensiones.includes(extension)) {
         console.log("Tipo encontrado por extensión:", tipo.nombre);
@@ -113,7 +116,7 @@ export default function CreatePublicationScreen() {
       if (!archivo) return;
 
       const tipoId = detectarTipoArchivo(archivo.mimeType || "", archivo.name);
-      
+
       if (!tipoId) {
         Alert.alert(
           "Tipo no soportado",
@@ -139,7 +142,7 @@ export default function CreatePublicationScreen() {
 
   const eliminarArchivoLocal = async (index: number) => {
     const archivo = archivos[index];
-    
+
     // Si ya está subido, eliminarlo de Firebase
     if (archivo.id && publicacionId) {
       try {
@@ -189,10 +192,10 @@ export default function CreatePublicationScreen() {
       // 2. Subir archivos pendientes
       if (archivos.length > 0) {
         console.log(`Subiendo ${archivos.length} archivos...`);
-        
+
         for (let i = 0; i < archivos.length; i++) {
           const archivo = archivos[i];
-          
+
           // Si ya está subido, saltar
           if (archivo.id) {
             console.log(`Archivo ${i} ya está subido`);
@@ -224,7 +227,10 @@ export default function CreatePublicationScreen() {
               }
             );
 
-            console.log(`Archivo ${i} subido exitosamente con ID:`, resultado.id);
+            console.log(
+              `Archivo ${i} subido exitosamente con ID:`,
+              resultado.id
+            );
 
             // Marcar como completado
             setArchivos((prev) => {
@@ -239,13 +245,13 @@ export default function CreatePublicationScreen() {
             });
           } catch (error) {
             console.error(`Error al subir archivo ${i}:`, error);
-            
+
             // Mostrar error específico al usuario
             let mensajeError = "Error al subir";
             if (error instanceof Error) {
               mensajeError = error.message;
             }
-            
+
             setArchivos((prev) => {
               const nuevos = [...prev];
               nuevos[i] = {
@@ -255,7 +261,7 @@ export default function CreatePublicationScreen() {
               };
               return nuevos;
             });
-            
+
             // Mostrar alerta para este archivo específico
             Alert.alert(
               "Error al subir archivo",
@@ -274,7 +280,8 @@ export default function CreatePublicationScreen() {
       ]);
     } catch (error) {
       console.error("Error al publicar:", error);
-      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
       Alert.alert("Error", `No se pudo crear la publicación: ${errorMessage}`);
     } finally {
       setPublicando(false);
@@ -286,11 +293,7 @@ export default function CreatePublicationScreen() {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Nueva publicación" />
-        <Appbar.Action
-          icon="check"
-          onPress={publicar}
-          disabled={publicando}
-        />
+        <Appbar.Action icon="check" onPress={publicar} disabled={publicando} />
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
@@ -364,14 +367,17 @@ export default function CreatePublicationScreen() {
                             {archivo.asset.name}
                           </Text>
                           <View style={styles.archivoMeta}>
-                            <Chip 
-                              compact 
+                            <Chip
+                              compact
                               style={styles.tipoChip}
                               textStyle={{ fontSize: 12 }}
                             >
                               {tipo?.nombre || "Archivo"}
                             </Chip>
-                            <Text variant="bodySmall" style={styles.archivoTamano}>
+                            <Text
+                              variant="bodySmall"
+                              style={styles.archivoTamano}
+                            >
                               {formatearTamano(archivo.asset.size || 0)}
                             </Text>
                           </View>
@@ -385,14 +391,14 @@ export default function CreatePublicationScreen() {
                         style={{ margin: 0 }}
                       />
                     </Card.Content>
-                    
+
                     {archivo.subiendo && (
                       <ProgressBar
                         progress={archivo.progreso / 100}
                         style={styles.progressBar}
                       />
                     )}
-                    
+
                     {archivo.error && (
                       <Card.Content>
                         <Text variant="bodySmall" style={styles.errorText}>

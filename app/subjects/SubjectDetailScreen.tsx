@@ -1,7 +1,15 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
-import { ArchivoPublicacion, Publicacion } from "@/scripts/types/Publication.type";
-import { NavigationProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
+import {
+  ArchivoPublicacion,
+  Publicacion,
+} from "@/scripts/types/Publication.type";
+import {
+  NavigationProp,
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
 import { getAuth } from "firebase/auth";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import React, { useCallback, useState } from "react";
@@ -14,7 +22,7 @@ import {
   FAB,
   Text,
 } from "react-native-paper";
-import { getStyles } from "./SubjectDetailScreen.styles";
+import { getStyles } from "./_SubjectDetailScreen.styles";
 
 export default function SubjectDetailScreen() {
   const { theme } = useTheme();
@@ -23,24 +31,24 @@ export default function SubjectDetailScreen() {
     CreatePublication: { materiaId: string; materiaNombre: string };
     PublicationDetail: { publicacionId: string; materiaNombre: string };
     FileGallery: {
-    archivos: ArchivoPublicacion[];
-    indiceInicial: number;
-    materiaNombre: string;
-  };
+      archivos: ArchivoPublicacion[];
+      indiceInicial: number;
+      materiaNombre: string;
+    };
   };
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute();
   const auth = getAuth();
-  
+
   const params = route.params as {
     nombre?: string;
     id?: string;
     semestre?: number;
   };
-  
+
   const subjectName = params?.nombre || "Materia";
   const materiaId = params?.id || "";
-  
+
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -73,7 +81,10 @@ export default function SubjectDetailScreen() {
             } as Publicacion;
           });
           // Ordenar en cliente por fecha más reciente
-          items.sort((a, b) => b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime());
+          items.sort(
+            (a, b) =>
+              b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime()
+          );
           setPublicaciones(items);
           setCargando(false);
         },
@@ -96,7 +107,7 @@ export default function SubjectDetailScreen() {
     if (dias === 1) return "Ayer";
     if (dias < 7) return `Hace ${dias} días`;
     if (dias < 30) return `Hace ${Math.floor(dias / 7)} semanas`;
-    
+
     return fecha.toLocaleDateString("es-BO", {
       day: "numeric",
       month: "short",
@@ -170,9 +181,9 @@ export default function SubjectDetailScreen() {
                 <Text variant="titleMedium" style={styles.titulo}>
                   {publicacion.titulo}
                 </Text>
-                
-                <Text 
-                  variant="bodyMedium" 
+
+                <Text
+                  variant="bodyMedium"
                   style={styles.descripcion}
                   numberOfLines={3}
                 >
@@ -181,9 +192,9 @@ export default function SubjectDetailScreen() {
 
                 <View style={styles.statsContainer}>
                   {publicacion.vistas > 0 && (
-                    <Chip 
-                      icon="eye" 
-                      compact 
+                    <Chip
+                      icon="eye"
+                      compact
                       style={styles.statChip}
                       textStyle={styles.statText}
                     >
@@ -191,9 +202,9 @@ export default function SubjectDetailScreen() {
                     </Chip>
                   )}
                   {publicacion.totalComentarios > 0 && (
-                    <Chip 
-                      icon="comment" 
-                      compact 
+                    <Chip
+                      icon="comment"
+                      compact
                       style={styles.statChip}
                       textStyle={styles.statText}
                     >
@@ -207,11 +218,7 @@ export default function SubjectDetailScreen() {
         )}
       </ScrollView>
 
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={abrirNuevaPublicacion}
-      />
+      <FAB icon="plus" style={styles.fab} onPress={abrirNuevaPublicacion} />
     </View>
   );
 }

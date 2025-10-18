@@ -4,7 +4,10 @@ import {
   obtenerArchivosConTipo,
   obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
-import { ArchivoPublicacion, Publicacion } from "@/scripts/types/Publication.type";
+import {
+  ArchivoPublicacion,
+  Publicacion,
+} from "@/scripts/types/Publication.type";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
@@ -17,7 +20,7 @@ import {
   IconButton,
   Text,
 } from "react-native-paper";
-import { getStyles } from "./PublicationDetailScreen.styles";
+import { getStyles } from "./_PublicationDetailScreen.styles";
 
 export default function PublicationDetailScreen() {
   const { theme } = useTheme();
@@ -47,7 +50,7 @@ export default function PublicationDetailScreen() {
     if (pub) {
       setPublicacion(pub);
       await incrementarVistas(publicacionId);
-      
+
       const archivosData = await obtenerArchivosConTipo(publicacionId);
       setArchivos(archivosData);
     }
@@ -78,34 +81,47 @@ export default function PublicationDetailScreen() {
     if (tipo.includes("zip")) return "folder-zip";
     if (tipo.includes("word") || tipo.includes("doc")) return "file-word";
     if (tipo.includes("excel") || tipo.includes("xls")) return "file-excel";
-    if (tipo.includes("powerpoint") || tipo.includes("ppt")) return "file-powerpoint";
+    if (tipo.includes("powerpoint") || tipo.includes("ppt"))
+      return "file-powerpoint";
     return "file-document";
   };
 
   const abrirGaleria = (archivo: ArchivoPublicacion) => {
     const indice = archivos.findIndex((a) => a.id === archivo.id);
+
+    // Serializar archivos para navegación
+    const archivosSerializados = archivos.map((a) => ({
+      ...a,
+      fechaSubida:
+        a.fechaSubida instanceof Date
+          ? a.fechaSubida.toISOString()
+          : a.fechaSubida,
+    }));
+
     // @ts-ignore
-    navigation.navigate("FileGallery" as never, {
-      archivos,
-      indiceInicial: indice,
-      materiaNombre,
-    } as never);
+    navigation.navigate(
+      "FileGallery" as never,
+      {
+        archivos: archivosSerializados,
+        indiceInicial: indice,
+        materiaNombre,
+      } as never
+    );
   };
 
   const descargarArchivo = (archivo: ArchivoPublicacion) => {
-    Alert.alert(
-      "Descargar",
-      `¿Descargar ${archivo.titulo}?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Descargar", 
-          onPress: () => {
-            Alert.alert("Info", "La función de descarga estará disponible próximamente");
-          }
-        }
-      ]
-    );
+    Alert.alert("Descargar", `¿Descargar ${archivo.titulo}?`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Descargar",
+        onPress: () => {
+          Alert.alert(
+            "Info",
+            "La función de descarga estará disponible próximamente"
+          );
+        },
+      },
+    ]);
   };
 
   if (cargando) {
@@ -179,18 +195,18 @@ export default function PublicationDetailScreen() {
             </Text>
 
             <View style={styles.statsContainer}>
-              <Chip 
-                icon="eye" 
-                compact 
+              <Chip
+                icon="eye"
+                compact
                 style={styles.statChip}
                 textStyle={styles.statText}
               >
                 {publicacion.vistas}
               </Chip>
               {publicacion.totalComentarios > 0 && (
-                <Chip 
-                  icon="comment" 
-                  compact 
+                <Chip
+                  icon="comment"
+                  compact
                   style={styles.statChip}
                   textStyle={styles.statText}
                 >
@@ -226,7 +242,7 @@ export default function PublicationDetailScreen() {
                     style={styles.downloadButton}
                     iconColor={theme.colors.onSurfaceVariant}
                   />
-                  
+
                   <Card.Content>
                     <View style={styles.archivoIconContainer}>
                       <IconButton

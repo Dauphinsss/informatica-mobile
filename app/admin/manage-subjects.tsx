@@ -29,11 +29,11 @@ import EditSubjectModal from "./components/EditSubjectModal";
 import SubjectCard from "./components/SubjectCard";
 
 // Utils and Types
-import { AdminStackParamList, SemestreOption, Subject } from "./types";
+import { AdminStackParamList, SemestreOption, Subject } from "./_types";
 import {
   normalizeText,
   validateSubjectFields,
-} from "./utils/subjectValidations";
+} from "./_utils/subjectValidations";
 
 type ManageSubjectsScreenNavigationProp = StackNavigationProp<
   AdminStackParamList,
