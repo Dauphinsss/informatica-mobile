@@ -1,20 +1,23 @@
-import React from 'react';
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Card, Chip, Text, useTheme } from 'react-native-paper';
-import { Subject } from '../_types';
+import React from "react";
+import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Card, Chip, Text, useTheme } from "react-native-paper";
+import { Subject } from "../_types";
 
 interface SubjectCardProps {
   subject: Subject;
-  onToggleStatus: (subjectId: string, currentStatus: 'active' | 'inactive') => void;
+  onToggleStatus: (
+    subjectId: string,
+    currentStatus: "active" | "inactive"
+  ) => void;
   onEdit: (subject: Subject) => void;
   isUpdating?: boolean;
 }
 
-const SubjectCard: React.FC<SubjectCardProps> = ({ 
-  subject, 
-  onToggleStatus, 
+const SubjectCard: React.FC<SubjectCardProps> = ({
+  subject,
+  onToggleStatus,
   onEdit,
-  isUpdating = false 
+  isUpdating = false,
 }) => {
   const theme = useTheme();
 
@@ -25,20 +28,24 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   // ahora robusto: acepta number, '10', 10, 'Electiva' o cualquier string
   const getSemestreText = (semestre: any) => {
     // normalizar
-    if (semestre === 10 || semestre === '10' || String(semestre).toLowerCase() === 'electiva') {
-      return 'Electiva';
+    if (
+      semestre === 10 ||
+      semestre === "10" ||
+      String(semestre).toLowerCase() === "electiva"
+    ) {
+      return "Electiva";
     }
     const n = Number(semestre);
     if (!Number.isNaN(n) && n > 0) {
       return `Semestre ${n}`;
     }
     // fallback: mostrar tal cual si es texto o vacío
-    return String(semestre || '');
+    return String(semestre || "");
   };
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-      <Card style={styles.subjectCard} mode='elevated'>
+      <Card style={styles.subjectCard} mode="elevated">
         <Card.Content style={styles.cardContent}>
           {subject?.imagenUrl && (
             <View style={styles.imageContainer}>
@@ -46,14 +53,23 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
               <View style={styles.imageOverlay} />
             </View>
           )}
-          
+
           <View style={styles.cardHeader}>
             <View style={styles.subjectMainInfo}>
-              <Text variant="titleMedium" style={styles.subjectName} numberOfLines={1}>
+              <Text
+                variant="titleMedium"
+                style={styles.subjectName}
+                numberOfLines={1}
+              >
                 {subject.nombre}
               </Text>
               <View style={styles.metaInfo}>
-                <View style={[styles.semesterBadge, { backgroundColor: theme.colors.primary }]}>
+                <View
+                  style={[
+                    styles.semesterBadge,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
+                >
                   <Text style={styles.semesterText}>
                     {getSemestreText(subject.semestre)}
                   </Text>
@@ -66,26 +82,37 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                   }}
                   style={[
                     styles.statusChip,
-                    subject.estado === 'active' 
-                      ? styles.activeChip 
-                      : styles.inactiveChip
+                    subject.estado === "active"
+                      ? styles.activeChip
+                      : styles.inactiveChip,
                   ]}
                   disabled={isUpdating}
                   textStyle={styles.chipText}
                 >
-                  {isUpdating ? '...' : (subject.estado === 'active' ? 'Activa' : 'Inactiva')}
+                  {isUpdating
+                    ? "..."
+                    : subject.estado === "active"
+                    ? "Activa"
+                    : "Inactiva"}
                 </Chip>
               </View>
             </View>
           </View>
-          
-          <Text variant="bodyMedium" style={styles.subjectDescription} numberOfLines={2}>
+
+          <Text
+            variant="bodyMedium"
+            style={styles.subjectDescription}
+            numberOfLines={2}
+          >
             {subject.descripcion}
           </Text>
-          
+
           <View style={styles.cardFooter}>
             <Text variant="labelSmall" style={styles.createdDate}>
-              Creada: {subject.createdAt instanceof Date ? subject.createdAt.toLocaleDateString() : String(subject.createdAt)}
+              Creada:{" "}
+              {subject.createdAt instanceof Date
+                ? subject.createdAt.toLocaleDateString()
+                : String(subject.createdAt)}
             </Text>
           </View>
         </Card.Content>
@@ -102,22 +129,22 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   imageContainer: {
-    position: 'relative',
+    position: "relative",
     marginBottom: 12,
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   image: {
-    width: '100%',
+    width: "100%",
     height: 120,
   },
   imageOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: "rgba(0,0,0,0.1)",
   },
   cardHeader: {
     marginBottom: 12,
@@ -129,8 +156,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   metaInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   semesterBadge: {
@@ -139,24 +166,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   semesterText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   statusChip: {
     height: 28,
   },
   activeChip: {
-    backgroundColor: '#e8f5e8',
+    backgroundColor: "#e8f5e8",
   },
   inactiveChip: {
-    backgroundColor: '#ffebee',
+    backgroundColor: "#ffebee",
   },
   chipText: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     lineHeight: 14,
-    textAlignVertical: 'center',
+    textAlignVertical: "center",
     includeFontPadding: false,
   },
   subjectDescription: {
@@ -165,11 +192,11 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.12)',
+    borderTopColor: "rgba(0, 0, 0, 0.12)",
     paddingTop: 12,
   },
   createdDate: {
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
 });
 

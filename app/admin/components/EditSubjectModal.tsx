@@ -1,9 +1,17 @@
 // app/admin/components/EditSubjectModal.tsx
-import React from 'react';
-import { ScrollView, View } from 'react-native';
-import { Button, Divider, Menu, Modal, Text, TextInput, useTheme } from 'react-native-paper';
-import { SemestreOption, Subject } from '../_types';
-import ImageUploader from './ImageUploader';
+import React from "react";
+import { ScrollView, View } from "react-native";
+import {
+  Button,
+  Divider,
+  Menu,
+  Modal,
+  Text,
+  TextInput,
+  useTheme,
+} from "react-native-paper";
+import { SemestreOption, Subject } from "../_types";
+import ImageUploader from "./ImageUploader";
 
 interface EditSubjectModalProps {
   visible: boolean;
@@ -15,7 +23,12 @@ interface EditSubjectModalProps {
     semestre: SemestreOption;
     imagenUrl?: string;
   };
-  setFormData: (data: { nombre: string; descripcion: string; semestre: SemestreOption; imagenUrl?: string }) => void;
+  setFormData: (data: {
+    nombre: string;
+    descripcion: string;
+    semestre: SemestreOption;
+    imagenUrl?: string;
+  }) => void;
   errors: {
     nombre: string;
     descripcion: string;
@@ -26,7 +39,7 @@ interface EditSubjectModalProps {
   isSaveDisabled: boolean;
 }
 
-const semestres: SemestreOption[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'Electiva'];
+const semestres: SemestreOption[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, "Electiva"];
 
 const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
   visible,
@@ -46,7 +59,7 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
   const closeMenu = () => setMenuVisible(false);
 
   const selectSemestre = (semestre: SemestreOption) => {
-    if (semestre === 'Electiva') {
+    if (semestre === "Electiva") {
       setFormData({ ...formData, semestre: 10 as SemestreOption });
     } else {
       setFormData({ ...formData, semestre: semestre });
@@ -59,19 +72,25 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
   };
 
   const handleImageRemoved = () => {
-    setFormData({ ...formData, imagenUrl: '' });
+    setFormData({ ...formData, imagenUrl: "" });
   };
 
   const getSemestreText = (semestre: SemestreOption) => {
-    if (semestre === 10 || String(semestre) === '10' || String(semestre).toLowerCase() === 'electiva') {
-      return 'Electiva';
+    if (
+      semestre === 10 ||
+      String(semestre) === "10" ||
+      String(semestre).toLowerCase() === "electiva"
+    ) {
+      return "Electiva";
     }
-    return typeof semestre === 'number' ? `Semestre ${semestre}` : String(semestre);
+    return typeof semestre === "number"
+      ? `Semestre ${semestre}`
+      : String(semestre);
   };
 
   // Función para normalizar opción a valor interno (string). "Electiva" => "10"
   const optionValue = (opt: SemestreOption) => {
-    if (opt === 'Electiva') return '10';
+    if (opt === "Electiva") return "10";
     return String(opt);
   };
 
@@ -82,7 +101,10 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
     <Modal
       visible={visible}
       onDismiss={onDismiss}
-      contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={[
+        styles.modal,
+        { backgroundColor: theme.colors.background },
+      ]}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text variant="headlineSmall" style={styles.modalTitle}>
@@ -104,19 +126,29 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
           maxLength={30}
           mode="outlined"
         />
-        {errors.nombre ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.nombre}</Text> : null}
+        {errors.nombre ? (
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>
+            {errors.nombre}
+          </Text>
+        ) : null}
 
         <TextInput
           label="Descripción breve *"
           value={formData.descripcion}
-          onChangeText={(text) => setFormData({ ...formData, descripcion: text })}
+          onChangeText={(text) =>
+            setFormData({ ...formData, descripcion: text })
+          }
           error={!!errors.descripcion}
           style={styles.input}
           multiline
           numberOfLines={3}
           mode="outlined"
         />
-        {errors.descripcion ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.descripcion}</Text> : null}
+        {errors.descripcion ? (
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>
+            {errors.descripcion}
+          </Text>
+        ) : null}
 
         <View style={styles.semestreContainer}>
           <Text variant="labelLarge" style={styles.semestreLabel}>
@@ -125,11 +157,11 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
 
           {/* Menu: key forzar remount cuando cambie semestre (fix apertura única) */}
           <Menu
-            key={String(formData.semestre ?? '')}
+            key={String(formData.semestre ?? "")}
             visible={menuVisible}
             onDismiss={closeMenu}
             anchor={
-              <View style={{ width: '100%' }}>
+              <View style={{ width: "100%" }}>
                 <Button
                   mode="outlined"
                   onPress={openMenu}
@@ -139,26 +171,36 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
                 >
                   {formData.semestre !== undefined && formData.semestre !== null
                     ? getSemestreText(formData.semestre)
-                    : 'Seleccionar semestre'}
+                    : "Seleccionar semestre"}
                 </Button>
               </View>
             }
             style={{ zIndex: 9999 }}
           >
             {semestres
-              .filter((sem) => optionValue(sem as SemestreOption) !== selectedValue) // <-- filtro: no mostrar la opción ya seleccionada
+              .filter(
+                (sem) => optionValue(sem as SemestreOption) !== selectedValue
+              ) // <-- filtro: no mostrar la opción ya seleccionada
               .map((semestre, index) => (
                 <React.Fragment key={`${String(semestre)}-${index}`}>
                   <Menu.Item
                     onPress={() => selectSemestre(semestre)}
-                    title={semestre === 'Electiva' ? 'Electiva' : `Semestre ${semestre}`}
+                    title={
+                      semestre === "Electiva"
+                        ? "Electiva"
+                        : `Semestre ${semestre}`
+                    }
                   />
                   {index < semestres.length - 1 && <Divider />}
                 </React.Fragment>
               ))}
           </Menu>
         </View>
-        {errors.semestre ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.semestre}</Text> : null}
+        {errors.semestre ? (
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>
+            {errors.semestre}
+          </Text>
+        ) : null}
 
         <View style={styles.modalButtons}>
           <Button
@@ -189,15 +231,15 @@ const styles = {
     padding: 24,
     margin: 20,
     borderRadius: 8,
-    maxHeight: '80%',
+    maxHeight: "80%",
   },
   scrollContent: {
     paddingBottom: 24,
   },
   modalTitle: {
     marginBottom: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
   },
   input: {
     marginBottom: 4,
@@ -206,7 +248,7 @@ const styles = {
     fontSize: 12,
     marginBottom: 12,
     marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   semestreContainer: {
     marginBottom: 16,
@@ -215,15 +257,15 @@ const styles = {
     marginBottom: 8,
   },
   semestreButton: {
-    width: '100%',
+    width: "100%",
   },
   semestreButtonContent: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
   },
   modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     gap: 12,
     marginTop: 16,
   },

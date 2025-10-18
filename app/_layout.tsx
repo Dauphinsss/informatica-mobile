@@ -2,7 +2,7 @@ import SuspendedModal from "@/components/ui/suspended-modal";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import {
   configurarCanalAndroid,
-  solicitarPermisosNotificaciones
+  solicitarPermisosNotificaciones,
 } from "@/services/pushNotifications";
 import { StatusBar } from "expo-status-bar";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -10,10 +10,10 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { PaperProvider } from "react-native-paper";
 import "react-native-reanimated";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { auth, db } from "../firebase";
 import TabsLayout from "./(tabs)/_layout";
 import LoginScreen from "./login";
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 function AppContent() {
   const { isDark } = useTheme();
@@ -79,16 +79,16 @@ function AppContent() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-    <ThemeProvider>
-      <ThemedApp />
-    </ThemeProvider>
+      <ThemeProvider>
+        <ThemedApp />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
 function ThemedApp() {
   const { theme } = useTheme();
-  
+
   return (
     <PaperProvider theme={theme}>
       <AppContent />
