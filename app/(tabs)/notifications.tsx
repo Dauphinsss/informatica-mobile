@@ -4,19 +4,35 @@ import {
   eliminarNotificacionUsuario,
   escucharNotificaciones,
   marcarComoLeida,
-  NotificacionCompleta
+  NotificacionCompleta,
 } from "@/services/notifications";
-import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import { ActivityIndicator, Appbar, Badge, Card, Divider, IconButton, List, Text } from "react-native-paper";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  ActivityIndicator,
+  Appbar,
+  Divider,
+  IconButton,
+  List,
+  Text,
+} from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const user = auth.currentUser;
-  const [notificaciones, setNotificaciones] = useState<NotificacionCompleta[]>([]);
+  const [notificaciones, setNotificaciones] = useState<NotificacionCompleta[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -28,7 +44,7 @@ export default function NotificationsScreen() {
         setLoading(false);
       },
       (error) => {
-        console.error('Error al cargar notificaciones:', error);
+        console.error("Error al cargar notificaciones:", error);
         setLoading(false);
       }
     );
@@ -36,31 +52,87 @@ export default function NotificationsScreen() {
     return () => unsubscribe();
   }, [user]);
 
-  const handleMarcarLeida = async (notifUsuarioId: string) => {
-    try {
-      await marcarComoLeida(notifUsuarioId);
-    } catch (error) {
-      console.error('Error al marcar como leída:', error);
+  const toggleExpand = async (notif: NotificacionCompleta) => {
+    if (expandedId === notif.id) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(notif.id);
+    }
+
+    // Marcar como leída cuando se toca
+    if (!notif.leida) {
+      try {
+        await marcarComoLeida(notif.id);
+      } catch (error) {
+        console.error("Error al marcar como leída:", error);
+      }
     }
   };
 
-  const handleEliminarNotificacion = async (notifUsuarioId: string, titulo: string) => {
+  // Agrupar notificaciones por período (hoy, ayer, anteriores)
+  const grupos = useMemo(() => {
+    const ahora = new Date();
+    const hoy = new Date(
+      ahora.getFullYear(),
+      ahora.getMonth(),
+      ahora.getDate()
+    );
+    const ayer = new Date(hoy);
+    ayer.setDate(ayer.getDate() - 1);
+
+    const hoyNotifs: NotificacionCompleta[] = [];
+    const ayerNotifs: NotificacionCompleta[] = [];
+    const anterioresNotifs: NotificacionCompleta[] = [];
+
+    notificaciones.forEach((notif) => {
+      const fecha = notif.creadoEn?.toDate
+        ? notif.creadoEn.toDate()
+        : new Date(notif.creadoEn);
+
+      if (fecha >= hoy) {
+        hoyNotifs.push(notif);
+      } else if (fecha >= ayer) {
+        ayerNotifs.push(notif);
+      } else {
+        anterioresNotifs.push(notif);
+      }
+    });
+
+    const result = [];
+    if (hoyNotifs.length > 0)
+      result.push({ key: "hoy", title: "Hoy", data: hoyNotifs });
+    if (ayerNotifs.length > 0)
+      result.push({ key: "ayer", title: "Ayer", data: ayerNotifs });
+    if (anterioresNotifs.length > 0)
+      result.push({
+        key: "anteriores",
+        title: "Anteriores",
+        data: anterioresNotifs,
+      });
+
+    return result;
+  }, [notificaciones]);
+
+  const handleEliminarNotificacion = async (
+    notifUsuarioId: string,
+    titulo: string
+  ) => {
     Alert.alert(
-      'Eliminar notificación',
+      "Eliminar notificación",
       `¿Estás seguro de que deseas eliminar "${titulo}"?`,
       [
         {
-          text: 'Cancelar',
-          style: 'cancel',
+          text: "Cancelar",
+          style: "cancel",
         },
         {
-          text: 'Eliminar',
-          style: 'destructive',
+          text: "Eliminar",
+          style: "destructive",
           onPress: async () => {
             try {
               await eliminarNotificacionUsuario(notifUsuarioId);
             } catch (error) {
-              console.error('Error al eliminar notificación:', error);
+              console.error("Error al eliminar notificación:", error);
             }
           },
         },
@@ -70,31 +142,31 @@ export default function NotificationsScreen() {
 
   const getIconColor = (tipo: string, leida: boolean) => {
     if (leida) return theme.colors.outline;
-    
+
     switch (tipo) {
-      case 'exito':
-        return '#4caf50';
-      case 'advertencia':
-        return '#ff9800';
-      case 'error':
-        return '#f44336';
+      case "exito":
+        return "#4caf50";
+      case "advertencia":
+        return "#ff9800";
+      case "error":
+        return "#f44336";
       default:
         return theme.colors.primary;
     }
   };
 
   const formatearTiempo = (timestamp: any) => {
-    if (!timestamp) return 'Ahora';
-    
+    if (!timestamp) return "Ahora";
+
     const fecha = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     const ahora = new Date();
     const diff = ahora.getTime() - fecha.getTime();
-    
+
     const minutos = Math.floor(diff / 60000);
     const horas = Math.floor(diff / 3600000);
     const dias = Math.floor(diff / 86400000);
-    
-    if (minutos < 1) return 'Ahora';
+
+    if (minutos < 1) return "Ahora";
     if (minutos < 60) return `${minutos}m`;
     if (horas < 24) return `${horas}h`;
     if (dias < 7) return `${dias}d`;
@@ -103,15 +175,15 @@ export default function NotificationsScreen() {
 
   if (!user) return null;
 
-  const noLeidas = notificaciones.filter(n => !n.leida);
-  const leidas = notificaciones.filter(n => n.leida);
-
   return (
     <View
-      style={[styles.container, { 
-        backgroundColor: theme.colors.background,
-        paddingBottom: insets.bottom 
-      }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+          paddingBottom: insets.bottom,
+        },
+      ]}
     >
       <Appbar.Header>
         <Appbar.Content title="Notificaciones" />
@@ -125,111 +197,132 @@ export default function NotificationsScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
-          {/* Notificaciones No Leídas */}
-          {noLeidas.length > 0 && (
-            <Card style={styles.card}>
-              <Card.Content>
-                <View style={styles.sectionHeader}>
-                  <Text variant="titleMedium" style={styles.sectionTitle}>
-                    No leídas
-                  </Text>
-                  <Badge style={{ backgroundColor: theme.colors.primary }}>
-                    {noLeidas.length}
-                  </Badge>
-                </View>
-                <Divider style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
-              </Card.Content>
-              {noLeidas.map((notif) => (
-                <TouchableOpacity 
-                  key={notif.id}
-                  onPress={() => handleMarcarLeida(notif.id)}
-                  style={[styles.notifItem, { backgroundColor: theme.colors.surfaceVariant }]}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          {grupos.map((grupo) => (
+            <View key={grupo.key} style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text
+                  variant="titleMedium"
+                  style={[
+                    styles.sectionTitle,
+                    { color: theme.colors.onSurface },
+                  ]}
                 >
-                  <List.Item
-                    title={notif.titulo}
-                    description={notif.descripcion}
-                    titleStyle={{ fontWeight: 'bold', color: theme.colors.onSurface }}
-                    descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
-                    left={(props) => (
-                      <List.Icon 
-                        {...props} 
+                  {grupo.title}
+                </Text>
+              </View>
+              <Divider />
+
+              {grupo.data.map((notif) => {
+                return (
+                  <View key={notif.id}>
+                    <TouchableOpacity
+                      onPress={() => toggleExpand(notif)}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.notifItem,
+                        {
+                          backgroundColor: !notif.leida
+                            ? theme.dark
+                              ? "rgba(255, 255, 255, 0.05)"
+                              : "rgba(0, 0, 0, 0.03)"
+                            : "transparent",
+                        },
+                      ]}
+                    >
+                      <List.Icon
                         icon={notif.icono}
                         color={getIconColor(notif.tipo, notif.leida)}
+                        style={{ margin: 0 }}
                       />
-                    )}
-                    right={(props) => (
-                      <View style={styles.rightContent}>
-                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                          {formatearTiempo(notif.creadoEn)}
+                      <View style={styles.notifContent}>
+                        <View style={styles.notifHeader}>
+                          <Text
+                            variant="bodyLarge"
+                            style={[
+                              styles.notifTitle,
+                              {
+                                color: theme.colors.onSurface,
+                                fontWeight: !notif.leida ? "700" : "600",
+                              },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {notif.titulo}
+                          </Text>
+                          <Text
+                            variant="bodySmall"
+                            style={{
+                              color: theme.colors.onSurfaceVariant,
+                              marginLeft: 8,
+                            }}
+                          >
+                            {formatearTiempo(notif.creadoEn)}
+                          </Text>
+                        </View>
+                        <Text
+                          variant="bodyMedium"
+                          style={[
+                            styles.notifDescription,
+                            {
+                              color: theme.colors.onSurfaceVariant,
+                              opacity: notif.leida ? 0.7 : 1,
+                            },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {notif.descripcion}
                         </Text>
-                        <View style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]} />
+                      </View>
+                      <View style={styles.notifActions}>
+                        {!notif.leida && (
+                          <View
+                            style={[
+                              styles.unreadDot,
+                              { backgroundColor: theme.colors.primary },
+                            ]}
+                          />
+                        )}
                         <IconButton
                           icon="delete-outline"
                           size={20}
                           iconColor={theme.colors.error}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleEliminarNotificacion(notif.id, notif.titulo);
-                          }}
+                          style={{ margin: 0 }}
+                          onPress={() =>
+                            handleEliminarNotificacion(notif.id, notif.titulo)
+                          }
                         />
                       </View>
-                    )}
-                  />
-                </TouchableOpacity>
-              ))}
-            </Card>
-          )}
-
-          {/* Notificaciones Leídas */}
-          {leidas.length > 0 && (
-            <Card style={styles.card}>
-              <Card.Content>
-                <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                  Leídas
-                </Text>
-                <Divider style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
-              </Card.Content>
-              {leidas.map((notif) => (
-                <List.Item
-                  key={notif.id}
-                  title={notif.titulo}
-                  description={notif.descripcion}
-                  titleStyle={{ color: theme.colors.onSurface }}
-                  descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
-                  left={(props) => (
-                    <List.Icon 
-                      {...props} 
-                      icon={notif.icono} 
-                      color={getIconColor(notif.tipo, notif.leida)}
+                    </TouchableOpacity>
+                    <Divider
+                      style={{ backgroundColor: theme.colors.outlineVariant }}
                     />
-                  )}
-                  right={(props) => (
-                    <View style={styles.rightContent}>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                        {formatearTiempo(notif.creadoEn)}
-                      </Text>
-                      <IconButton
-                        icon="delete-outline"
-                        size={20}
-                        iconColor={theme.colors.error}
-                        onPress={() => handleEliminarNotificacion(notif.id, notif.titulo)}
-                      />
-                    </View>
-                  )}
-                />
-              ))}
-            </Card>
-          )}
+                  </View>
+                );
+              })}
+            </View>
+          ))}
 
-          {/* Sin notificaciones */}
           {notificaciones.length === 0 && (
             <View style={styles.emptyState}>
-              <IconButton icon="bell-outline" size={64} iconColor={theme.colors.outline} />
-              <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 16 }}>
+              <IconButton
+                icon="bell-outline"
+                size={64}
+                iconColor={theme.colors.outline}
+              />
+              <Text
+                variant="titleMedium"
+                style={{ color: theme.colors.onSurface, marginTop: 16 }}
+              >
                 No tienes notificaciones
               </Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
+              <Text
+                variant="bodyMedium"
+                style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}
+              >
                 Te notificaremos cuando haya algo nuevo
               </Text>
             </View>
@@ -246,36 +339,53 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
-  card: {
-    marginBottom: 16,
+  section: {
+    marginBottom: 24,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontWeight: "bold" as const,
   },
-  divider: {
-    marginVertical: 8,
-  },
+
   notifItem: {
-    borderRadius: 8,
-    marginHorizontal: 8,
-    marginBottom: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
   },
-  rightContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  notifContent: {
+    flex: 1,
+  },
+  notifHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  notifActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  notifTitle: {
+    fontWeight: "600",
+    flex: 1,
+  },
+  notifDescription: {
+    lineHeight: 20,
+    marginTop: 4,
   },
   unreadDot: {
     width: 8,
@@ -284,8 +394,8 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 100,
   },
 });

@@ -3,8 +3,9 @@ import {
   addDoc,
   collection,
   doc,
-  getDoc,
+  documentId,
   getDocs,
+  limit,
   onSnapshot,
   query,
   serverTimestamp,
@@ -117,8 +118,12 @@ export const escucharNotificaciones = (
   try {
     const notifUsuarioRef = collection(db, "notificacionesUsuario");
 
-    // ✅ Solo where() - NO requiere índice compuesto
-    const q = query(notifUsuarioRef, where("userId", "==", userId));
+    // ✅ Optimizado: Solo where() + limit para reducir datos
+    const q = query(
+      notifUsuarioRef, 
+      where("userId", "==", userId),
+      limit(100) // Máximo 100 notificaciones recientes
+    );
 
     return onSnapshot(
       q,
@@ -135,29 +140,51 @@ export const escucharNotificaciones = (
               (notif: any) => !notif.eliminada
             ) as (NotificacionUsuario & { id: string })[];
 
-          // Obtener los datos completos de cada notificación
+          if (notificacionesUsuario.length === 0) {
+            onSuccess([]);
+            return;
+          }
+
+          // ✅ OPTIMIZACIÓN: Obtener todos los IDs únicos de notificaciones
+          const notifIds = [
+            ...new Set(
+              notificacionesUsuario.map((n) => n.notificacionId)
+            ),
+          ];
+
+          // ✅ Hacer una sola query batch con documentId() (máx 10 por batch)
           const notificacionesCompletas: NotificacionCompleta[] = [];
+          const batchSize = 10;
 
-          for (const notifUsuario of notificacionesUsuario) {
-            try {
-              const notifRef = doc(
-                db,
-                "notificaciones",
-                notifUsuario.notificacionId
-              );
-              const notifSnap = await getDoc(notifRef);
+          for (let i = 0; i < notifIds.length; i += batchSize) {
+            const batch = notifIds.slice(i, i + batchSize);
+            const notifQuery = query(
+              collection(db, "notificaciones"),
+              where(documentId(), "in", batch)
+            );
+            
+            const notifSnapshot = await getDocs(notifQuery);
+            const notifMap = new Map();
+            
+            notifSnapshot.docs.forEach((doc) => {
+              notifMap.set(doc.id, doc.data());
+            });
 
-              if (notifSnap.exists()) {
-                notificacionesCompletas.push({
-                  id: notifUsuario.id,
-                  ...notifSnap.data(),
-                  leida: notifUsuario.leida,
-                  creadoEn: notifUsuario.creadoEn, // Usa el timestamp de notifUsuario
-                } as NotificacionCompleta);
+            // Combinar datos
+            notificacionesUsuario.forEach((notifUsuario) => {
+              if (batch.includes(notifUsuario.notificacionId)) {
+                const notifData = notifMap.get(notifUsuario.notificacionId);
+                
+                if (notifData) {
+                  notificacionesCompletas.push({
+                    id: notifUsuario.id,
+                    ...notifData,
+                    leida: notifUsuario.leida,
+                    creadoEn: notifUsuario.creadoEn,
+                  } as NotificacionCompleta);
+                }
               }
-            } catch (err) {
-              console.error("Error al obtener notificación:", err);
-            }
+            });
           }
 
           // ✅ Ordenar en el cliente por fecha (más reciente primero)
@@ -233,8 +260,12 @@ export const obtenerContadorNoLeidas = (
   onUpdate: (count: number) => void
 ) => {
   const notifUsuarioRef = collection(db, "notificacionesUsuario");
-  // ✅ Solo where() por userId, filtrar leida en el cliente
-  const q = query(notifUsuarioRef, where("userId", "==", userId));
+  // ✅ Optimizado: Solo where() + limit para evitar cargar todas
+  const q = query(
+    notifUsuarioRef, 
+    where("userId", "==", userId),
+    limit(100) // Suficiente para contador
+  );
 
   return onSnapshot(q, (snapshot) => {
     // Filtrar no leídas y no eliminadas en el cliente

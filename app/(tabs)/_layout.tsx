@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { CommonActions } from "@react-navigation/native";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
@@ -124,9 +123,10 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
           });
 
           if (!event.defaultPrevented) {
-            navigation.dispatch({
-              ...CommonActions.navigate(route.name, route.params),
-              target: state.key,
+            navigation.navigate({
+              name: route.name,
+              params: route.params,
+              merge: true,
             });
           }
         };
@@ -302,22 +302,21 @@ export default function TabLayout() {
           ),
         }}
       />
-      {userRole === "admin" && (
-        <Tab.Screen
-          name="Admin"
-          component={AdminLayOut}
-          options={{
-            tabBarLabel: "Admin",
-            tabBarIcon: ({ color, focused }) => (
-              <MaterialCommunityIcons
-                name={focused ? "shield-account" : "shield-account-outline"}
-                size={26}
-                color={color}
-              />
-            ),
-          }}
-        />
-      )}
+      <Tab.Screen
+        name="Admin"
+        component={AdminLayOut}
+        options={{
+          tabBarLabel: "Admin",
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? "shield-account" : "shield-account-outline"}
+              size={26}
+              color={color}
+            />
+          ),
+          tabBarButton: userRole === "admin" ? undefined : () => null,
+        }}
+      />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
@@ -341,39 +340,40 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingHorizontal: 12,
+    paddingHorizontal: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 12,
   },
   tabItem: {
-    marginTop: 2,
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
+    paddingVertical: 6,
   },
   iconContainer: {
-    width: 72,
-    height: 48,
+    width: 52,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 2,
   },
   iconWrapper: {
     marginBottom: 0,
   },
   tabLabel: {
-    fontSize:12,
+    fontSize: 12,
     fontWeight: "600",
   },
   focusBackground: {
     position: "absolute",
     width: 64,
     height: 32,
-    borderRadius: 18,
+    borderRadius: 16,
   },
   badge: {
     position: "absolute",
-    top: -6,
+    top: -8,
     right: -12,
   },
 });
