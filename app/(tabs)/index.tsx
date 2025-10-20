@@ -59,6 +59,7 @@ export default function HomeScreen() {
   const [subjectMaterials, setSubjectMaterials] = useState<
     Record<string, number>
   >({});
+  const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
 
   const formatSemestre = (sem: any) => {
     if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
@@ -86,7 +87,17 @@ export default function HomeScreen() {
     return labels[n] || `${n}º Semestre`;
   };
 
-  const enrolledSubjects = useMemo(() => [] as Subject[], []);
+  const enrolledSubjects = useMemo(() => {
+    if (allSubjects.length === 0 || enrolledSubjectIds.length === 0) {
+      return [];
+    }
+    const validIds = new Set(
+      enrolledSubjectIds.filter(
+        (id) => typeof id === "string" && id.trim() !== ""
+      )
+    );
+    return allSubjects.filter((subject) => validIds.has(subject.id));
+  }, [allSubjects, enrolledSubjectIds]);
 
   const totalMaterials = useMemo(
     () =>
@@ -117,6 +128,26 @@ export default function HomeScreen() {
       return () => unsubscribe();
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const subjectsCollection = collection(db, "materias");
+        const subjectSnapshot = await getDocs(subjectsCollection);
+        const subjectsList = subjectSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Subject[];
+
+        const activeSubjects = subjectsList.filter((s) => s.estado === "active");
+        setAllSubjects(activeSubjects);
+      } catch (error) {
+        console.error("Error al cargar materias:", error);
+      }
+    };
+
+    fetchSubjects();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
