@@ -1,15 +1,13 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import {
-  arrayRemove,
-  arrayUnion,
   collection,
   doc,
   getDocs,
   onSnapshot,
   query,
-  updateDoc,
   where,
 } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from "react";
@@ -19,23 +17,17 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import {
-  ActivityIndicator,
   Appbar,
   Card,
-  Checkbox,
-  Divider,
   FAB,
   IconButton,
-  List,
-  Modal,
-  Portal,
   Surface,
   Text,
 } from "react-native-paper";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import SubjectsModal from "./components/SubjectsModal";
 
 interface Subject {
   id: string;
@@ -63,20 +55,39 @@ export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const [userData, setUserData] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [enrolledSubjectIds, setEnrolledSubjectIds] = useState<string[]>([]);
-  const [savingSubject, setSavingSubject] = useState<string | null>(null);
-  const [subjectMaterials, setSubjectMaterials] = useState<Record<string, number>>({});
-  const enrolledSubjects = useMemo(() => {
-    if (subjects.length === 0 || enrolledSubjectIds.length === 0) {
-      return [];
+  const [subjectMaterials, setSubjectMaterials] = useState<
+    Record<string, number>
+  >({});
+
+  const formatSemestre = (sem: any) => {
+    if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
+      return "Electiva";
     }
-    const validIds = new Set(
-      enrolledSubjectIds.filter((id) => typeof id === "string" && id.trim() !== "")
-    );
-    return subjects.filter((subject) => validIds.has(subject.id));
-  }, [subjects, enrolledSubjectIds]);
+
+    const n = Number(sem);
+    if (Number.isNaN(n)) {
+      return String(sem || "");
+    }
+
+    const labels: Record<number, string> = {
+      1: "1er Semestre",
+      2: "2do Semestre",
+      3: "3er Semestre",
+      4: "4to Semestre",
+      5: "5to Semestre",
+      6: "6to Semestre",
+      7: "7mo Semestre",
+      8: "8vo Semestre",
+      9: "9no Semestre",
+      10: "Electiva",
+    };
+
+    return labels[n] || `${n}º Semestre`;
+  };
+
+  const enrolledSubjects = useMemo(() => [] as Subject[], []);
+
   const totalMaterials = useMemo(
     () =>
       enrolledSubjects.reduce(
@@ -86,7 +97,6 @@ export default function HomeScreen() {
     [enrolledSubjects, subjectMaterials]
   );
   const totalMaterialsLabel = totalMaterials === 1 ? "Material" : "Materiales";
-
   const user = auth.currentUser;
 
   useEffect(() => {
@@ -107,11 +117,6 @@ export default function HomeScreen() {
       return () => unsubscribe();
     }
   }, [user]);
-
-  // Cargar todas las materias solo una vez al inicio
-  useEffect(() => {
-    fetchSubjects();
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -159,99 +164,12 @@ export default function HomeScreen() {
     };
   }, [enrolledSubjectIds]);
 
-  const fetchSubjects = async () => {
-    setLoadingSubjects(true);
-    try {
-      const subjectsCollection = collection(db, "materias");
-      const subjectSnapshot = await getDocs(subjectsCollection);
-      const subjectsList = subjectSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Subject[];
-
-      subjectsList.sort((a, b) => {
-        if (a.semestre !== b.semestre) {
-          return a.semestre - b.semestre;
-        }
-        return a.nombre.localeCompare(b.nombre);
-      });
-
-      const activeSubjects = subjectsList.filter((s) => s.estado === "active");
-      setSubjects(activeSubjects);
-    } catch {
-      // Error silencioso
-    } finally {
-      setLoadingSubjects(false);
-    }
-  };
-
-  const toggleSubjectEnrollment = async (subjectId: string) => {
-    if (!user) return;
-
-    setSavingSubject(subjectId);
-    const userRef = doc(db, "usuarios", user.uid);
-    const isEnrolled = enrolledSubjectIds.includes(subjectId);
-
-    try {
-      if (isEnrolled) {
-        await updateDoc(userRef, {
-          materiasInscritas: arrayRemove(subjectId),
-        });
-      } else {
-        await updateDoc(userRef, {
-          materiasInscritas: arrayUnion(subjectId),
-        });
-      }
-    } catch {
-      if (!isEnrolled) {
-        try {
-          await updateDoc(userRef, {
-            materiasInscritas: [subjectId],
-          });
-        } catch {
-          Alert.alert(
-            "Error",
-            "No se pudo guardar la materia. Verifica tu conexión."
-          );
-        }
-      }
-    } finally {
-      setSavingSubject(null);
-    }
-  };
-
   const getSubjectColor = (index: number) => {
     return SUBJECT_COLORS[index % SUBJECT_COLORS.length];
-  };
-  const formatSemestre = (sem: any) => {
-    if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
-      return "Electiva";
-    }
-
-    const n = Number(sem);
-    if (Number.isNaN(n)) {
-      return String(sem || "");
-    }
-
-    const labels: Record<number, string> = {
-      1: "1er Semestre",
-      2: "2do Semestre",
-      3: "3er Semestre",
-      4: "4to Semestre",
-      5: "5to Semestre",
-      6: "6to Semestre",
-      7: "7mo Semestre",
-      8: "8vo Semestre",
-      9: "9no Semestre",
-      10: "Electiva",
-    };
-
-    return labels[n] || `${n}º Semestre`;
   };
 
   const handleOpenModal = () => {
     setModalVisible(true);
-    fetchSubjects();
   };
 
   const handleCloseModal = () => {
@@ -308,7 +226,7 @@ export default function HomeScreen() {
 
         {/* Materias inscritas - Estilo Classroom */}
         {enrolledSubjects.length > 0 ? (
-          <View >
+          <View>
             {enrolledSubjects.map((subject, index) => {
               const colorScheme = getSubjectColor(index);
               const hasImage = !!subject.imagenUrl;
@@ -399,7 +317,9 @@ export default function HomeScreen() {
                           <Text numberOfLines={2} style={styles.cardTitle}>
                             {subject.nombre}
                           </Text>
-                          <Text style={styles.cardMetaInline}>{semesterLabel}</Text>
+                          <Text style={styles.cardMetaInline}>
+                            {semesterLabel}
+                          </Text>
                         </View>
                       </View>
                     </View>
@@ -409,36 +329,36 @@ export default function HomeScreen() {
             })}
           </View>
         ) : (
-            <Surface style={styles.emptyCard} elevation={1}>
+          <Surface style={styles.emptyCard} elevation={1}>
             <View style={{ alignItems: "center" }}>
               <IconButton
-              icon="book-open-outline"
-              size={64}
-              iconColor={theme.colors.primary}
-              style={{ opacity: 0.6 }}
+                icon="book-open-outline"
+                size={64}
+                iconColor={theme.colors.primary}
+                style={{ opacity: 0.6 }}
               />
               <Text
-              variant="titleMedium"
-              style={{
-                color: theme.colors.onSurface,
-                textAlign: "center",
-                marginBottom: 8,
-                fontWeight: "600",
-              }}
+                variant="titleMedium"
+                style={{
+                  color: theme.colors.onSurface,
+                  textAlign: "center",
+                  marginBottom: 8,
+                  fontWeight: "600",
+                }}
               >
-              No tienes materias inscritas
+                No tienes materias inscritas
               </Text>
               <Text
-              variant="bodyMedium"
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                textAlign: "center",
-              }}
+                variant="bodyMedium"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  textAlign: "center",
+                }}
               >
-              Presiona el botón Materias para seleccionar
+                Presiona el botón Materias para seleccionar
               </Text>
             </View>
-            </Surface>
+          </Surface>
         )}
       </ScrollView>
 
@@ -451,82 +371,12 @@ export default function HomeScreen() {
       />
 
       {/* Modal de todas las materias */}
-      <Portal>
-        <Modal
-          visible={modalVisible}
-          onDismiss={handleCloseModal}
-          contentContainerStyle={[
-            styles.modalContainer,
-            { backgroundColor: theme.colors.surface },
-          ]}
-        >
-          <View style={styles.modalHeader}>
-            <Text
-              variant="headlineSmall"
-              style={{ color: theme.colors.onSurface }}
-            >
-              Todas las Materias
-            </Text>
-            <IconButton icon="close" size={24} onPress={handleCloseModal} />
-          </View>
-          <Divider />
-
-          <ScrollView style={styles.modalContent}>
-            {loadingSubjects ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" />
-                <Text style={{ marginTop: 16, color: theme.colors.onSurface }}>
-                  Cargando materias...
-                </Text>
-              </View>
-            ) : subjects.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text
-                  variant="titleMedium"
-                  style={{ color: theme.colors.onSurface, textAlign: "center" }}
-                >
-                  No hay materias disponibles
-                </Text>
-              </View>
-            ) : (
-              <List.Section>
-                {subjects.map((subject, index) => {
-                  const isEnrolled = enrolledSubjectIds.includes(subject.id);
-                  const isSaving = savingSubject === subject.id;
-                  return (
-                    <React.Fragment key={subject.id}>
-                      {index > 0 && <Divider />}
-                      <List.Item
-                        title={subject.nombre}
-                        titleStyle={{ color: theme.colors.onSurface }}
-                        onPress={() =>
-                          !isSaving && toggleSubjectEnrollment(subject.id)
-                        }
-                        disabled={isSaving}
-                        right={() =>
-                          isSaving ? (
-                            <ActivityIndicator
-                              size="small"
-                              style={{ marginRight: 12 }}
-                            />
-                          ) : (
-                            <Checkbox
-                              status={isEnrolled ? "checked" : "unchecked"}
-                              onPress={() =>
-                                toggleSubjectEnrollment(subject.id)
-                              }
-                            />
-                          )
-                        }
-                      />
-                    </React.Fragment>
-                  );
-                })}
-              </List.Section>
-            )}
-          </ScrollView>
-        </Modal>
-      </Portal>
+      <SubjectsModal
+        visible={modalVisible}
+        onDismiss={handleCloseModal}
+        enrolledSubjectIds={enrolledSubjectIds}
+        userId={user.uid}
+      />
     </View>
   );
 }
@@ -567,12 +417,12 @@ const styles = StyleSheet.create({
   /* image that fills header (covers the same area as the color block) */
   cardHeaderImage: {
     ...StyleSheet.absoluteFillObject,
-    resizeMode: 'cover',
+    resizeMode: "cover",
   },
   /* dark overlay on top of image for contrast */
   cardHeaderImageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
   cardHeaderOverlayTint: {
     ...StyleSheet.absoluteFillObject,
@@ -661,6 +511,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
   },
+  accordion: {
+    backgroundColor: "transparent",
+  },
   listSection: {
     marginTop: 0,
     paddingTop: 0,
@@ -704,30 +557,6 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
-  },
-  modalContainer: {
-    margin: 20,
-    borderRadius: 12,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    paddingRight: 8,
-  },
-  modalContent: {
-    maxHeight: 500,
-    paddingHorizontal: 8,
-  },
-  loadingContainer: {
-    padding: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emptyContainer: {
-    padding: 40,
   },
   emptyCard: {
     borderRadius: 12,
