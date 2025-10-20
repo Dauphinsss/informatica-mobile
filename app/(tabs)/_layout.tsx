@@ -29,7 +29,6 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
   const theme = useTheme();
   const animatedValuesRef = useRef<Record<string, Animated.Value>>({});
 
-  // Ensure we have an Animated.Value for each route
   state.routes.forEach((route, index) => {
     if (!animatedValuesRef.current[route.key]) {
       animatedValuesRef.current[route.key] = new Animated.Value(
@@ -38,7 +37,6 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
     }
   });
 
-  // Clean up values when routes change
   useEffect(() => {
     const keys = state.routes.map((route) => route.key);
     Object.keys(animatedValuesRef.current).forEach((key) => {
@@ -75,6 +73,17 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
       ]}
     >
       {state.routes.map((route, index) => {
+        const routeOptions = descriptors[route.key].options;
+
+        if (typeof routeOptions.tabBarButton === "function") {
+          const buttonComponent = routeOptions.tabBarButton({
+            children: null,
+          } as any);
+          if (buttonComponent === null) {
+            return null;
+          }
+        }
+
         const focused = state.index === index;
         const animatedValue = animatedValuesRef.current[route.key];
         const scale = animatedValue.interpolate({
@@ -100,16 +109,15 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
           ? theme.colors.onSurface
           : theme.colors.onSurfaceVariant;
 
-        const { options } = descriptors[route.key];
         const label =
-          options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-            ? options.title
+          routeOptions.tabBarLabel !== undefined
+            ? routeOptions.tabBarLabel
+            : routeOptions.title !== undefined
+            ? routeOptions.title
             : route.name;
 
         const iconElement =
-          options.tabBarIcon?.({
+          routeOptions.tabBarIcon?.({
             focused,
             color: iconColor,
             size: 24,
@@ -145,8 +153,8 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
             key={route.key}
             accessibilityRole="button"
             accessibilityState={focused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
-            testID={options.tabBarButtonTestID}
+            accessibilityLabel={routeOptions.tabBarAccessibilityLabel}
+            testID={routeOptions.tabBarButtonTestID}
             onPress={onPress}
             onLongPress={onLongPress}
             style={styles.tabItem}
@@ -223,7 +231,6 @@ export default function TabLayout() {
     fetchUserRole();
   }, []);
 
-  // Listener para contador de no leídas
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -259,9 +266,7 @@ export default function TabLayout() {
       ) {
         return null;
       }
-    } catch {
-      // ignore and fall back to showing tab bar
-    }
+    } catch {}
 
     return <AnimatedTabBar {...props} unreadCount={unreadCount} />;
   };
