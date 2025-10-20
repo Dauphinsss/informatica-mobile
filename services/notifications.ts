@@ -120,7 +120,7 @@ export const escucharNotificaciones = (
 
     // ✅ Optimizado: Solo where() + limit para reducir datos
     const q = query(
-      notifUsuarioRef, 
+      notifUsuarioRef,
       where("userId", "==", userId),
       limit(100) // Máximo 100 notificaciones recientes
     );
@@ -147,9 +147,7 @@ export const escucharNotificaciones = (
 
           // ✅ OPTIMIZACIÓN: Obtener todos los IDs únicos de notificaciones
           const notifIds = [
-            ...new Set(
-              notificacionesUsuario.map((n) => n.notificacionId)
-            ),
+            ...new Set(notificacionesUsuario.map((n) => n.notificacionId)),
           ];
 
           // ✅ Hacer una sola query batch con documentId() (máx 10 por batch)
@@ -162,10 +160,10 @@ export const escucharNotificaciones = (
               collection(db, "notificaciones"),
               where(documentId(), "in", batch)
             );
-            
+
             const notifSnapshot = await getDocs(notifQuery);
             const notifMap = new Map();
-            
+
             notifSnapshot.docs.forEach((doc) => {
               notifMap.set(doc.id, doc.data());
             });
@@ -174,7 +172,7 @@ export const escucharNotificaciones = (
             notificacionesUsuario.forEach((notifUsuario) => {
               if (batch.includes(notifUsuario.notificacionId)) {
                 const notifData = notifMap.get(notifUsuario.notificacionId);
-                
+
                 if (notifData) {
                   notificacionesCompletas.push({
                     id: notifUsuario.id,
@@ -262,7 +260,7 @@ export const obtenerContadorNoLeidas = (
   const notifUsuarioRef = collection(db, "notificacionesUsuario");
   // ✅ Optimizado: Solo where() + limit para evitar cargar todas
   const q = query(
-    notifUsuarioRef, 
+    notifUsuarioRef,
     where("userId", "==", userId),
     limit(100) // Suficiente para contador
   );
