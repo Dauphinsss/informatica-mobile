@@ -85,3 +85,5 @@ export const getStyles = (theme: MD3Theme) =>
       backgroundColor: theme.colors.primaryContainer,
     },
   });
+
+export default getStyles;

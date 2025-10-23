@@ -99,3 +99,5 @@ export const getStyles = (theme: MD3Theme) =>
       marginBottom: 24,
     },
   });
+
+export default getStyles;

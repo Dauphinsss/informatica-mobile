@@ -46,3 +46,4 @@ export const validateSubjectFields = (formData: {
   return { isValid, errors };
 };
 
+export default { normalizeText, validateSubjectFields };

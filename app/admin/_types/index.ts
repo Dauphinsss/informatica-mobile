@@ -2,7 +2,7 @@ export interface Subject {
   id: string;
   nombre: string;
   descripcion: string;
-  semestre: number | 'Electiva'; // ✅ Actualizado para soportar Electiva
+  semestre: number | 'Electiva';
   estado: 'active' | 'inactive';
   createdAt: Date;
   imagenUrl?: string;
@@ -17,4 +17,6 @@ export type AdminStackParamList = {
   ManageSubjects: undefined;
 };
 
-export type SemestreOption = number | 'Electiva'; // ✅ Nuevo tipo para el selector
+export type SemestreOption = number | 'Electiva';
+
+export default {};

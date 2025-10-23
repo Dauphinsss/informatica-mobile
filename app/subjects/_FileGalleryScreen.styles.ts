@@ -31,3 +31,5 @@ export const getStyles = (theme: MD3Theme) =>
       backgroundColor: "#000",
     },
   });
+
+export default getStyles;

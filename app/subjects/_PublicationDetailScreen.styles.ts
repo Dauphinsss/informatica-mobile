@@ -145,3 +145,5 @@ export const getStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurface,
     },
   });
+
+export default getStyles;
