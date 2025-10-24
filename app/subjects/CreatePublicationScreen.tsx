@@ -26,6 +26,7 @@ import {
   TextInput,
 } from "react-native-paper";
 import { getStyles } from "./_CreatePublicationScreen.styles";
+import { notificarUsuariosMateria } from "../../services/notifications";
 
 interface ArchivoTemp {
   id?: string;
@@ -362,6 +363,21 @@ export default function CreatePublicationScreen() {
             );
           }
         }
+      }
+
+      try {
+        console.log("Enviando notificaciones a estudiantes...");
+        await notificarUsuariosMateria(
+          materiaId,
+          materiaNombre,
+          "Nueva publicación",
+          `${nombreUsuario} publicó: ${titulo}`,
+          "info",
+          "newspaper"
+        );
+        console.log("Notificaciones enviadas");
+      } catch (notifError) {
+        console.error("Error al enviar notificaciones:", notifError);
       }
 
       console.log("Publicación completada exitosamente");

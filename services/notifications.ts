@@ -287,12 +287,27 @@ export const notificarUsuariosMateria = async (
   icono: string = "school"
 ) => {
   try {
-    // Obtener usuarios inscritos en la materia
-    const inscripcionesRef = collection(db, "inscripciones");
-    const q = query(inscripcionesRef, where("materiaId", "==", materiaId));
+    // Buscar usuarios que tengan materiaId en su array materiasInscritas
+    const usuariosRef = collection(db, "usuarios");
+    const q = query(
+      usuariosRef,
+      where("materiasInscritas", "array-contains", materiaId),
+      where("estado", "==", "activo") // Solo usuarios activos
+    );
     const snapshot = await getDocs(q);
 
-    const userIds = snapshot.docs.map((doc) => doc.data().userId);
+    let userIds = snapshot.docs.map((doc) => doc.id);
+    let currentUserId = null;
+    try {
+      const { getAuth } = await import("firebase/auth");
+      const auth = getAuth();
+      currentUserId = auth.currentUser?.uid || null;
+    } catch {}
+
+    // Filtrar el usuario actual si está en la lista
+    if (currentUserId) {
+      userIds = userIds.filter((id) => id !== currentUserId);
+    }
 
     if (userIds.length === 0) {
       console.log("No hay usuarios inscritos en esta materia");
@@ -306,7 +321,7 @@ export const notificarUsuariosMateria = async (
       accion: "notificacion_materia",
     });
 
-    // Enviar notificación push local a cada usuario
+    // Enviar notificación push local
     try {
       await enviarNotificacionLocal(titulo, descripcion, {
         tipo: "materia",
@@ -342,7 +357,18 @@ export const notificarCreacionMateria = async (
       return data.estado === "activo";
     });
 
-    const userIds = usuariosActivos.map((doc) => doc.id);
+    let userIds = usuariosActivos.map((doc) => doc.id);
+    let currentUserId = null;
+    try {
+      const { getAuth } = await import("firebase/auth");
+      const auth = getAuth();
+      currentUserId = auth.currentUser?.uid || null;
+    } catch {}
+
+    // Filtrar el usuario actual si está en la lista
+    if (currentUserId) {
+      userIds = userIds.filter((id) => id !== currentUserId);
+    }
 
     if (userIds.length === 0) {
       return;
