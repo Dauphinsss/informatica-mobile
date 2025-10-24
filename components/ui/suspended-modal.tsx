@@ -1,10 +1,11 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { auth } from "@/firebase";
+import { auth, db } from "@/firebase";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { signOut } from "firebase/auth";
 import React from "react";
 import { Dimensions, StatusBar, StyleSheet, View } from "react-native";
 import { Button, Card, Divider, IconButton, Text } from "react-native-paper";
+import { doc, updateDoc } from "firebase/firestore";
 
 interface SuspendedModalProps {
   visible: boolean;
@@ -17,6 +18,13 @@ const SuspendedModal: React.FC<SuspendedModalProps> = ({ visible, onDismiss }) =
   const { theme, isDark } = useTheme();
   const handleLogout = async () => {
     try {
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        await updateDoc(doc(db, "usuarios", uid), { 
+          pushTokens: [],
+          tokens: [], 
+        });
+      }
       await GoogleSignin.signOut();
       await signOut(auth);
     } catch (error) {

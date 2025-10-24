@@ -1,5 +1,5 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { auth } from "@/firebase";
+import { db, auth } from "@/firebase";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { signOut } from "firebase/auth";
 import { useState } from "react";
@@ -15,6 +15,7 @@ import {
   RadioButton,
   Text,
 } from "react-native-paper";
+import { doc, updateDoc } from "firebase/firestore";
 
 export default function ProfileScreen() {
   const user = auth.currentUser;
@@ -26,6 +27,14 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     try {
       console.log("🚪 Cerrando sesión...");
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        await updateDoc(doc(db, "usuarios", uid), { 
+          pushTokens: [],
+          tokens: [], 
+        });
+        console.log("🔑 tokens borrados en Firestore");
+      }
       await GoogleSignin.signOut();
       await signOut(auth);
       console.log("✅ Sesión cerrada");

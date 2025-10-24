@@ -6,7 +6,7 @@ import {
 } from "@/services/pushNotifications";
 import { StatusBar } from "expo-status-bar";
 import { doc, onSnapshot } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { PaperProvider } from "react-native-paper";
 import "react-native-reanimated";
@@ -14,6 +14,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { auth, db } from "../firebase";
 import TabsLayout from "./(tabs)/_layout";
 import LoginScreen from "./login";
+import { registrarTokens } from "@/services/pushNotifications";
+import * as Notificacions from 'expo-notifications'
 
 function AppContent() {
   const { isDark } = useTheme();
@@ -56,6 +58,18 @@ function AppContent() {
       setUserData(null);
     }
   }, [user, setUserData]);
+
+  useEffect(() => {
+    const registerTokens = async () => {
+      if (user) {
+        const expoToken = (await Notificacions.getExpoPushTokenAsync({ projectId: '7c7b0c2f-b147-414d-90e9-e80c65c42571' })).data;
+        const { data: fcmToken } = await Notificacions.getDevicePushTokenAsync();
+        console.log("Registrando tokens:", { expoToken, fcmToken });
+        registrarTokens(user.uid, expoToken, fcmToken);
+      }
+    };
+    registerTokens();
+  }, [user]);
 
   if (loading) {
     return (
