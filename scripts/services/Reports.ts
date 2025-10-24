@@ -1,8 +1,19 @@
-import { collection, getDocs, doc, getDoc, query, where, updateDoc } from "firebase/firestore";
-import { db } from "@/firebase";
+import { 
+  collection, 
+  getDocs, 
+  doc, 
+  getDoc, 
+  query, 
+  where, 
+  updateDoc 
+} from "firebase/firestore";
+import { 
+  ref, 
+  deleteObject 
+} from "firebase/storage";
+import { db, storage } from "@/firebase";
 import { getAuth } from "firebase/auth";
 import { Report } from "../types/Reports.type";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const obtenerReportes = async (): Promise<Report[]> => {
   const reportes: Report[] = [];
@@ -86,7 +97,7 @@ export const obtenerReportes = async (): Promise<Report[]> => {
           ultimoMotivo: data.tipo,
           ultimoReportadoPor: autorReporteNombre,
           ultimaFecha: fecha,
-          contenido: "Contenido mockeado de la publicación.",
+          contenido: publicacion?.descripcion ?? "Sin descripción",
           estado: data.estado,
           reportadores: [nuevoReportador],
           strikesAutor,
@@ -132,7 +143,7 @@ export const completarReportesDePublicacion = async (
   const reportesSnap = await getDocs(
     query(collection(db, "reportes"), where("publicacionUid", "==", publicacionId))
   );
-  const userData = await AsyncStorage.getItem("userData");
+  
   await Promise.all(
     reportesSnap.docs.map(docSnap =>
       updateDoc(doc(db, "reportes", docSnap.id), {
@@ -153,27 +164,99 @@ export const eliminarPublicacion = async (publicacionId: string) => {
   });
 };
 
-export const aplicarStrikeAlAutor = async (autorUid: string) => {
-  const estadisticasSnap = await getDocs(
-    query(collection(db, "estadisticasUsuario"), where("usuarioUid", "==", autorUid))
-  );
-  const estadisticaDoc = estadisticasSnap.docs[0];
-  if (estadisticaDoc) {
-    const actual = estadisticaDoc.data().strikes ?? 0;
-    await updateDoc(doc(db, "estadisticasUsuario", estadisticaDoc.id), {
-      strikes: actual + 1,
+export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
+  try {
+    console.log("Eliminando publicación y archivos:", publicacionId);
+    
+    // 1. Obtener archivos de la publicación
+    const archivosSnap = await getDocs(
+      query(
+        collection(db, "archivos"),
+        where("publicacionId", "==", publicacionId),
+        where("activo", "==", true)
+      )
+    );
+
+    console.log(`Archivos encontrados: ${archivosSnap.docs.length}`);
+
+    // 2. Eliminar archivos de Storage (solo los que NO son enlaces externos)
+    const eliminarArchivosStorage = archivosSnap.docs.map(async (archivoDoc) => {
+      const archivoData = archivoDoc.data();
+      
+      // Solo eliminar de Storage si NO es un enlace externo
+      if (!archivoData.esEnlaceExterno && archivoData.webUrl) {
+        try {
+          const storageUrl = archivoData.webUrl;
+          const baseUrl = `https://firebasestorage.googleapis.com/v0/b/${storage.app.options.storageBucket}/o/`;
+          const filePath = decodeURIComponent(
+            storageUrl.replace(baseUrl, '').split('?')[0]
+          );
+          
+          const storageRef = ref(storage, filePath);
+          await deleteObject(storageRef);
+          console.log(`Archivo eliminado de Storage: ${archivoData.titulo}`);
+        } catch (storageError) {
+          console.warn(`No se pudo eliminar de Storage: ${archivoData.titulo}`, storageError);
+        }
+      } else {
+        console.log(`Enlace externo omitido: ${archivoData.titulo}`);
+      }
+      
+      // Marcar como inactivo en Firestore
+      await updateDoc(doc(db, "archivos", archivoDoc.id), {
+        activo: false
+      });
     });
+
+    await Promise.all(eliminarArchivosStorage);
+
+    // 3. Eliminar publicación (eliminación lógica)
+    await updateDoc(doc(db, "publicaciones", publicacionId), {
+      estado: "eliminado",
+    });
+
+    console.log("Publicación y archivos eliminados correctamente");
+  } catch (error) {
+    console.error("Error al eliminar publicación y archivos:", error);
+    throw error;
+  }
+};
+
+export const aplicarStrikeAlAutor = async (autorUid: string) => {
+  try {
+    const estadisticasSnap = await getDocs(
+      query(collection(db, "estadisticasUsuario"), where("usuarioUid", "==", autorUid))
+    );
+    
+    const estadisticaDoc = estadisticasSnap.docs[0];
+    if (estadisticaDoc) {
+      const actual = estadisticaDoc.data().strikes ?? 0;
+      await updateDoc(doc(db, "estadisticasUsuario", estadisticaDoc.id), {
+        strikes: actual + 1,
+      });
+      console.log(`Strike aplicado al usuario. Total: ${actual + 1}`);
+    }
+  } catch (error) {
+    console.error("Error al aplicar strike:", error);
+    throw error;
   }
 };
 
 export const banearUsuarioPorNombre = async (nombre: string) => {
-  const usuariosSnap = await getDocs(
-    query(collection(db, "usuarios"), where("nombre", "==", nombre))
-  );
-  const usuarioDoc = usuariosSnap.docs[0];
-  if (usuarioDoc) {
-    await updateDoc(doc(db, "usuarios", usuarioDoc.id), {
-      estado: "suspendido",
-    });
+  try {
+    const usuariosSnap = await getDocs(
+      query(collection(db, "usuarios"), where("nombre", "==", nombre))
+    );
+    
+    const usuarioDoc = usuariosSnap.docs[0];
+    if (usuarioDoc) {
+      await updateDoc(doc(db, "usuarios", usuarioDoc.id), {
+        estado: "suspendido",
+      });
+      console.log(`Usuario baneado: ${nombre}`);
+    }
+  } catch (error) {
+    console.error("Error al banear usuario:", error);
+    throw error;
   }
 };

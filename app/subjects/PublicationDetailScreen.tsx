@@ -22,6 +22,60 @@ import {
   Text,
 } from "react-native-paper";
 import { getStyles } from "./_PublicationDetailScreen.styles";
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  getDocs, 
+  Timestamp 
+} from "firebase/firestore";
+import { db } from "@/firebase";
+import { getAuth } from "firebase/auth";
+
+const reportarPublicacion = async (
+  publicacionId: string,
+  motivo: string
+): Promise<boolean> => {
+  try {
+    const auth = getAuth();
+    const usuario = auth.currentUser;
+
+    if (!usuario) {
+      Alert.alert("Error", "Debes iniciar sesión para reportar");
+      return false;
+    }
+
+    const reportesExistentes = await getDocs(
+      query(
+        collection(db, "reportes"),
+        where("publicacionUid", "==", publicacionId),
+        where("autorUid", "==", usuario.uid)
+      )
+    );
+
+    if (!reportesExistentes.empty) {
+      Alert.alert(
+        "Ya reportaste esta publicación",
+        "No puedes reportar la misma publicación más de una vez"
+      );
+      return false;
+    }
+
+    await addDoc(collection(db, "reportes"), {
+      publicacionUid: publicacionId,
+      autorUid: usuario.uid,
+      tipo: motivo,
+      fechaCreacion: Timestamp.now(),
+      estado: "pendiente",
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Error al reportar publicación:", error);
+    throw error;
+  }
+};
 
 export default function PublicationDetailScreen() {
   const { theme } = useTheme();
@@ -166,6 +220,55 @@ export default function PublicationDetailScreen() {
     ]);
   };
 
+  const mostrarDialogoReporte = () => {
+    Alert.alert(
+      "Reportar Publicación",
+      "¿Por qué deseas reportar esta publicación?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Spam",
+          onPress: () => enviarReporte("Spam"),
+        },
+        {
+          text: "Contenido inapropiado",
+          onPress: () => enviarReporte("Contenido inapropiado"),
+        },
+        {
+          text: "Acoso o bullying",
+          onPress: () => enviarReporte("Acoso o bullying"),
+        },
+        {
+          text: "Información falsa",
+          onPress: () => enviarReporte("Información falsa"),
+        },
+        {
+          text: "Otro",
+          onPress: () => enviarReporte("Otro"),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const enviarReporte = async (motivo: string) => {
+    try {
+      const exito = await reportarPublicacion(publicacionId, motivo);
+      if (exito) {
+        Alert.alert(
+          "Reporte enviado",
+          "Gracias por tu reporte. Lo revisaremos pronto.",
+          [{ text: "OK" }]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        "No se pudo enviar el reporte. Intenta de nuevo más tarde."
+      );
+    }
+  };
+
   const TextPreview = ({ content }: { content: string }) => {
     return (
       <View style={styles.fullPreviewContainer}>
@@ -257,17 +360,14 @@ export default function PublicationDetailScreen() {
     );
   };
 
-  // Renderizar preview o icono del archivo
   const renderArchivoPreview = (archivo: ArchivoPublicacion) => {
     const tipo = archivo.tipoNombre.toLowerCase();
     const icono = obtenerIconoPorTipo(archivo.tipoNombre || "");
 
-    // Preview de enlace externo
     if (archivo.esEnlaceExterno) {
       return <LinkPreview url={archivo.webUrl} />;
     }
 
-    // Preview de imagen
     if (tipo.includes("imagen")) {
       return (
         <View style={styles.fullPreviewContainer}>
@@ -281,12 +381,10 @@ export default function PublicationDetailScreen() {
       );
     }
 
-    // Preview de archivo de texto
     if (tipo.includes("texto") || tipo.includes("md")) {
       return <TextFilePreview url={archivo.webUrl} />;
     }
 
-    // Icono grande para otros tipos
     return (
       <View style={styles.iconFallbackContainer}>
         <IconButton icon={icono} size={64} iconColor={theme.colors.primary} />
@@ -332,10 +430,13 @@ export default function PublicationDetailScreen() {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={materiaNombre} />
+        <Appbar.Action 
+          icon="flag" 
+          onPress={mostrarDialogoReporte}
+        />
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
-        {/* Encabezado de la publicación */}
         <Card style={styles.headerCard}>
           <Card.Content>
             <View style={styles.autorContainer}>
@@ -395,7 +496,6 @@ export default function PublicationDetailScreen() {
           </Card.Content>
         </Card>
 
-        {/* Archivos adjuntos */}
         {archivos.length > 0 && (
           <View style={styles.archivosContainer}>
             <Text variant="titleMedium" style={styles.archivosTitle}>
@@ -405,13 +505,11 @@ export default function PublicationDetailScreen() {
             <View style={styles.archivosGrid}>
               {archivos.map((archivo) => (
                 <View key={archivo.id} style={styles.archivoCardWrapper}>
-                  {/* Card con preview/icono que ocupa todo el espacio */}
                   <Card
                     style={styles.archivoCard}
                     onPress={() => abrirArchivo(archivo)}
                     onLongPress={() => descargarArchivo(archivo)}
                   >
-                    {/* Botón de descarga */}
                     {!archivo.esEnlaceExterno && (
                       <IconButton
                         icon="download"
@@ -424,7 +522,6 @@ export default function PublicationDetailScreen() {
                       />
                     )}
 
-                    {/* Icono de enlace externo */}
                     {archivo.esEnlaceExterno && (
                       <IconButton
                         icon="link-variant"
@@ -435,11 +532,9 @@ export default function PublicationDetailScreen() {
                       />
                     )}
 
-                    {/* Preview o icono que ocupa todo el card */}
                     {renderArchivoPreview(archivo)}
                   </Card>
 
-                  {/* Información debajo del card */}
                   <View style={styles.archivoInfoContainer}>
                     <View style={styles.archivoInfoRow}>
                       <IconButton
@@ -463,7 +558,6 @@ export default function PublicationDetailScreen() {
           </View>
         )}
 
-        {/* Sección de comentarios (placeholder) */}
         <Card style={styles.comentariosCard}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.comentariosTitle}>

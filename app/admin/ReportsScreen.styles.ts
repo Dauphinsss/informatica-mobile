@@ -1,5 +1,7 @@
- import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 import { MD3Theme } from 'react-native-paper';
+
+const { width } = Dimensions.get('window');
 
 export const getStyles = (theme: MD3Theme) => StyleSheet.create({
   container: {
@@ -20,7 +22,6 @@ export const getStyles = (theme: MD3Theme) => StyleSheet.create({
     gap: 8,
     backgroundColor: theme.colors.background,
   },
-
   filterButton: {
     flex: 1,
   },
@@ -104,8 +105,7 @@ export const getStyles = (theme: MD3Theme) => StyleSheet.create({
   },
   publicacionTitulo: {
     fontWeight: 'bold',
-    marginTop: 3,
-    marginBottom: 3,
+    marginBottom: 8,
     color: theme.colors.onSurface,
   },
   publicacionAutor: {
@@ -113,9 +113,65 @@ export const getStyles = (theme: MD3Theme) => StyleSheet.create({
     marginTop: 4,
     color: theme.colors.onSurface,
   },
-  publicacionContenido: {
+  archivosLoadingContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  archivosLoadingText: {
+    opacity: 0.7,
+    color: theme.colors.onSurface,
+  },
+  noArchivosText: {
+    textAlign: 'center',
+    opacity: 0.6,
+    paddingVertical: 12,
+    color: theme.colors.onSurface,
+  },
+  archivosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     marginTop: 8,
-    opacity: 0.8,
+  },
+  miniArchivoCard: {
+    width: (width * 0.8) / 3 - 8,
+    minWidth: 90,
+  },
+  miniArchivoPreview: {
+    width: '100%',
+    height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surfaceVariant,
+  },
+  miniPreviewContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceVariant,
+  },
+  miniPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  miniArchivoInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 4,
+    gap: 0,
+  },
+  miniArchivoTitulo: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 14,
     color: theme.colors.onSurface,
   },
   masReportadores: {

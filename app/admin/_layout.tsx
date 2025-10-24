@@ -1,6 +1,7 @@
 import { createStackNavigator } from "@react-navigation/stack";
 import React from "react";
 import AdminScreen from "../(tabs)/admin";
+import FileGalleryScreen from "../subjects/FileGalleryScreen";
 import ManageSubjectsScreen from "./manage-subjects";
 import ManageUsers from "./manage-users";
 import ReportsScreen from "./ReportsScreen";
@@ -38,6 +39,14 @@ export default function AdminLayOut() {
         component={ReportsScreen}
         options={{
           title: "Reportes",
+        }}
+      />
+      <Stack.Screen
+        name="FileGallery"
+        component={FileGalleryScreen}
+        options={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
         }}
       />
     </Stack.Navigator>
