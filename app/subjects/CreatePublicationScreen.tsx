@@ -4,6 +4,7 @@ import {
   obtenerTiposArchivo,
   seleccionarArchivo,
   subirArchivo,
+  guardarEnlaceExterno,
 } from "@/scripts/services/Files";
 import { crearPublicacion } from "@/scripts/services/Publications";
 import { TipoArchivo } from "@/scripts/types/Files.type";
@@ -17,7 +18,9 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
   IconButton,
+  Portal,
   ProgressBar,
   Text,
   TextInput,
@@ -25,12 +28,15 @@ import {
 import { getStyles } from "./_CreatePublicationScreen.styles";
 
 interface ArchivoTemp {
-  id?: string; // Si ya está subido
-  asset: DocumentPicker.DocumentPickerAsset;
+  id?: string;
+  asset?: DocumentPicker.DocumentPickerAsset;
   tipoArchivoId: string;
   progreso: number;
   subiendo: boolean;
   error?: string;
+  esEnlaceExterno: boolean;
+  urlExterna?: string;
+  nombreEnlace?: string;
 }
 
 export default function CreatePublicationScreen() {
@@ -54,6 +60,10 @@ export default function CreatePublicationScreen() {
   const [tipos, setTipos] = useState<TipoArchivo[]>([]);
   const [publicando, setPublicando] = useState(false);
   const [publicacionId, setPublicacionId] = useState<string | null>(null);
+  const [dialogEnlaceVisible, setDialogEnlaceVisible] = useState(false);
+  const [urlEnlace, setUrlEnlace] = useState("");
+  const [nombreEnlace, setNombreEnlace] = useState("");
+  const [dialogSeleccionVisible, setDialogSeleccionVisible] = useState(false);
 
   useEffect(() => {
     cargarTiposArchivo();
@@ -76,6 +86,12 @@ export default function CreatePublicationScreen() {
     if (tipo.includes("imagen")) return "image";
     if (tipo.includes("video")) return "video";
     if (tipo.includes("zip")) return "folder-zip";
+    if (tipo.includes("word")) return "file-word";
+    if (tipo.includes("excel")) return "file-excel";
+    if (tipo.includes("presentación") || tipo.includes("ppt")) return "file-powerpoint";
+    if (tipo.includes("audio") || tipo.includes("mp3")) return "music";
+    if (tipo.includes("texto")) return "file-document-outline";
+    if (tipo.includes("enlace")) return "link-variant";
     return "file-document";
   };
 
@@ -83,7 +99,6 @@ export default function CreatePublicationScreen() {
     mimeType: string,
     nombre: string
   ): string | null => {
-    console.log("Detectando tipo de archivo:");
     console.log("- mimeType:", mimeType);
     console.log("- nombre:", nombre);
 
@@ -110,7 +125,13 @@ export default function CreatePublicationScreen() {
     return null;
   };
 
+  const mostrarDialogoSeleccion = () => {
+    setDialogSeleccionVisible(true);
+  };
+
   const agregarArchivo = async () => {
+    setDialogSeleccionVisible(false);
+    
     try {
       const archivo = await seleccionarArchivo();
       if (!archivo) return;
@@ -125,12 +146,12 @@ export default function CreatePublicationScreen() {
         return;
       }
 
-      // Agregar archivo temporal
       const nuevoArchivo: ArchivoTemp = {
         asset: archivo,
         tipoArchivoId: tipoId,
         progreso: 0,
         subiendo: false,
+        esEnlaceExterno: false,
       };
 
       setArchivos((prev) => [...prev, nuevoArchivo]);
@@ -138,6 +159,51 @@ export default function CreatePublicationScreen() {
       console.error("Error al agregar archivo:", error);
       Alert.alert("Error", "No se pudo agregar el archivo");
     }
+  };
+
+  const mostrarDialogoEnlace = () => {
+    setDialogSeleccionVisible(false);
+    setDialogEnlaceVisible(true);
+  };
+
+  const agregarEnlace = () => {
+    if (!urlEnlace.trim()) {
+      Alert.alert("Error", "La URL es obligatoria");
+      return;
+    }
+
+    if (!nombreEnlace.trim()) {
+      Alert.alert("Error", "El nombre del enlace es obligatorio");
+      return;
+    }
+
+    try {
+      new URL(urlEnlace);
+    } catch {
+      Alert.alert("Error", "La URL no es válida. Debe incluir http:// o https://");
+      return;
+    }
+
+    const tipoEnlace = tipos.find((t) => t.nombre.toLowerCase() === "enlace");
+    
+    if (!tipoEnlace) {
+      Alert.alert("Error", "No se encontró el tipo de archivo 'Enlace' en la base de datos");
+      return;
+    }
+
+    const nuevoEnlace: ArchivoTemp = {
+      tipoArchivoId: tipoEnlace.id,
+      progreso: 0,
+      subiendo: false,
+      esEnlaceExterno: true,
+      urlExterna: urlEnlace,
+      nombreEnlace: nombreEnlace,
+    };
+
+    setArchivos((prev) => [...prev, nuevoEnlace]);
+    setDialogEnlaceVisible(false);
+    setUrlEnlace("");
+    setNombreEnlace("");
   };
 
   const eliminarArchivoLocal = async (index: number) => {
@@ -211,44 +277,67 @@ export default function CreatePublicationScreen() {
           });
 
           try {
-            console.log(`Subiendo archivo ${i}: ${archivo.asset.name}`);
-            const resultado = await subirArchivo(
-              pubId,
-              archivo.asset,
-              archivo.tipoArchivoId,
-              archivo.asset.name,
-              undefined,
-              (progreso) => {
-                console.log(`Progreso archivo ${i}: ${progreso.toFixed(0)}%`);
-                setArchivos((prev) => {
-                  const nuevos = [...prev];
-                  nuevos[i] = { ...nuevos[i], progreso };
-                  return nuevos;
-                });
-              }
-            );
+            // Si es un enlace externo
+            if (archivo.esEnlaceExterno) {
+              console.log(`Guardando enlace ${i}: ${archivo.nombreEnlace}`);
+              
+              const resultado = await guardarEnlaceExterno(
+                pubId,
+                archivo.tipoArchivoId,
+                archivo.nombreEnlace!,
+                archivo.urlExterna!
+              );
 
-            console.log(
-              `Archivo ${i} subido exitosamente con ID:`,
-              resultado.id
-            );
+              console.log(`Enlace ${i} guardado exitosamente con ID:`, resultado.id);
 
-            // Marcar como completado
-            setArchivos((prev) => {
-              const nuevos = [...prev];
-              nuevos[i] = {
-                ...nuevos[i],
-                id: resultado.id,
-                subiendo: false,
-                progreso: 100,
-              };
-              return nuevos;
-            });
+              setArchivos((prev) => {
+                const nuevos = [...prev];
+                nuevos[i] = {
+                  ...nuevos[i],
+                  id: resultado.id,
+                  subiendo: false,
+                  progreso: 100,
+                };
+                return nuevos;
+              });
+            } 
+            // Si es un archivo normal
+            else {
+              console.log(`Subiendo archivo ${i}: ${archivo.asset!.name}`);
+              
+              const resultado = await subirArchivo(
+                pubId,
+                archivo.asset!,
+                archivo.tipoArchivoId,
+                archivo.asset!.name,
+                undefined,
+                (progreso) => {
+                  console.log(`Progreso archivo ${i}: ${progreso.toFixed(0)}%`);
+                  setArchivos((prev) => {
+                    const nuevos = [...prev];
+                    nuevos[i] = { ...nuevos[i], progreso };
+                    return nuevos;
+                  });
+                }
+              );
+
+              console.log(`Archivo ${i} subido exitosamente con ID:`, resultado.id);
+
+              setArchivos((prev) => {
+                const nuevos = [...prev];
+                nuevos[i] = {
+                  ...nuevos[i],
+                  id: resultado.id,
+                  subiendo: false,
+                  progreso: 100,
+                };
+                return nuevos;
+              });
+            }
           } catch (error) {
-            console.error(`Error al subir archivo ${i}:`, error);
+            console.error(`Error al procesar elemento ${i}:`, error);
 
-            // Mostrar error específico al usuario
-            let mensajeError = "Error al subir";
+            let mensajeError = "Error al procesar";
             if (error instanceof Error) {
               mensajeError = error.message;
             }
@@ -263,10 +352,13 @@ export default function CreatePublicationScreen() {
               return nuevos;
             });
 
-            // Mostrar alerta para este archivo específico
+            const nombreElemento = archivo.esEnlaceExterno 
+              ? archivo.nombreEnlace 
+              : archivo.asset?.name;
+
             Alert.alert(
               "Error al subir archivo",
-              `No se pudo subir "${archivo.asset.name}": ${mensajeError}\n\nLos demás archivos continuarán subiendo.`
+              `No se pudo subir "${nombreElemento}": ${mensajeError}\n\nLos demás elementos continuarán procesándose.`
             );
           }
         }
@@ -335,7 +427,7 @@ export default function CreatePublicationScreen() {
               <Button
                 mode="contained-tonal"
                 icon="paperclip"
-                onPress={agregarArchivo}
+                onPress={mostrarDialogoSeleccion}
                 disabled={publicando}
                 compact
               >
@@ -350,6 +442,10 @@ export default function CreatePublicationScreen() {
             ) : (
               archivos.map((archivo, index) => {
                 const tipo = tipos.find((t) => t.id === archivo.tipoArchivoId);
+                const nombreMostrar = archivo.esEnlaceExterno
+                  ? archivo.nombreEnlace
+                  : archivo.asset?.name;
+
                 return (
                   <Card key={index} style={styles.archivoCard}>
                     <Card.Content style={styles.archivoContent}>
@@ -365,7 +461,7 @@ export default function CreatePublicationScreen() {
                             style={styles.archivoNombre}
                             numberOfLines={2}
                           >
-                            {archivo.asset.name}
+                            {nombreMostrar}
                           </Text>
                           <View style={styles.archivoMeta}>
                             <Chip
@@ -375,12 +471,23 @@ export default function CreatePublicationScreen() {
                             >
                               {tipo?.nombre || "Archivo"}
                             </Chip>
-                            <Text
-                              variant="bodySmall"
-                              style={styles.archivoTamano}
-                            >
-                              {formatearTamano(archivo.asset.size || 0)}
-                            </Text>
+                            {!archivo.esEnlaceExterno && (
+                              <Text
+                                variant="bodySmall"
+                                style={styles.archivoTamano}
+                              >
+                                {formatearTamano(archivo.asset?.size || 0)}
+                              </Text>
+                            )}
+                            {archivo.esEnlaceExterno && (
+                              <Text
+                                variant="bodySmall"
+                                style={styles.archivoTamano}
+                                numberOfLines={1}
+                              >
+                                {archivo.urlExterna}
+                              </Text>
+                            )}
                           </View>
                         </View>
                       </View>
@@ -425,6 +532,73 @@ export default function CreatePublicationScreen() {
           {publicando ? "Publicando..." : "Publicar"}
         </Button>
       </ScrollView>
+
+      {/* Diálogo de selección: Archivo o Enlace */}
+      <Portal>
+        <Dialog
+          visible={dialogSeleccionVisible}
+          onDismiss={() => setDialogSeleccionVisible(false)}
+        >
+          <Dialog.Title>¿Qué deseas adjuntar?</Dialog.Title>
+          <Dialog.Content>
+            <Button
+              mode="contained"
+              icon="file-upload"
+              onPress={agregarArchivo}
+              style={{ marginBottom: 12 }}
+            >
+              Subir archivo
+            </Button>
+            <Button
+              mode="outlined"
+              icon="link-variant"
+              onPress={mostrarDialogoEnlace}
+            >
+              Agregar enlace
+            </Button>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDialogSeleccionVisible(false)}>
+              Cancelar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* Diálogo para agregar enlace */}
+      <Portal>
+        <Dialog
+          visible={dialogEnlaceVisible}
+          onDismiss={() => setDialogEnlaceVisible(false)}
+        >
+          <Dialog.Title>Agregar enlace</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Nombre del enlace *"
+              value={nombreEnlace}
+              onChangeText={setNombreEnlace}
+              mode="outlined"
+              style={{ marginBottom: 12 }}
+              placeholder="Ej: Video explicativo"
+            />
+            <TextInput
+              label="URL *"
+              value={urlEnlace}
+              onChangeText={setUrlEnlace}
+              mode="outlined"
+              placeholder="https://ejemplo.com"
+              keyboardType="url"
+              autoCapitalize="none"
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDialogEnlaceVisible(false)}>
+              Cancelar
+            </Button>
+            <Button onPress={agregarEnlace}>Agregar</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }

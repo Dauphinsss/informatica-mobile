@@ -357,20 +357,24 @@ export const eliminarArchivo = async (archivoId: string): Promise<void> => {
 
     const archivoData = archivoDoc.data();
 
-    // 2. Eliminar de Storage
-    try {
-      const storageUrl = archivoData.webUrl;
-      const baseUrl = `https://firebasestorage.googleapis.com/v0/b/${storage.app.options.storageBucket}/o/`;
-      const filePath = decodeURIComponent(
-        storageUrl.replace(baseUrl, '').split('?')[0]
-      );
-      
-      const storageRef = ref(storage, filePath);
-      await deleteObject(storageRef);
-      console.log("✅ Archivo eliminado de Storage");
-    } catch (storageError) {
-      console.warn("⚠️ No se pudo eliminar de Storage:", storageError);
-      // Continuar con eliminación lógica
+    // 2. Solo eliminar de Storage si NO es un enlace externo
+    if (!archivoData.esEnlaceExterno && archivoData.webUrl) {
+      try {
+        const storageUrl = archivoData.webUrl;
+        const baseUrl = `https://firebasestorage.googleapis.com/v0/b/${storage.app.options.storageBucket}/o/`;
+        const filePath = decodeURIComponent(
+          storageUrl.replace(baseUrl, '').split('?')[0]
+        );
+        
+        const storageRef = ref(storage, filePath);
+        await deleteObject(storageRef);
+        console.log("✅ Archivo eliminado de Storage");
+      } catch (storageError) {
+        console.warn("⚠️ No se pudo eliminar de Storage:", storageError);
+        // Continuar con eliminación lógica
+      }
+    } else {
+      console.log("ℹ️ Enlace externo - no se elimina de Storage");
     }
 
     // 3. Marcar como inactivo en Firestore
@@ -414,9 +418,50 @@ export const obtenerTamanoTotalArchivos = async (
 ): Promise<number> => {
   try {
     const archivos = await obtenerArchivosPorPublicacion(publicacionId);
-    return archivos.reduce((total, archivo) => total + archivo.tamanoBytes, 0);
+    // Filtrar enlaces externos (tamanoBytes = 0) para no contaminar el cálculo
+    return archivos
+      .filter(archivo => !archivo.esEnlaceExterno)
+      .reduce((total, archivo) => total + archivo.tamanoBytes, 0);
   } catch (error) {
     console.error("Error al calcular tamaño total:", error);
     return 0;
+  }
+};
+
+export const guardarEnlaceExterno = async (
+  publicacionId: string,
+  tipoArchivoId: string,
+  nombreEnlace: string,
+  url: string
+): Promise<{ id: string }> => {
+  try {
+    console.log("Guardando enlace externo:", {
+      publicacionId,
+      tipoArchivoId,
+      nombreEnlace,
+      url,
+    });
+
+    const archivoRef = await addDoc(collection(db, "archivos"), {
+      activo: true,
+      descripcion: null,
+      fechaSubida: Timestamp.now(),
+      filepath: null,
+      publicacionId: publicacionId,
+      tamanoBytes: 0,
+      tipoArchivoId: tipoArchivoId,
+      titulo: nombreEnlace,
+      webUrl: url,
+      esEnlaceExterno: true,
+    });
+
+    console.log("Enlace guardado con ID:", archivoRef.id);
+
+    return { id: archivoRef.id };
+  } catch (error) {
+    console.error("Error al guardar enlace externo:", error);
+    throw new Error(
+      `Error al guardar el enlace: ${error instanceof Error ? error.message : "Error desconocido"}`
+    );
   }
 };

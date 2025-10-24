@@ -147,6 +147,7 @@ export const obtenerArchivosConTipo = async (
         fechaSubida: data.fechaSubida.toDate(),
         tipoNombre: tipoInfo?.nombre || "Archivo",
         extension: tipoInfo?.extensiones?.[0] || "",
+        esEnlaceExterno: data.esEnlaceExterno || false,
       } as ArchivoPublicacion);
     });
   } catch (error) {

@@ -18,12 +18,13 @@ export interface ArchivoPublicacion {
   publicacionId: string;
   tipoArchivoId: string;
   titulo: string;
-  descripcion?: string;
+  descripcion: string | null;
   webUrl: string;
-  filepath: string;
+  filepath: string | null;
   tamanoBytes: number;
   fechaSubida: Date;
   activo: boolean;
-  tipoNombre?: string;
-  extension?: string;
+  tipoNombre: string;
+  extension: string | null;
+  esEnlaceExterno?: boolean;
 }
