@@ -1,6 +1,5 @@
-// app/admin/components/EditSubjectModal.tsx
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { Keyboard, ScrollView, View } from "react-native";
 import {
   Button,
   Divider,
@@ -54,9 +53,17 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
 }) => {
   const theme = useTheme();
   const [menuVisible, setMenuVisible] = React.useState(false);
+  const scrollViewRef = React.useRef<ScrollView>(null);
 
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
+
+  // Cerrar teclado cuando se abre el modal
+  React.useEffect(() => {
+    if (visible) {
+      Keyboard.dismiss();
+    }
+  }, [visible]);
 
   const selectSemestre = (semestre: SemestreOption) => {
     if (semestre === "Electiva") {
@@ -88,14 +95,19 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
       : String(semestre);
   };
 
-  // Función para normalizar opción a valor interno (string). "Electiva" => "10"
   const optionValue = (opt: SemestreOption) => {
     if (opt === "Electiva") return "10";
     return String(opt);
   };
 
-  // valor seleccionado actual normalizado
   const selectedValue = optionValue(formData.semestre);
+
+  // Función para hacer scroll cuando un input se enfoca
+  const handleInputFocus = (yOffset: number) => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: yOffset, animated: true });
+    }, 100);
+  };
 
   return (
     <Modal
@@ -106,7 +118,12 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
         { backgroundColor: theme.colors.background },
       ]}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text variant="headlineSmall" style={styles.modalTitle}>
           Editar Materia
         </Text>
@@ -117,45 +134,51 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
           onImageRemoved={handleImageRemoved}
         />
 
-        <TextInput
-          label="Nombre de la materia *"
-          value={formData.nombre}
-          onChangeText={(text) => setFormData({ ...formData, nombre: text })}
-          error={!!errors.nombre}
-          style={styles.input}
-          maxLength={30}
-          mode="outlined"
-        />
-        {errors.nombre ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {errors.nombre}
-          </Text>
-        ) : null}
+        <View style={styles.inputContainer}>
+          <TextInput
+            label="Nombre de la materia *"
+            value={formData.nombre}
+            onChangeText={(text) => setFormData({ ...formData, nombre: text })}
+            error={!!errors.nombre}
+            style={styles.input}
+            maxLength={30}
+            mode="outlined"
+            onFocus={() => handleInputFocus(100)}
+          />
+          {errors.nombre ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {errors.nombre}
+            </Text>
+          ) : null}
+        </View>
 
-        <TextInput
-          label="Descripción breve *"
-          value={formData.descripcion}
-          onChangeText={(text) =>
-            setFormData({ ...formData, descripcion: text })
-          }
-          error={!!errors.descripcion}
-          style={styles.input}
-          multiline
-          numberOfLines={3}
-          mode="outlined"
-        />
-        {errors.descripcion ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {errors.descripcion}
-          </Text>
-        ) : null}
+        <View style={styles.inputContainer}>
+          <TextInput
+            label="Descripción breve *"
+            value={formData.descripcion}
+            onChangeText={(text) =>
+              setFormData({ ...formData, descripcion: text })
+            }
+            error={!!errors.descripcion}
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+            mode="outlined"
+            onFocus={() => handleInputFocus(200)}
+            returnKeyType="done"
+          />
+          {errors.descripcion ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {errors.descripcion}
+            </Text>
+          ) : null}
+        </View>
 
         <View style={styles.semestreContainer}>
           <Text variant="labelLarge" style={styles.semestreLabel}>
             Semestre *
           </Text>
 
-          {/* Menu: key forzar remount cuando cambie semestre (fix apertura única) */}
           <Menu
             key={String(formData.semestre ?? "")}
             visible={menuVisible}
@@ -180,7 +203,7 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
             {semestres
               .filter(
                 (sem) => optionValue(sem as SemestreOption) !== selectedValue
-              ) // <-- filtro: no mostrar la opción ya seleccionada
+              )
               .map((semestre, index) => (
                 <React.Fragment key={`${String(semestre)}-${index}`}>
                   <Menu.Item
@@ -228,18 +251,21 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
 
 const styles = {
   modal: {
-    padding: 24,
     margin: 20,
     borderRadius: 8,
-    maxHeight: "80%",
+    maxHeight: "85%", // Reducido ligeramente
   },
   scrollContent: {
-    paddingBottom: 24,
+    padding: 24,
+    paddingBottom: 40, // Más padding en la parte inferior
   },
   modalTitle: {
     marginBottom: 20,
     fontWeight: "bold",
     textAlign: "center",
+  },
+  inputContainer: {
+    marginBottom: 16,
   },
   input: {
     marginBottom: 4,
@@ -267,7 +293,8 @@ const styles = {
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 12,
-    marginTop: 16,
+    marginTop: 24,
+    marginBottom: 20,
   },
   button: {
     minWidth: 100,
