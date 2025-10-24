@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
+import { doc, updateDoc, arrayUnion, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/firebase';
+import { getExpoPushTokenAsync } from 'expo-notifications';
 
-// Importaciones condicionales para evitar errores en Expo Go
 let Device: any;
 let Notifications: any;
 
@@ -8,7 +10,6 @@ try {
   Device = require('expo-device');
   Notifications = require('expo-notifications');
   
-  // Configuración de cómo se muestran las notificaciones
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -22,9 +23,9 @@ try {
   console.log('Módulos de notificaciones no disponibles (Expo Go)');
 }
 
-/**
- * Solicitar permisos de notificaciones
- */
+{/*
+  Solicitar permisos de notificaciones
+*/}
 export async function solicitarPermisosNotificaciones() {
   if (!Device || !Notifications) {
     console.log('Notificaciones push no disponibles en Expo Go');
@@ -51,9 +52,9 @@ export async function solicitarPermisosNotificaciones() {
   return true;
 }
 
-/**
- * Configurar canal de notificaciones para Android
- */
+{/*
+  Configurar canal de notificaciones para Android
+*/}
 export async function configurarCanalAndroid() {
   if (!Notifications || Platform.OS !== 'android') return;
 
@@ -80,9 +81,25 @@ export async function configurarCanalAndroid() {
   }
 }
 
-/**
- * Enviar notificación local (sin servidor)
- */
+{/*
+  Notificaciones locales
+*/}
+
+export async function obtenerExpoPushToken(): Promise<string | null> {
+  if (!Device || !Notifications) return null;
+  
+  try {
+    const tokenData = await getExpoPushTokenAsync({
+      projectId: '7c7b0c2f-b147-414d-90e9-e80c65c42571',
+    });
+    console.log('Token de Expo obtenido en Expo Go:', tokenData.data);
+    return tokenData.data;
+  } catch (error) {
+    console.log('Error al obtener el token de Expo:', error);
+    return null;
+  }
+}
+
 export async function enviarNotificacionLocal(
   titulo: string,
   descripcion: string,
@@ -104,13 +121,12 @@ export async function enviarNotificacionLocal(
       },
       trigger: null, // null = inmediato
     });
+    console.log('Notificación local enviada:', titulo);
   } catch (error) {
+    console.log('Error al enviar notificación local:', error);
   }
 }
 
-/**
- * Notificación cuando se crea una materia
- */
 export async function notificarNuevaMateria(
   materiaNombre: string,
   materiaId: string
@@ -126,9 +142,6 @@ export async function notificarNuevaMateria(
   );
 }
 
-/**
- * Notificación cuando se crea una publicación en una materia
- */
 export async function notificarNuevaPublicacion(
   materiaNombre: string,
   materiaId: string,
@@ -147,70 +160,47 @@ export async function notificarNuevaPublicacion(
   );
 }
 
-/**
- * Configurar listener cuando el usuario toca una notificación
- * Navega a la pantalla correspondiente
- */
-export function configurarListenerNotificaciones(
-  navigation: any,
-  callback?: (data: any) => void
-) {
-  if (!Notifications) {
-    return { remove: () => {} };
-  }
+{/*
+  Servicio de notificaciones push fcm
+*/}
 
-  // Cuando la app está abierta y tocas la notificación
-  const subscription = Notifications.addNotificationResponseReceivedListener(
-    (response: any) => {
-      const data = response.notification.request.content.data;
-
-      if (callback) {
-        callback(data);
-      }
-
-      // Navegar según el tipo
-      if (data.tipo === 'materia' && data.materiaId) {
-        // Navegar a la materia
-        navigation.navigate('subjects', {
-          screen: 'subject-detail',
-          params: { id: data.materiaId },
-        });
-      } else if (data.tipo === 'publicacion' && data.materiaId) {
-        // Navegar a la publicación dentro de la materia
-        navigation.navigate('subjects', {
-          screen: 'subject-detail',
-          params: { 
-            id: data.materiaId,
-            publicacionId: data.publicacionId 
-          },
-        });
-      }
+export async function obtenerFCMToken() {
+  if (Device.isDevice) {
+    try {
+      const fcmToken = await Notifications.getDevicePushTokenAsync();
+      return fcmToken.data;
+    } catch (error) {
+      console.log('Error al obtener el token FCM', error);
+      return null;
     }
-  );
-
-  return subscription;
+  }
+  return null;
 }
 
-/**
- * Limpiar todas las notificaciones de la barra
- */
-export async function limpiarNotificaciones() {
-  if (!Notifications) return;
-  await Notifications.dismissAllNotificationsAsync();
+export async function registrarTokens(uid: string, expoToken: string, fcmToken: string) {
+  const userRef = doc(db, 'usuarios', uid);
+  const snap = await getDoc(userRef);
+
+  if (!snap.exists()) {
+    await setDoc(userRef, {
+      uid,
+      rol: 'usuario',
+      tokens: [expoToken],    
+      pushTokens: [fcmToken],
+    });
+  } else {
+    await updateDoc(userRef, {
+      tokens: arrayUnion(expoToken),
+      pushTokens: arrayUnion(fcmToken),  
+    });
+  }
 }
 
-/**
- * Obtener badge count actual
- */
-export async function obtenerBadgeCount() {
-  if (!Notifications) return 0;
-  return await Notifications.getBadgeCountAsync();
-}
+export async function registrarTokensUsuario(uid: string) {
+  const expoToken = await obtenerExpoPushToken();
+  const fcmToken = await obtenerFCMToken();
 
-/**
- * Establecer badge count
- */
-export async function establecerBadgeCount(count: number) {
-  if (!Notifications) return;
-  await Notifications.setBadgeCountAsync(count);
+  if (expoToken && fcmToken) {
+    await registrarTokens(uid, expoToken, fcmToken);
+  }
 }
