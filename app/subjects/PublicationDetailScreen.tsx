@@ -10,7 +10,7 @@ import {
 } from "@/scripts/types/Publication.type";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Linking, ScrollView, View } from "react-native";
+import { Alert, Image, Linking, ScrollView, View } from "react-native";
 import {
   ActivityIndicator,
   Appbar,
@@ -67,12 +67,6 @@ export default function PublicationDetailScreen() {
     });
   };
 
-  const formatearTamano = (bytes: number): string => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
   const obtenerIconoPorTipo = (tipoNombre: string): string => {
     const tipo = tipoNombre.toLowerCase();
     if (tipo.includes("pdf")) return "file-pdf-box";
@@ -81,7 +75,8 @@ export default function PublicationDetailScreen() {
     if (tipo.includes("zip") || tipo.includes("rar")) return "folder-zip";
     if (tipo.includes("word")) return "file-word";
     if (tipo.includes("excel")) return "file-excel";
-    if (tipo.includes("presentación") || tipo.includes("powerpoint")) return "file-powerpoint";
+    if (tipo.includes("presentación") || tipo.includes("powerpoint"))
+      return "file-powerpoint";
     if (tipo.includes("audio") || tipo.includes("mp3")) return "music";
     if (tipo.includes("texto")) return "file-document-outline";
     if (tipo.includes("enlace")) return "link-variant";
@@ -89,27 +84,22 @@ export default function PublicationDetailScreen() {
   };
 
   const esArchivoVisualizable = (archivo: ArchivoPublicacion): boolean => {
-    // Enlaces externos siempre se pueden "visualizar" (abrir en navegador)
     if (archivo.esEnlaceExterno) return true;
-    
+
     const tipo = archivo.tipoNombre.toLowerCase();
-    
-    // Tipos visualizables
-    if (tipo.includes("pdf")) return true;
-    if (tipo.includes("imagen")) return true;
-    if (tipo.includes("video")) return true;
-    if (tipo.includes("audio")) return true;
-    if (tipo.includes("word")) return true;
-    // if (tipo.includes("excel")) return true;
-    if (tipo.includes("presentación") || tipo.includes("powerpoint")) return true;
-    if (tipo.includes("texto")) return true;
-    
-    // No visualizables (ZIP, RAR, etc.)
-    return false;
+    return (
+      tipo.includes("pdf") ||
+      tipo.includes("imagen") ||
+      tipo.includes("video") ||
+      tipo.includes("audio") ||
+      tipo.includes("word") ||
+      tipo.includes("presentación") ||
+      tipo.includes("powerpoint") ||
+      tipo.includes("texto")
+    );
   };
 
   const abrirArchivo = async (archivo: ArchivoPublicacion) => {
-    // Si es un enlace externo, abrirlo en el navegador
     if (archivo.esEnlaceExterno) {
       try {
         const canOpen = await Linking.canOpenURL(archivo.webUrl);
@@ -125,11 +115,9 @@ export default function PublicationDetailScreen() {
       return;
     }
 
-    // Si es visualizable, ir a la galería
     if (esArchivoVisualizable(archivo)) {
       const indice = archivos.findIndex((a) => a.id === archivo.id);
 
-      // Serializar archivos para navegación
       const archivosSerializados = archivos.map((a) => ({
         ...a,
         fechaSubida:
@@ -144,7 +132,6 @@ export default function PublicationDetailScreen() {
         materiaNombre,
       });
     } else {
-      // Si no es visualizable
       Alert.alert(
         "No visualizable",
         "Este tipo de archivo no se puede previsualizar. ¿Deseas descargarlo?",
@@ -160,7 +147,6 @@ export default function PublicationDetailScreen() {
   };
 
   const descargarArchivo = (archivo: ArchivoPublicacion) => {
-    // Si es un enlace externo, abrirlo directamente
     if (archivo.esEnlaceExterno) {
       abrirArchivo(archivo);
       return;
@@ -178,6 +164,134 @@ export default function PublicationDetailScreen() {
         },
       },
     ]);
+  };
+
+  const TextPreview = ({ content }: { content: string }) => {
+    return (
+      <View style={styles.fullPreviewContainer}>
+        <Text
+          style={styles.textPreviewText}
+          numberOfLines={12}
+          ellipsizeMode="tail"
+        >
+          {content}
+        </Text>
+      </View>
+    );
+  };
+
+  const TextFilePreview = ({ url }: { url: string }) => {
+    const [content, setContent] = useState("");
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      let mounted = true;
+      setLoading(true);
+      fetch(url)
+        .then((res) => res.text())
+        .then((txt) => {
+          if (mounted) {
+            setContent(txt);
+            setLoading(false);
+          }
+        })
+        .catch(() => {
+          if (mounted) {
+            setContent("(No se pudo cargar)");
+            setLoading(false);
+          }
+        });
+      return () => {
+        mounted = false;
+      };
+    }, [url]);
+
+    if (loading) {
+      return (
+        <View style={styles.fullPreviewContainer}>
+          <ActivityIndicator size="large" />
+        </View>
+      );
+    }
+
+    return <TextPreview content={content} />;
+  };
+
+  const LinkPreview = ({ url }: { url: string }) => {
+    const apiKey = "459ba3";
+    const screenshotUrl = `https://api.screenshotmachine.com/?key=${apiKey}&url=${encodeURIComponent(
+      url
+    )}&dimension=1024x768&format=jpg`;
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    return (
+      <View style={styles.fullPreviewContainer}>
+        {!error ? (
+          <>
+            <Image
+              source={{ uri: screenshotUrl }}
+              style={styles.fullPreviewImage}
+              resizeMode="cover"
+              onLoadStart={() => setLoading(true)}
+              onLoadEnd={() => setLoading(false)}
+              onError={() => setError("Error")}
+            />
+            {loading && (
+              <View style={styles.previewLoadingOverlay}>
+                <ActivityIndicator size="large" />
+              </View>
+            )}
+          </>
+        ) : (
+          <View style={styles.iconFallbackContainer}>
+            <IconButton
+              icon="link-variant"
+              size={64}
+              iconColor={theme.colors.primary}
+              style={{ margin: 0 }}
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // Renderizar preview o icono del archivo
+  const renderArchivoPreview = (archivo: ArchivoPublicacion) => {
+    const tipo = archivo.tipoNombre.toLowerCase();
+    const icono = obtenerIconoPorTipo(archivo.tipoNombre || "");
+
+    // Preview de enlace externo
+    if (archivo.esEnlaceExterno) {
+      return <LinkPreview url={archivo.webUrl} />;
+    }
+
+    // Preview de imagen
+    if (tipo.includes("imagen")) {
+      return (
+        <View style={styles.fullPreviewContainer}>
+          <Image
+            source={{ uri: archivo.webUrl }}
+            style={styles.fullPreviewImage}
+            resizeMode="cover"
+          />
+          <View style={styles.imageOverlay} />
+        </View>
+      );
+    }
+
+    // Preview de archivo de texto
+    if (tipo.includes("texto") || tipo.includes("md")) {
+      return <TextFilePreview url={archivo.webUrl} />;
+    }
+
+    // Icono grande para otros tipos
+    return (
+      <View style={styles.iconFallbackContainer}>
+        <IconButton icon={icono} size={64} iconColor={theme.colors.primary} />
+      </View>
+    );
   };
 
   if (cargando) {
@@ -289,18 +403,15 @@ export default function PublicationDetailScreen() {
             </Text>
 
             <View style={styles.archivosGrid}>
-              {archivos.map((archivo) => {
-                const icono = obtenerIconoPorTipo(archivo.tipoNombre || "");
-                const visualizable = esArchivoVisualizable(archivo);
-                
-                return (
+              {archivos.map((archivo) => (
+                <View key={archivo.id} style={styles.archivoCardWrapper}>
+                  {/* Card con preview/icono que ocupa todo el espacio */}
                   <Card
-                    key={archivo.id}
                     style={styles.archivoCard}
                     onPress={() => abrirArchivo(archivo)}
                     onLongPress={() => descargarArchivo(archivo)}
                   >
-                    {/* Botón de descarga - solo para archivos, no enlaces */}
+                    {/* Botón de descarga */}
                     {!archivo.esEnlaceExterno && (
                       <IconButton
                         icon="download"
@@ -309,70 +420,45 @@ export default function PublicationDetailScreen() {
                           descargarArchivo(archivo);
                         }}
                         style={styles.downloadButton}
-                        iconColor={theme.colors.onSurfaceVariant}
+                        iconColor={theme.colors.onSurface}
                       />
                     )}
 
-                    {/* Badge para enlaces externos */}
+                    {/* Icono de enlace externo */}
                     {archivo.esEnlaceExterno && (
-                      <Chip
-                        compact
-                        style={{
-                          position: "absolute",
-                          top: 8,
-                          right: 8,
-                          zIndex: 10,
-                          height: 24,
-                        }}
-                        textStyle={{ fontSize: 10 }}
+                      <IconButton
                         icon="link-variant"
-                      >
-                        Enlace
-                      </Chip>
+                        size={18}
+                        style={styles.downloadButton}
+                        iconColor={theme.colors.onSurface}
+                        onPress={() => {}}
+                      />
                     )}
 
-                    <Card.Content>
-                      <View style={styles.archivoIconContainer}>
-                        <IconButton
-                          icon={icono}
-                          size={40}
-                          iconColor={
-                            archivo.esEnlaceExterno
-                              ? theme.colors.secondary
-                              : theme.colors.primary
-                          }
-                        />
-                      </View>
-
-                      <View style={styles.archivoInfo}>
-                        <Text
-                          variant="bodyMedium"
-                          style={styles.archivoNombre}
-                          numberOfLines={2}
-                        >
-                          {archivo.titulo}
-                        </Text>
-                        
-                        {/* Mostrar tamaño solo si no es enlace externo */}
-                        {!archivo.esEnlaceExterno && (
-                          <Text variant="bodySmall" style={styles.archivoTamano}>
-                            {formatearTamano(archivo.tamanoBytes)}
-                          </Text>
-                        )}
-                        
-                        {/* Mostrar badge de tipo */}
-                        <Chip
-                          compact
-                          style={{ marginTop: 4, alignSelf: 'flex-start' }}
-                          textStyle={{ fontSize: 11 }}
-                        >
-                          {archivo.tipoNombre}
-                        </Chip>
-                      </View>
-                    </Card.Content>
+                    {/* Preview o icono que ocupa todo el card */}
+                    {renderArchivoPreview(archivo)}
                   </Card>
-                );
-              })}
+
+                  {/* Información debajo del card */}
+                  <View style={styles.archivoInfoContainer}>
+                    <View style={styles.archivoInfoRow}>
+                      <IconButton
+                        icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
+                        size={20}
+                        iconColor={theme.colors.primary}
+                        style={{ margin: 0, marginRight: 4 }}
+                      />
+                      <Text
+                        variant="bodyMedium"
+                        style={styles.archivoTitulo}
+                        numberOfLines={2}
+                      >
+                        {archivo.titulo}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
             </View>
           </View>
         )}
