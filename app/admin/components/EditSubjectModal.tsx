@@ -1,11 +1,12 @@
 // app/admin/components/EditSubjectModal.tsx
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import {
   Button,
-  Divider,
-  Menu,
+  Dialog,
   Modal,
+  Portal,
+  RadioButton,
   Text,
   TextInput,
   useTheme,
@@ -53,10 +54,21 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
   isSaveDisabled,
 }) => {
   const theme = useTheme();
-  const [menuVisible, setMenuVisible] = React.useState(false);
+  const [semestrePickerVisible, setSemestrePickerVisible] = React.useState(false);
 
-  const openMenu = () => setMenuVisible(true);
-  const closeMenu = () => setMenuVisible(false);
+  React.useEffect(() => {
+    if (!visible) {
+      setSemestrePickerVisible(false);
+    }
+  }, [visible]);
+
+  const openSemestrePicker = () => {
+    Keyboard.dismiss();
+    setSemestrePickerVisible(true);
+  };
+  const closeSemestrePicker = () => {
+    setSemestrePickerVisible(false);
+  };
 
   const selectSemestre = (semestre: SemestreOption) => {
     if (semestre === "Electiva") {
@@ -64,7 +76,7 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
     } else {
       setFormData({ ...formData, semestre: semestre });
     }
-    closeMenu();
+    closeSemestrePicker();
   };
 
   const handleImageSelected = (localUri: string) => {
@@ -106,122 +118,141 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
         { backgroundColor: theme.colors.background },
       ]}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text variant="headlineSmall" style={styles.modalTitle}>
-          Editar Materia
-        </Text>
-
-        <ImageUploader
-          currentImageUrl={formData.imagenUrl}
-          onImageSelected={handleImageSelected}
-          onImageRemoved={handleImageRemoved}
-        />
-
-        <TextInput
-          label="Nombre de la materia *"
-          value={formData.nombre}
-          onChangeText={(text) => setFormData({ ...formData, nombre: text })}
-          error={!!errors.nombre}
-          style={styles.input}
-          maxLength={30}
-          mode="outlined"
-        />
-        {errors.nombre ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {errors.nombre}
-          </Text>
-        ) : null}
-
-        <TextInput
-          label="Descripción breve *"
-          value={formData.descripcion}
-          onChangeText={(text) =>
-            setFormData({ ...formData, descripcion: text })
-          }
-          error={!!errors.descripcion}
-          style={styles.input}
-          multiline
-          numberOfLines={3}
-          mode="outlined"
-        />
-        {errors.descripcion ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {errors.descripcion}
-          </Text>
-        ) : null}
-
-        <View style={styles.semestreContainer}>
-          <Text variant="labelLarge" style={styles.semestreLabel}>
-            Semestre *
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 24}
+        style={styles.keyboardAvoidContainer}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text variant="headlineSmall" style={styles.modalTitle}>
+            Editar Materia
           </Text>
 
-          {/* Menu: key forzar remount cuando cambie semestre (fix apertura única) */}
-          <Menu
-            key={String(formData.semestre ?? "")}
-            visible={menuVisible}
-            onDismiss={closeMenu}
-            anchor={
-              <View style={{ width: "100%" }}>
-                <Button
-                  mode="outlined"
-                  onPress={openMenu}
-                  style={styles.semestreButton}
-                  icon="chevron-down"
-                  contentStyle={styles.semestreButtonContent}
-                >
-                  {formData.semestre !== undefined && formData.semestre !== null
-                    ? getSemestreText(formData.semestre)
-                    : "Seleccionar semestre"}
-                </Button>
-              </View>
+          <TextInput
+            label="Nombre de la materia *"
+            value={formData.nombre}
+            onChangeText={(text) => setFormData({ ...formData, nombre: text })}
+            error={!!errors.nombre}
+            style={styles.input}
+            maxLength={30}
+            mode="outlined"
+          />
+          {errors.nombre ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {errors.nombre}
+            </Text>
+          ) : null}
+
+          <TextInput
+            label="Descripción breve *"
+            value={formData.descripcion}
+            onChangeText={(text) =>
+              setFormData({ ...formData, descripcion: text })
             }
-            style={{ zIndex: 9999 }}
-          >
-            {semestres
-              .filter(
-                (sem) => optionValue(sem as SemestreOption) !== selectedValue
-              ) // <-- filtro: no mostrar la opción ya seleccionada
-              .map((semestre, index) => (
-                <React.Fragment key={`${String(semestre)}-${index}`}>
-                  <Menu.Item
-                    onPress={() => selectSemestre(semestre)}
-                    title={
+            error={!!errors.descripcion}
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+            mode="outlined"
+          />
+          {errors.descripcion ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {errors.descripcion}
+            </Text>
+          ) : null}
+
+          <View style={styles.semestreContainer}>
+            <Text variant="labelLarge" style={styles.semestreLabel}>
+              Semestre *
+            </Text>
+
+            <View style={styles.menuAnchor}>
+              <Button
+                mode="outlined"
+                onPress={openSemestrePicker}
+                style={styles.semestreButton}
+                icon="chevron-down"
+                contentStyle={styles.semestreButtonContent}
+              >
+                {formData.semestre !== undefined && formData.semestre !== null
+                  ? getSemestreText(formData.semestre)
+                  : "Seleccionar semestre"}
+              </Button>
+            </View>
+          </View>
+          {errors.semestre ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {errors.semestre}
+            </Text>
+          ) : null}
+
+          <ImageUploader
+            currentImageUrl={formData.imagenUrl}
+            onImageSelected={handleImageSelected}
+            onImageRemoved={handleImageRemoved}
+          />
+
+          <View style={styles.modalButtons}>
+            <Button
+              mode="outlined"
+              onPress={onDismiss}
+              style={styles.button}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              mode="contained"
+              onPress={onSave}
+              style={styles.button}
+              disabled={isSaveDisabled || loading}
+              loading={loading}
+            >
+              Actualizar
+            </Button>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      <Portal>
+        <Dialog
+          visible={semestrePickerVisible}
+          onDismiss={closeSemestrePicker}
+        >
+          <Dialog.Title>Seleccionar semestre</Dialog.Title>
+          <Dialog.ScrollArea>
+            <ScrollView>
+              <RadioButton.Group
+                onValueChange={(value) => {
+                  const matched = semestres.find(
+                    (semestre) => optionValue(semestre) === value
+                  );
+                  if (matched !== undefined) {
+                    selectSemestre(matched);
+                  } else {
+                    closeSemestrePicker();
+                  }
+                }}
+                value={selectedValue || ""}
+              >
+                {semestres.map((semestre) => (
+                  <RadioButton.Item
+                    key={String(semestre)}
+                    label={
                       semestre === "Electiva"
                         ? "Electiva"
                         : `Semestre ${semestre}`
                     }
+                    value={optionValue(semestre)}
                   />
-                  {index < semestres.length - 1 && <Divider />}
-                </React.Fragment>
-              ))}
-          </Menu>
-        </View>
-        {errors.semestre ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {errors.semestre}
-          </Text>
-        ) : null}
-
-        <View style={styles.modalButtons}>
-          <Button
-            mode="outlined"
-            onPress={onDismiss}
-            style={styles.button}
-            disabled={loading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            mode="contained"
-            onPress={onSave}
-            style={styles.button}
-            disabled={isSaveDisabled || loading}
-            loading={loading}
-          >
-            Actualizar
-          </Button>
-        </View>
-      </ScrollView>
+                ))}
+              </RadioButton.Group>
+            </ScrollView>
+          </Dialog.ScrollArea>
+        </Dialog>
+      </Portal>
     </Modal>
   );
 };
@@ -232,6 +263,10 @@ const styles = {
     margin: 20,
     borderRadius: 8,
     maxHeight: "80%",
+  },
+  keyboardAvoidContainer: {
+    flexGrow: 1,
+    width: "100%",
   },
   scrollContent: {
     paddingBottom: 24,
@@ -262,6 +297,9 @@ const styles = {
   semestreButtonContent: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
+  },
+  menuAnchor: {
+    width: "100%",
   },
   modalButtons: {
     flexDirection: "row",

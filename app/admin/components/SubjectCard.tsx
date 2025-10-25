@@ -3,6 +3,8 @@ import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Card, Chip, Text, useTheme } from "react-native-paper";
 import { Subject } from "../_types";
 
+const CARD_IMAGE_ASPECT = 16 / 9;
+
 interface SubjectCardProps {
   subject: Subject;
   onToggleStatus: (
@@ -136,7 +138,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: "100%",
-    height: 120,
+    aspectRatio: CARD_IMAGE_ASPECT,
   },
   imageOverlay: {
     position: "absolute",

@@ -1,14 +1,18 @@
-import * as DocumentPicker from 'expo-document-picker';
-import React, { useEffect, useState } from 'react';
-import { Alert, Image, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Text, useTheme } from 'react-native-paper';
+import * as ImagePicker from "expo-image-picker";
+import React, { useEffect, useState } from "react";
+import { Alert, Image, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Button, Text, useTheme } from "react-native-paper";
 
 interface ImageUploaderProps {
-  currentImageUrl?: string; // puede ser url remota o uri local (staging)
-  onImageSelected?: (localUri: string) => void; // ahora opcional (no sube)
+  currentImageUrl?: string;
+  onImageSelected?: (localUri: string) => void;
   onImageRemoved?: () => void;
-  uploading?: boolean; // indica que el parent está subiendo la imagen al backend
+  uploading?: boolean;
 }
+
+const CARD_ASPECT_RATIO: [number, number] = [16, 9];
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const CARD_ASPECT = CARD_ASPECT_RATIO[0] / CARD_ASPECT_RATIO[1];
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({
   currentImageUrl,
@@ -25,112 +29,82 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   const pickImage = async () => {
     try {
-      const result: any = await DocumentPicker.getDocumentAsync({
-        type: 'image/*',
-        copyToCacheDirectory: true,
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permiso requerido",
+          "Autoriza el acceso a tu galeria para seleccionar una imagen."
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: CARD_ASPECT_RATIO,
+        quality: 1,
       });
 
-      // Guard: consideramos "success" si hay URI en alguna forma conocida
-      const isSuccessResult = (r: any) =>
-        !!(
-          r?.uri ||
-          r?.fileUri ||
-          r?.file?.uri ||
-          (Array.isArray(r?.assets) && r.assets.length > 0 && r.assets[0]?.uri)
-        );
-
-      if (!isSuccessResult(result)) {
-        // usuario canceló o no hay uri — tratamos como cancel
+      if (result.canceled || !result.assets || result.assets.length === 0) {
         return;
       }
 
-      const anyRes = result as any;
-
-      const uri =
-        anyRes.uri ||
-        anyRes.fileUri ||
-        anyRes.file?.uri ||
-        (Array.isArray(anyRes.assets) ? anyRes.assets[0]?.uri : undefined);
-
-      const name = anyRes.name || anyRes.fileName || (Array.isArray(anyRes.assets) ? anyRes.assets[0]?.name : '');
-      const mimeType = anyRes.mimeType || anyRes.type || (Array.isArray(anyRes.assets) ? anyRes.assets[0]?.mimeType : undefined);
-      const size = anyRes.size || anyRes.fileSize || (Array.isArray(anyRes.assets) ? anyRes.assets[0]?.size : undefined);
+      const asset = result.assets[0];
+      const uri = asset.uri;
+      const size = asset.fileSize ?? (asset as any).fileSize ?? (asset as any).size ?? null;
 
       if (!uri) {
-        Alert.alert('Error', 'No se seleccionó ninguna imagen.');
+        Alert.alert("Error", "No se pudo obtener la imagen seleccionada.");
         return;
       }
 
-      if (mimeType && !mimeType.startsWith('image/')) {
-        Alert.alert('Error', 'Por favor selecciona una imagen válida.');
-        return;
-      } else if (!mimeType && name) {
-        const ext = name.split('.').pop()?.toLowerCase() || '';
-        const validExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
-        if (!validExts.includes(ext)) {
-          Alert.alert('Error', 'Por favor selecciona una imagen (JPG/PNG/... ).');
-          return;
-        }
-      }
-
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (size && size > maxSize) {
-        Alert.alert('Error', 'La imagen es muy grande. Máximo 5MB.');
+      if (size && size > MAX_FILE_SIZE_BYTES) {
+        Alert.alert("Error", "La imagen es muy grande. Maximo 5MB.");
         return;
       }
 
-      // Preview local
       setImageUri(uri);
 
-      // Llamada segura: solo si la prop existe
-      if (typeof onImageSelected === 'function') {
+      if (typeof onImageSelected === "function") {
         try {
           onImageSelected(uri);
         } catch (callErr) {
-          // prevenir crash si el parent lanza error al recibir la uri
-          console.error('onImageSelected threw:', callErr);
+          console.error("onImageSelected threw:", callErr);
         }
-      } else {
-        // Log informativo para debugging (no rompe la app)
-        console.warn('ImageUploader: onImageSelected prop no está definida. Actualiza el padre para recibir el URI seleccionado.');
       }
     } catch (error) {
-      console.error('Error seleccionando imagen:', error);
-      Alert.alert('Error', 'No se pudo seleccionar la imagen.');
+      console.error("Error seleccionando imagen:", error);
+      Alert.alert("Error", "No se pudo seleccionar la imagen.");
     }
   };
 
-  const handleRemove = async () => {
-    try {
-      Alert.alert('Confirmar', '¿Estás seguro de eliminar esta imagen?', [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            setImageUri(null);
-            if (typeof onImageRemoved === 'function') {
-              try {
-                onImageRemoved();
-              } catch (err) {
-                console.error('onImageRemoved threw:', err);
-              }
-            } else {
-              console.warn('ImageUploader: onImageRemoved prop no está definida.');
+  const handleRemove = () => {
+    Alert.alert("Confirmar", "Estas seguro de eliminar esta imagen?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: () => {
+          setImageUri(null);
+          if (typeof onImageRemoved === "function") {
+            try {
+              onImageRemoved();
+            } catch (err) {
+              console.error("onImageRemoved threw:", err);
             }
-          },
+          }
         },
-      ]);
-    } catch (error) {
-      console.error('Error eliminando imagen:', error);
-    }
+      },
+    ]);
   };
 
-  const isRemote = !!imageUri && (imageUri.startsWith('http://') || imageUri.startsWith('https://'));
+  const isRemote = !!imageUri && (imageUri.startsWith("http://") || imageUri.startsWith("https://"));
 
   return (
     <View style={styles.container}>
-      <Text variant="labelLarge" style={styles.label}>Imagen de la materia</Text>
+      <Text variant="labelLarge" style={styles.label}>
+        Imagen de la materia
+      </Text>
 
       {imageUri ? (
         <View style={styles.imageContainer}>
@@ -138,17 +112,34 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
           <View style={styles.overlay}>
             <View style={styles.overlayButtons}>
-              <Button mode="contained" onPress={pickImage} style={styles.button} compact icon="camera" disabled={uploading}>
+              <Button
+                mode="contained"
+                onPress={pickImage}
+                style={styles.button}
+                compact
+                icon="camera"
+                disabled={uploading}
+              >
                 Cambiar
               </Button>
-              <Button mode="outlined" onPress={handleRemove} style={[styles.button, { backgroundColor: 'rgba(255,255,255,0.95)' }]} compact icon="delete" disabled={uploading} textColor="#B00020">
+              <Button
+                mode="outlined"
+                onPress={handleRemove}
+                style={[styles.button, { backgroundColor: "rgba(255,255,255,0.95)" }]}
+                compact
+                icon="delete"
+                disabled={uploading}
+                textColor="#B00020"
+              >
                 Eliminar
               </Button>
             </View>
 
             {!isRemote && !uploading && (
               <View style={{ marginTop: 8 }}>
-                <Text variant="bodySmall" style={{ color: 'white' }}>Imagen seleccionada (aún no subida)</Text>
+                <Text variant="bodySmall" style={{ color: "white" }}>
+                  Imagen seleccionada (recortada al formato 16:9)
+                </Text>
               </View>
             )}
           </View>
@@ -162,10 +153,19 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         </View>
       ) : (
         <View style={styles.emptyContainer}>
-          <Button mode="outlined" onPress={pickImage} loading={uploading} disabled={uploading} icon="image-plus" style={styles.uploadButton}>
-            {uploading ? 'Subiendo...' : 'Seleccionar imagen'}
+          <Button
+            mode="outlined"
+            onPress={pickImage}
+            loading={uploading}
+            disabled={uploading}
+            icon="image-plus"
+            style={styles.uploadButton}
+          >
+            {uploading ? "Subiendo..." : "Seleccionar imagen"}
           </Button>
-          <Text variant="bodySmall" style={[styles.hint, { color: theme.colors.secondary }]}>Formatos: JPG, PNG. Máximo 5MB</Text>
+          <Text variant="bodySmall" style={[styles.hint, { color: theme.colors.secondary }]}>
+            Formato recortado 16:9, tamano maximo 5MB.
+          </Text>
         </View>
       )}
     </View>
@@ -174,27 +174,45 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
 const styles = StyleSheet.create({
   container: { marginVertical: 16 },
-  label: { marginBottom: 8, fontWeight: '600' },
+  label: { marginBottom: 8, fontWeight: "600" },
   imageContainer: {
-    position: 'relative',
+    position: "relative",
     borderRadius: 8,
-    overflow: 'hidden',
-    backgroundColor: '#f5f5f5',
+    overflow: "hidden",
+    backgroundColor: "#f5f5f5",
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  image: { width: '100%', height: 200 },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  overlayButtons: { flexDirection: 'row', gap: 8 },
+  image: { width: "100%", aspectRatio: CARD_ASPECT },
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayButtons: { flexDirection: "row", gap: 8 },
   button: { marginHorizontal: 4 },
-  emptyContainer: { alignItems: 'flex-start' },
+  emptyContainer: { alignItems: "flex-start" },
   uploadButton: { marginBottom: 8 },
-  hint: { fontStyle: 'italic', fontSize: 12 },
-  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: 'white', marginTop: 12, fontWeight: '600', fontSize: 14 },
+  hint: { fontStyle: "italic", fontSize: 12 },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: { color: "white", marginTop: 12, fontWeight: "600", fontSize: 14 },
 });
 
 export default ImageUploader;
