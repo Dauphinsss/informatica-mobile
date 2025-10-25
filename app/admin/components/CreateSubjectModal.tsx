@@ -1,6 +1,6 @@
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React from 'react';
-import { Keyboard, Keyboard, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Button, Dialog, Modal, Portal, RadioButton, Text, TextInput, useTheme } from 'react-native-paper';
 import { storage } from '../../../firebase';
 import ImageUploader from './ImageUploader';
