@@ -1,6 +1,6 @@
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Keyboard, Keyboard, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Button, Dialog, Modal, Portal, RadioButton, Text, TextInput, useTheme } from 'react-native-paper';
 import { storage } from '../../../firebase';
 import ImageUploader from './ImageUploader';
@@ -11,8 +11,8 @@ interface CreateSubjectModalProps {
   formData: {
     nombre: string;
     descripcion: string;
-    semestre: string; // almacenamos "10" para Electiva
-    imagenUrl?: string; // puede ser URL remota (http...) o uri local (staging)
+    semestre: string;
+    imagenUrl?: string;
   };
   setFormData: (data: any) => void;
   errors: {
@@ -20,7 +20,7 @@ interface CreateSubjectModalProps {
     descripcion: string;
     semestre: string;
   };
-  loading: boolean; // loading general (por ejemplo durante guardado de la entidad)
+  loading: boolean;
   onSave: (finalData?: any) => void | Promise<void>;
   isSaveDisabled: boolean;
 }
@@ -39,6 +39,23 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 }) => {
   const theme = useTheme();
   const [uploadingImage, setUploadingImage] = React.useState(false);
+  const scrollViewRef = React.useRef<ScrollView>(null);
+
+  // Cerrar teclado cuando se abre el modal
+  React.useEffect(() => {
+    if (visible) {
+      Keyboard.dismiss();
+    }
+  }, [visible]);
+
+  // ... (rest of your functions remain the same)
+
+  // Función para hacer scroll cuando un input se enfoca
+  const handleInputFocus = (yOffset: number) => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: yOffset, animated: true });
+    }, 100);
+  };
   const [semestrePickerVisible, setSemestrePickerVisible] = React.useState(false);
 
   React.useEffect(() => {
@@ -77,7 +94,6 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
     return semestre === '10' ? 'Electiva' : `Semestre ${semestre}`;
   };
 
-  // Normaliza una opción del array a su valor interno (string)
   const optionValue = (opt: number | string) => {
     if (opt === 'Electiva') return '10';
     return String(opt);
@@ -129,7 +145,6 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
     }
   };
 
-  // Valor seleccionado actual normalizado (string)
   const selectedValue = formData?.semestre ? String(formData.semestre) : '';
 
   return (
@@ -148,16 +163,19 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
             Nueva Materia
           </Text>
 
-          <TextInput
-            label="Nombre de la materia *"
-            value={formData.nombre}
-            onChangeText={(text) => setFormData({ ...formData, nombre: text })}
-            error={!!errors.nombre}
-            style={styles.input}
-            maxLength={30}
-            mode="outlined"
-          />
-          {errors.nombre ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.nombre}</Text> : null}
+        <View style={styles.inputContainer}>
+            <TextInput
+              label="Nombre de la materia *"
+              value={formData.nombre}
+              onChangeText={(text) => setFormData({ ...formData, nombre: text })}
+              error={!!errors.nombre}
+              style={styles.input}
+              maxLength={30}
+              mode="outlined"
+            onFocus={() => handleInputFocus(100)}
+            />
+            {errors.nombre ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.nombre}</Text> : null}
+        </View>
 
           <TextInput
             label="Descripción breve *"
@@ -257,19 +275,59 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
 };
 
 const styles = {
-  modal: { maxHeight: '90%', margin: 20, borderRadius: 8 },
+  modal: { 
+    margin: 20,
+    borderRadius: 8,
+    maxHeight: '85%',
+  },
+  scrollView: {
+    flex: 1,
+  },
   keyboardAvoidContainer: { flexGrow: 1, width: '100%' },
-  scrollContent: { padding: 24 },
-  modalTitle: { marginBottom: 20, fontWeight: 'bold', textAlign: 'center' },
-  input: { marginBottom: 4 },
-  errorText: { fontSize: 12, marginBottom: 12, marginLeft: 4, fontWeight: '500' },
-  semestreContainer: { marginBottom: 16 },
-  semestreLabel: { marginBottom: 8 },
-  semestreButton: { width: '100%' },
-  semestreButtonContent: { flexDirection: 'row-reverse', justifyContent: 'space-between' },
+  scrollContent: { 
+    padding: 24,
+    paddingBottom: 90,
+  },
+  modalTitle: { 
+    marginBottom: 20, 
+    fontWeight: 'bold', 
+    textAlign: 'center' 
+  },
+  inputContainer: {
+    marginBottom: 12,
+  },
+  input: { 
+    marginBottom: 4 
+  },
+  errorText: { 
+    fontSize: 12, 
+    marginBottom: 12, 
+    marginLeft: 4, 
+    fontWeight: '500' 
+  },
+  semestreContainer: { 
+    marginBottom: 16 
+  },
+  semestreLabel: { 
+    marginBottom: 8 
+  },
+  semestreButton: { 
+    width: '100%' 
+  },
+  semestreButtonContent: { 
+    flexDirection: 'row-reverse', 
+    justifyContent: 'space-between' 
+  },
   menuAnchor: { width: '100%' },
-  modalButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
-  button: { minWidth: 100 },
+  modalButtons: { 
+    flexDirection: 'row', 
+    justifyContent: 'flex-end', 
+    gap: 12, 
+    marginTop: 16 
+  },
+  button: { 
+    minWidth: 100 
+  },
 } as const;
 
 export default CreateSubjectModal;

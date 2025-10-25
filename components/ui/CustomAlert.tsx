@@ -1,0 +1,173 @@
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { Button, IconButton, Modal, Portal, Text, useTheme } from "react-native-paper";
+
+export type CustomAlertButton = {
+  text: string;
+  onPress: () => void;
+  mode?: "text" | "outlined" | "contained";
+  color?: string;
+};
+
+export type CustomAlertType = "info" | "success" | "error" | "warning" | "confirm";
+
+interface CustomAlertProps {
+  visible: boolean;
+  onDismiss: () => void;
+  title?: string;
+  message: string;
+  type?: CustomAlertType;
+  buttons?: CustomAlertButton[];
+}
+
+
+const ICONS: Record<CustomAlertType, string> = {
+  info: "information",
+  success: "check-circle",
+  error: "alert-circle",
+  warning: "alert",
+  confirm: "help-circle",
+};
+
+export default function CustomAlert({
+  visible,
+  onDismiss,
+  title,
+  message,
+  type = "info",
+  buttons = [
+    {
+      text: "OK",
+      onPress: onDismiss,
+      mode: "contained",
+    },
+  ],
+}: CustomAlertProps) {
+
+  const theme = useTheme();
+  // Usar solo colores del theme, sin rojo ni error
+  // Usar SIEMPRE el lila de la app (secondary si es lila, si no tertiary)
+  // Lila fuerte para claro, lila claro para oscuro
+  const lilacStrong = theme.dark ? (theme.colors.secondaryContainer || '#b39ddb') : (theme.colors.secondary || '#7c43bd');
+  const lilacLight = theme.dark ? (theme.colors.secondary || '#d1b3ff') : (theme.colors.secondaryContainer || '#ede7f6');
+  const buttonLilac = theme.dark ? lilacLight : lilacStrong;
+  const buttonText = theme.dark ? '#f8f8f8' : '#444';
+  const colorMap: Record<CustomAlertType, string> = {
+    info: buttonLilac,
+    success: buttonLilac,
+    error: buttonLilac,
+    warning: buttonLilac,
+    confirm: buttonLilac,
+  };
+  const iconBgMap: Record<CustomAlertType, string> = {
+    info: theme.colors.surfaceVariant || theme.colors.surface,
+    success: theme.colors.surfaceVariant || theme.colors.surface,
+    error: theme.colors.surfaceVariant || theme.colors.surface,
+    warning: theme.colors.surfaceVariant || theme.colors.surface,
+    confirm: theme.colors.surfaceVariant || theme.colors.surface,
+  };
+
+  return (
+    <Portal>
+      <Modal
+        visible={visible}
+        onDismiss={onDismiss}
+        contentContainerStyle={[
+          styles.container,
+          {
+            backgroundColor: theme.colors.elevation?.level1 || theme.colors.surface,
+            borderRadius: 12,
+            padding: 16,
+            borderColor: theme.colors.outline,
+            borderWidth: theme.dark ? 1 : 0,
+            minWidth: 280,
+            maxWidth: 400,
+          },
+        ]}
+      >
+        <View style={styles.headerRow}>
+          <IconButton
+            icon={ICONS[type]}
+            size={24}
+            iconColor={colorMap[type]}
+            style={{ margin: 0, marginRight: 8, backgroundColor: 'transparent' }}
+            disabled
+          />
+          {title && (
+            <Text variant="titleMedium" style={[styles.title, { color: theme.colors.onSurface }]}> {title} </Text>
+          )}
+        </View>
+        <Text variant="bodyMedium" style={[styles.message, { color: theme.colors.onSurfaceVariant || theme.colors.onSurface }]}> {message} </Text>
+        <View style={styles.buttonRow}>
+          {buttons.map((btn, idx) => {
+            // Si es alerta de éxito y el botón no tiene modo, usar 'text' (sin fondo)
+            const mode = type === 'success' && !btn.mode ? 'text' : (btn.mode || 'contained');
+            return (
+              <Button
+                key={idx}
+                mode={mode}
+                onPress={() => {
+                  btn.onPress();
+                  onDismiss();
+                }}
+                style={styles.button}
+                buttonColor={mode === 'contained' ? (btn.color || buttonLilac) : undefined}
+                textColor={mode === 'contained' ? buttonText : (btn.color || buttonLilac)}
+              >
+                {btn.text}
+              </Button>
+            );
+          })}
+        </View>
+      </Modal>
+    </Portal>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    margin: 32,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "flex-start",
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    minWidth: 280,
+    maxWidth: 400,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    width: '100%',
+  },
+  title: {
+    fontWeight: "bold",
+    flexShrink: 1,
+    fontSize: 18,
+    letterSpacing: 0.1,
+  },
+  message: {
+    marginBottom: 18,
+    textAlign: "left",
+    fontSize: 15,
+    letterSpacing: 0.05,
+    color: undefined,
+    width: '100%',
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 4,
+    width: '100%',
+  },
+  button: {
+    marginHorizontal: 2,
+    minWidth: 90,
+    borderRadius: 8,
+  },
+});
