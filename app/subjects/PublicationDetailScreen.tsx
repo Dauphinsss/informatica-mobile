@@ -82,6 +82,8 @@ export default function PublicationDetailScreen() {
   const styles = getStyles(theme);
   const navigation = useNavigation();
   const route = useRoute();
+  const auth = getAuth();
+  const usuario = auth.currentUser;
 
   const params = route.params as {
     publicacionId?: string;
@@ -430,10 +432,12 @@ export default function PublicationDetailScreen() {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={materiaNombre} />
-        <Appbar.Action 
-          icon="flag" 
-          onPress={mostrarDialogoReporte}
-        />
+        {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
+          <Appbar.Action 
+            icon="flag" 
+            onPress={mostrarDialogoReporte}
+          />
+        )}
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
