@@ -188,3 +188,34 @@ export const eliminarPublicacion = async (publicacionId: string): Promise<void> 
     throw error;
   }
 };
+
+/**
+ * Obtiene todas las publicaciones de un autor
+ */
+export const obtenerPublicacionesPorAutor = async (
+  autorUid: string
+): Promise<Publicacion[]> => {
+  const publicaciones: Publicacion[] = [];
+  try {
+    const publicacionesSnap = await getDocs(
+      query(
+        collection(db, "publicaciones"),
+        where("autorUid", "==", autorUid),
+        where("estado", "==", "activo"),
+        orderBy("fechaPublicacion", "desc")
+      )
+    );
+    publicacionesSnap.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      publicaciones.push({
+        id: docSnap.id,
+        ...data,
+        autorFoto: data.autorFoto ?? null,
+        fechaPublicacion: data.fechaPublicacion.toDate(),
+      } as Publicacion);
+    });
+  } catch (error) {
+    console.error("Error al obtener publicaciones por autor:", error);
+  }
+  return publicaciones;
+};
