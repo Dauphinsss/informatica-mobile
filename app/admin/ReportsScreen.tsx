@@ -1,5 +1,5 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { db } from "@/firebase";
+import { db, auth } from "@/firebase";
 import { obtenerArchivosConTipo } from "@/scripts/services/Publications";
 import {
   aplicarStrikeAlAutor,
@@ -68,9 +68,9 @@ export default function ReportsScreen() {
       return true;
     })
     .sort((a, b) => {
-      const dateA = new Date(a.ultimaFecha.split("/").reverse().join("-"));
-      const dateB = new Date(b.ultimaFecha.split("/").reverse().join("-"));
-      return dateB.getTime() - dateA.getTime();
+      if (!a.ultimaFechaTimestamp) return 1;
+      if (!b.ultimaFechaTimestamp) return -1;
+      return b.ultimaFechaTimestamp - a.ultimaFechaTimestamp;
     });
 
   const getDecisionLabel = (r: Report) => {
@@ -679,39 +679,48 @@ export default function ReportsScreen() {
                     <Text variant="titleMedium" style={styles.sectionTitle}>
                       Administración
                     </Text>
-
-                    <Button
-                      mode="contained"
-                      icon="check-circle"
-                      onPress={quitarReporte}
-                      style={styles.actionButton}
-                    >
-                      Quitar Reporte
-                    </Button>
-                    
-                    <Button
-                      mode="contained-tonal"
-                      icon="delete"
-                      onPress={eliminarPublicacion}
-                      style={styles.actionButton}
-                    >
-                      Eliminar Publicación + Strike
-                    </Button>
-
-                    <Button
-                      mode="outlined"
-                      icon="cancel"
-                      onPress={banearUsuario}
-                      disabled={reporteSeleccionado.strikesAutor < 2}
-                      style={styles.actionButton}
-                    >
-                      Banear Usuario del Sistema
-                    </Button>
-                    <Text variant="bodySmall" style={styles.buttonSubtext}>
-                      {reporteSeleccionado.strikesAutor < 2
-                        ? "Se requieren al menos 2 strikes"
-                        : "No podrá volver a acceder al sistema"}
-                    </Text>
+                    {auth.currentUser && reporteSeleccionado.autorUid === auth.currentUser.uid ? (
+                      <Card style={[styles.modalCard, { marginTop: 12, marginBottom: 12 }]}> 
+                        <Card.Content>
+                          <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+                            No puedes realizar acciones administrativas sobre denuncias hacia tus propias publicaciones.
+                          </Text>
+                        </Card.Content>
+                      </Card>
+                    ) : (
+                      <>
+                        <Button
+                          mode="contained"
+                          icon="check-circle"
+                          onPress={quitarReporte}
+                          style={styles.actionButton}
+                        >
+                          Quitar Reporte
+                        </Button>
+                        <Button
+                          mode="contained-tonal"
+                          icon="delete"
+                          onPress={eliminarPublicacion}
+                          style={styles.actionButton}
+                        >
+                          Eliminar Publicación + Strike
+                        </Button>
+                        <Button
+                          mode="outlined"
+                          icon="cancel"
+                          onPress={banearUsuario}
+                          disabled={reporteSeleccionado.strikesAutor < 2}
+                          style={styles.actionButton}
+                        >
+                          Banear Usuario del Sistema
+                        </Button>
+                        <Text variant="bodySmall" style={styles.buttonSubtext}>
+                          {reporteSeleccionado.strikesAutor < 2
+                            ? "Se requieren al menos 2 strikes"
+                            : "No podrá volver a acceder al sistema"}
+                        </Text>
+                      </>
+                    )}
                   </View>
                 )}
 
