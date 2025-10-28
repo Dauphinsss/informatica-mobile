@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Button, Text } from "react-native-paper";
 import { auth, db } from "../firebase";
+import { crearEstadisticasUsuario } from "../scripts/services/Users";
 
 GoogleSignin.configure({
   webClientId:
@@ -54,6 +55,7 @@ export default function LoginScreen() {
           { merge: true }
         );
       }
+      await crearEstadisticasUsuario(user.uid);
     } catch (error: any) {
       console.error("Error:", error);
       setLoading(false);
