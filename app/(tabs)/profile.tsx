@@ -1,7 +1,9 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { db, auth } from "@/firebase";
+import { auth, db } from "@/firebase";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { useNavigation } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
+import { doc, updateDoc } from "firebase/firestore";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import {
@@ -15,9 +17,9 @@ import {
   RadioButton,
   Text,
 } from "react-native-paper";
-import { doc, updateDoc } from "firebase/firestore";
 
 export default function ProfileScreen() {
+  const navigation: any = useNavigation();
   const user = auth.currentUser;
   const { themeMode, setThemeMode, theme } = useTheme();
   const [themeDialogVisible, setThemeDialogVisible] = useState(false);
@@ -99,6 +101,20 @@ export default function ProfileScreen() {
             title="Correo electronico"
             description={user.email || "No disponible"}
             left={(props) => <List.Icon {...props} icon="email" />}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Publicaciones
+          </Text>
+          <Divider style={styles.divider} />
+          <List.Item
+            title="Mis Publicaciones"
+            description="Ver todas tus publicaciones"
+            left={(props) => <List.Icon {...props} icon="book-open-variant" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => navigation.navigate("MisPublicacionesScreen")}
           />
         </View>
 

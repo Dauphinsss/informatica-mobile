@@ -78,12 +78,15 @@ export const obtenerReportes = async (): Promise<Report[]> => {
       const autorReporteNombre = usuariosCache.get(data.autorUid) ?? "Usuario desconocido";
       const strikesAutor = estadisticasCache.get(publicacion?.autorUid) ?? 0;
 
-      const fecha = data.fechaCreacion.toDate().toLocaleDateString("es-BO");
+      const fechaDate = data.fechaCreacion.toDate();
+      const fecha = fechaDate.toLocaleDateString("es-BO");
+      const fechaTimestamp = fechaDate.getTime();
 
       const nuevoReportador = {
         usuario: autorReporteNombre,
         motivo: data.tipo,
         fecha,
+        fechaTimestamp,
       };
 
       if (!agrupados.has(publicacionId)) {
@@ -97,6 +100,7 @@ export const obtenerReportes = async (): Promise<Report[]> => {
           ultimoMotivo: data.tipo,
           ultimoReportadoPor: autorReporteNombre,
           ultimaFecha: fecha,
+          ultimaFechaTimestamp: fechaTimestamp,
           contenido: publicacion?.descripcion ?? "Sin descripción",
           estado: data.estado,
           reportadores: [nuevoReportador],
@@ -111,10 +115,9 @@ export const obtenerReportes = async (): Promise<Report[]> => {
         existente.totalReportes += 1;
         existente.reportadores.push(nuevoReportador);
 
-        const fechaActual = new Date(fecha);
-        const fechaExistente = new Date(existente.ultimaFecha.split('/').reverse().join('-'));
-        if (fechaActual > fechaExistente) {
+        if (fechaTimestamp > (existente.ultimaFechaTimestamp ?? 0)) {
           existente.ultimaFecha = fecha;
+          existente.ultimaFechaTimestamp = fechaTimestamp;
           existente.ultimoMotivo = data.tipo;
           existente.ultimoReportadoPor = autorReporteNombre;
           existente.estado = data.estado;

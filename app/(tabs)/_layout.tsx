@@ -11,7 +11,7 @@ import AdminLayOut from "../admin/_layout";
 
 import HomeStack from "./HomeStack";
 import NotificationsScreen from "./notifications";
-import ProfileScreen from "./profile";
+import ProfileStack from "./ProfileStack";
 
 const Tab = createBottomTabNavigator();
 
@@ -259,6 +259,14 @@ export default function TabLayout() {
         return null;
       }
       if (
+        activeRoute.name === "Profile" &&
+        activeRoute.state &&
+        typeof activeRoute.state.index === "number" &&
+        activeRoute.state.index > 0
+      ) {
+        return null;
+      }
+      if (
         activeRoute.name === "Home" &&
         activeRoute.state &&
         typeof activeRoute.state.index === "number" &&
@@ -324,7 +332,7 @@ export default function TabLayout() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileStack}
         options={{
           tabBarLabel: "Perfil",
           tabBarIcon: ({ color, focused }) => (

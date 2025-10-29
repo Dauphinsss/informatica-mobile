@@ -13,10 +13,12 @@ export interface Report {
   ultimaFecha: string;
   contenido: string;
   estado: ReportStatus;
+  ultimaFechaTimestamp?: number;
   reportadores: Array<{
     usuario: string;
     motivo: string;
     fecha: string;
+    fechaTimestamp?: number;
   }>;
   strikesAutor: number;
   decision?: string;
