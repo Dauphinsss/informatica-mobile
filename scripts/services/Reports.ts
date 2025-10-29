@@ -140,7 +140,8 @@ export const obtenerReportes = async (): Promise<Report[]> => {
 
 export const completarReportesDePublicacion = async (
   publicacionId: string,
-  accion: string
+  accion: string,
+  motivoDecision: string
 ) => {
   const auth = getAuth();
   const admin = auth.currentUser;
@@ -157,6 +158,7 @@ export const completarReportesDePublicacion = async (
         accionTomada: accion,
         fechaRevision: fecha,
         revisadoPor: adminName,
+        motivoDecision: motivoDecision,
       })
     )
   );
@@ -173,8 +175,7 @@ export const eliminarPublicacion = async (publicacionId: string) => {
 export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
   try {
     console.log("Eliminando publicación y archivos:", publicacionId);
-    
-    // 1. Obtener archivos de la publicación
+
     const archivosSnap = await getDocs(
       query(
         collection(db, "archivos"),
@@ -185,11 +186,9 @@ export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
 
     console.log(`Archivos encontrados: ${archivosSnap.docs.length}`);
 
-    // 2. Eliminar archivos de Storage (solo los que NO son enlaces externos)
     const eliminarArchivosStorage = archivosSnap.docs.map(async (archivoDoc) => {
       const archivoData = archivoDoc.data();
-      
-      // Solo eliminar de Storage si NO es un enlace externo
+
       if (!archivoData.esEnlaceExterno && archivoData.webUrl) {
         try {
           const storageUrl = archivoData.webUrl;
@@ -207,8 +206,7 @@ export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
       } else {
         console.log(`Enlace externo omitido: ${archivoData.titulo}`);
       }
-      
-      // Marcar como inactivo en Firestore
+
       await updateDoc(doc(db, "archivos", archivoDoc.id), {
         activo: false
       });
@@ -216,7 +214,6 @@ export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
 
     await Promise.all(eliminarArchivosStorage);
 
-    // 3. Eliminar publicación (eliminación lógica)
     await updateDoc(doc(db, "publicaciones", publicacionId), {
       estado: "eliminado",
     });
@@ -355,11 +352,13 @@ export const escucharReportes = (onChange: (reportes: Report[]) => void) => {
           fechaDecision: data.fechaRevision
             ? data.fechaRevision.toDate().toLocaleDateString("es-BO")
             : undefined,
+          motivoDecision: data.motivoDecision ?? undefined,
         });
       } else {
         const existente = agrupados.get(publicacionId)!;
         existente.totalReportes += 1;
         existente.reportadores.push(nuevoReportador);
+        if (data.motivoDecision) existente.motivoDecision = data.motivoDecision;
 
         if (fechaTimestamp > (existente.ultimaFechaTimestamp ?? 0)) {
           existente.ultimaFecha = fecha;
@@ -368,6 +367,7 @@ export const escucharReportes = (onChange: (reportes: Report[]) => void) => {
           existente.ultimoReportadoPor = autorReporteNombre;
           existente.estado = data.estado;
           existente.decision = data.accionTomada ?? existente.decision;
+          if (data.motivoDecision) existente.motivoDecision = data.motivoDecision;
           existente.fechaDecision = data.fechaRevision
             ? data.fechaRevision.toDate().toLocaleDateString("es-BO")
             : existente.fechaDecision;

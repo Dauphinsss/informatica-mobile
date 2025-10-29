@@ -10,16 +10,8 @@ import {
 } from "@/scripts/services/Reports";
 import { ArchivoPublicacion } from "@/scripts/types/Publication.type";
 import { useNavigation } from "@react-navigation/native";
-import React, { useEffect, useMemo, useState } from "react";
-
-type ReportCardProps = {
-  reporte: Report;
-  onPress: (reporte: Report) => void;
-  styles: any;
-  theme: any;
-  getDecisionLabel: (r: Report) => string;
-};
-
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Dimensions } from "react-native";
 import { Image, Linking, ScrollView, TouchableOpacity, View } from "react-native";
 import {
   ActivityIndicator,
@@ -33,11 +25,19 @@ import {
   Modal,
   Portal,
   Text,
+  TextInput,
 } from "react-native-paper";
 import CustomAlert, { CustomAlertButton, CustomAlertType } from "../../components/ui/CustomAlert";
 import { FilterType, Report } from "../../scripts/types/Reports.type";
 import { getStyles } from "./ReportsScreen.styles";
 
+type ReportCardProps = {
+  reporte: Report;
+  onPress: (reporte: Report) => void;
+  styles: any;
+  theme: any;
+  getDecisionLabel: (r: Report) => string;
+};
 
 const ReportCard = React.memo(function ReportCard({ reporte, onPress, styles, theme, getDecisionLabel }: ReportCardProps) {
   return (
@@ -79,6 +79,11 @@ const ReportCard = React.memo(function ReportCard({ reporte, onPress, styles, th
 });
 
 export default function ReportsScreen() {
+  const [modalMotivoVisible, setModalMotivoVisible] = useState(false);
+  const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>("");
+  const [motivoPersonalizado, setMotivoPersonalizado] = useState<string>("");
+  const accionPendiente = useRef<null | ((motivo: string) => Promise<void>)>(null);
+  const [tipoAccionMotivo, setTipoAccionMotivo] = useState<'quitar' | 'strike' | 'ban'>('quitar');
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
   const [alertMessage, setAlertMessage] = useState("");
@@ -94,6 +99,33 @@ export default function ReportsScreen() {
   const [cargandoArchivos, setCargandoArchivos] = useState(false);
   const [reportes, setReportes] = useState<Report[]>([]);
   const [cargando, setCargando] = useState(true);
+  const deviceWidth = Dimensions.get('window').width;
+  const modalWidth = Math.min(400, deviceWidth * 0.9);
+  const MOTIVOS_POR_ACCION = {
+    quitar: [
+      "No infringe las normas",
+      "Contenido adecuado",
+      "Reporte infundado",
+      "No se encontró problema",
+      "Otra razón..."
+    ],
+    strike: [
+      "Incumplimiento de normas",
+      "Contenido inapropiado",
+      "Spam o publicidad",
+      "Acoso o lenguaje ofensivo",
+      "Publicación duplicada",
+      "Otra razón..."
+    ],
+    ban: [
+      "Spam masivo",
+      "Reincidencia grave",
+      "Acoso reiterado",
+      "Falsificación de identidad",
+      "Violación grave de normas",
+      "Otra razón..."
+    ]
+  };
 
   useEffect(() => {
     setCargando(true);
@@ -139,8 +171,7 @@ export default function ReportsScreen() {
   const abrirDetalles = async (reporte: Report) => {
     setReporteSeleccionado(reporte);
     setModalVisible(true);
-    
-    // Cargar archivos de la publicación
+
     setCargandoArchivos(true);
     try {
       const archivosData = await obtenerArchivosConTipo(reporte.publicacionId);
@@ -185,7 +216,6 @@ export default function ReportsScreen() {
   };
 
   const abrirArchivo = async (archivo: ArchivoPublicacion) => {
-    // Si es enlace externo, abrirlo directamente
     if (archivo.esEnlaceExterno) {
       try {
         const canOpen = await Linking.canOpenURL(archivo.webUrl);
@@ -209,7 +239,6 @@ export default function ReportsScreen() {
       return;
     }
 
-    // Si es visualizable, abrir en FileGallery
     if (esArchivoVisualizable(archivo)) {
       const indice = archivos.findIndex((a) => a.id === archivo.id);
 
@@ -221,7 +250,6 @@ export default function ReportsScreen() {
             : a.fechaSubida,
       }));
 
-      // Cerrar modal antes de navegar
       setModalVisible(false);
 
       (navigation.navigate as any)("FileGallery", {
@@ -296,176 +324,149 @@ export default function ReportsScreen() {
     );
   };
 
-  const quitarReporte = async () => {
-    if (!reporteSeleccionado) return;
-    setAlertTitle("Quitar Reporte");
-    setAlertMessage("¿Confirmar que la publicación está en orden y no viola las normas?");
-    setAlertType("confirm");
-    setAlertButtons([
-      {
-        text: "Cancelar",
-        onPress: () => {},
-        mode: "outlined",
-      },
-      {
-        text: "Confirmar",
-        onPress: async () => {
-          try {
-            const fecha = await completarReportesDePublicacion(
-              reporteSeleccionado.publicacionId,
-              "Denuncia descartada - publicación en orden"
-            );
-            const fechaStr = fecha.toLocaleDateString();
-            setReportes((prev) =>
-              prev.map((r) =>
-                r.publicacionId === reporteSeleccionado.publicacionId
-                  ? {
-                      ...r,
-                      estado: "completado",
-                      decision: "Denuncia descartada - publicación en orden",
-                      fechaDecision: fechaStr,
-                    }
-                  : r
-              )
-            );
-            cerrarModal();
-            setAlertTitle("Éxito");
-            setAlertMessage("Reporte descartado correctamente");
-            setAlertType("success");
-            setAlertButtons([{ text: "OK", onPress: () => {} }]);
-            setAlertVisible(true);
-          } catch (error) {
-            console.error("Error al quitar reporte:", error);
-            setAlertTitle("Error");
-            setAlertMessage("No se pudo descartar el reporte");
-            setAlertType("error");
-            setAlertButtons([{ text: "OK", onPress: () => {} }]);
-            setAlertVisible(true);
-          }
-        },
-        mode: "contained",
-      },
-    ]);
-    setAlertVisible(true);
+  const pedirMotivoYContinuar = (accion: (motivo: string) => Promise<void>, tipo: 'quitar' | 'strike' | 'ban' = 'quitar') => {
+    accionPendiente.current = accion;
+    setTipoAccionMotivo(tipo);
+    setMotivoSeleccionado("");
+    setMotivoPersonalizado("");
+    setModalMotivoVisible(true);
   };
 
-  const eliminarPublicacion = async () => {
-    if (!reporteSeleccionado) return;
-    setAlertTitle("Eliminar Publicación");
-    setAlertMessage("Se eliminará la publicación, sus archivos y se aplicará un strike al autor. ¿Continuar?");
-    setAlertType("warning");
-    setAlertButtons([
-      {
-        text: "Cancelar",
-        onPress: () => {},
-        mode: "outlined",
-      },
-      {
-        text: "Eliminar",
-        onPress: async () => {
-          try {
-            // Eliminar publicación y archivos
-            await eliminarPublicacionYArchivos(reporteSeleccionado.publicacionId);
-            // Aplicar strike al autor
-            await aplicarStrikeAlAutor(reporteSeleccionado.autorUid);
-            // Completar reportes
-            const fecha = await completarReportesDePublicacion(
-              reporteSeleccionado.publicacionId,
-              "Publicación eliminada y strike aplicado al autor"
-            );
-            const fechaStr = fecha.toLocaleDateString();
-            setReportes((prev) =>
-              prev.map((r) =>
-                r.publicacionId === reporteSeleccionado.publicacionId
-                  ? {
-                      ...r,
-                      estado: "completado",
-                      strikesAutor: (r.strikesAutor || 0) + 1,
-                      decision: "Publicación eliminada y strike aplicado al autor",
-                      fechaDecision: fechaStr,
-                    }
-                  : r
-              )
-            );
-            cerrarModal();
-            setAlertTitle("Éxito");
-            setAlertMessage("Publicación eliminada y strike aplicado");
-            setAlertType("success");
-            setAlertButtons([{ text: "OK", onPress: () => {} }]);
-            setAlertVisible(true);
-          } catch (error) {
-            console.error("Error al eliminar publicación:", error);
-            setAlertTitle("Error");
-            setAlertMessage("No se pudo eliminar la publicación");
-            setAlertType("error");
-            setAlertButtons([{ text: "OK", onPress: () => {} }]);
-            setAlertVisible(true);
-          }
-        },
-        mode: "contained",
-        color: theme.colors.error,
-      },
-    ]);
-    setAlertVisible(true);
+  const confirmarMotivoYAccion = async () => {
+    setModalMotivoVisible(false);
+    if (accionPendiente.current) {
+      const motivo = motivoSeleccionado === "Otra razón..." ? motivoPersonalizado : motivoSeleccionado;
+      await accionPendiente.current(motivo);
+      accionPendiente.current = null;
+    }
   };
 
-  const banearUsuario = async () => {
-    if (!reporteSeleccionado) return;
-    setAlertTitle("Banear Usuario");
-    setAlertMessage(`¿Confirmar baneo permanente de ${reporteSeleccionado.autor}? Esta acción es irreversible.`);
-    setAlertType("error");
-    setAlertButtons([
-      {
-        text: "Cancelar",
-        onPress: () => {},
-        mode: "outlined",
-      },
-      {
-        text: "Banear",
-        onPress: async () => {
-          try {
-            // Banear usuario
-            await banearUsuarioPorNombre(reporteSeleccionado.autor);
-            // Eliminar publicación y archivos
-            await eliminarPublicacionYArchivos(reporteSeleccionado.publicacionId);
-            // Completar reportes
-            const fecha = await completarReportesDePublicacion(
-              reporteSeleccionado.publicacionId,
-              "Usuario baneado del sistema"
-            );
-            const fechaStr = fecha.toLocaleDateString();
-            setReportes((prev) =>
-              prev.map((r) =>
-                r.publicacionId === reporteSeleccionado.publicacionId
-                  ? {
-                      ...r,
-                      estado: "completado",
-                      decision: "Usuario baneado del sistema",
-                      fechaDecision: fechaStr,
-                    }
-                  : r
-              )
-            );
-            cerrarModal();
-            setAlertTitle("Éxito");
-            setAlertMessage("Usuario baneado del sistema");
-            setAlertType("success");
-            setAlertButtons([{ text: "OK", onPress: () => {} }]);
-            setAlertVisible(true);
-          } catch (error) {
-            console.error("Error al banear usuario:", error);
-            setAlertTitle("Error");
-            setAlertMessage("No se pudo banear al usuario");
-            setAlertType("error");
-            setAlertButtons([{ text: "OK", onPress: () => {} }]);
-            setAlertVisible(true);
-          }
-        },
-        mode: "contained",
-        color: theme.colors.error,
-      },
-    ]);
-    setAlertVisible(true);
+  const quitarReporte = () => {
+    pedirMotivoYContinuar(async (motivoArg) => {
+      if (!reporteSeleccionado) return;
+      try {
+        const motivo = motivoArg && motivoArg.trim().length > 0 ? motivoArg : "Sin motivo especificado";
+        const fecha = await completarReportesDePublicacion(
+          reporteSeleccionado.publicacionId,
+          "Reporte descartado",
+          motivo
+        );
+        const fechaStr = fecha && typeof fecha.toLocaleDateString === 'function' ? fecha.toLocaleDateString() : '';
+        setReportes((prev) =>
+          prev.map((r) =>
+            r.publicacionId === reporteSeleccionado.publicacionId
+              ? {
+                  ...r,
+                  estado: "completado",
+                  decision: "Reporte descartado",
+                  motivoDecision: motivo,
+                  fechaDecision: fechaStr,
+                }
+              : r
+          )
+        );
+        cerrarModal();
+        setAlertTitle("Éxito");
+        setAlertMessage("Reporte descartado correctamente");
+        setAlertType("success");
+        setAlertButtons([{ text: "OK", onPress: () => {} }]);
+        setAlertVisible(true);
+      } catch (error) {
+        console.error("Error al quitar reporte:", error);
+        setAlertTitle("Error");
+        setAlertMessage("No se pudo descartar el reporte");
+        setAlertType("error");
+        setAlertButtons([{ text: "OK", onPress: () => {} }]);
+        setAlertVisible(true);
+      }
+    });
+  };
+
+  const eliminarPublicacion = () => {
+    pedirMotivoYContinuar(async (motivoArg) => {
+      if (!reporteSeleccionado) return;
+      try {
+        await eliminarPublicacionYArchivos(reporteSeleccionado.publicacionId);
+        await aplicarStrikeAlAutor(reporteSeleccionado.autorUid);
+        const motivo = motivoArg && motivoArg.trim().length > 0 ? motivoArg : "Sin motivo especificado";
+        const fecha = await completarReportesDePublicacion(
+          reporteSeleccionado.publicacionId,
+          "Publicación eliminada + strike",
+          motivo
+        );
+        const fechaStr = fecha && typeof fecha.toLocaleDateString === 'function' ? fecha.toLocaleDateString() : '';
+        setReportes((prev) =>
+          prev.map((r) =>
+            r.publicacionId === reporteSeleccionado.publicacionId
+              ? {
+                  ...r,
+                  estado: "completado",
+                  strikesAutor: (r.strikesAutor || 0) + 1,
+                  decision: "Publicación eliminada + strike",
+                  motivoDecision: motivo,
+                  fechaDecision: fechaStr,
+                }
+              : r
+          )
+        );
+        cerrarModal();
+        setAlertTitle("Éxito");
+        setAlertMessage("Publicación eliminada y strike aplicado");
+        setAlertType("success");
+        setAlertButtons([{ text: "OK", onPress: () => {} }]);
+        setAlertVisible(true);
+      } catch (error) {
+        console.error("Error al eliminar publicación:", error);
+        setAlertTitle("Error");
+        setAlertMessage("No se pudo eliminar la publicación");
+        setAlertType("error");
+        setAlertButtons([{ text: "OK", onPress: () => {} }]);
+        setAlertVisible(true);
+      }
+    }, 'strike');
+  };
+
+  const banearUsuario = () => {
+    pedirMotivoYContinuar(async (motivoArg) => {
+      if (!reporteSeleccionado) return;
+      try {
+        await banearUsuarioPorNombre(reporteSeleccionado.autor);
+        await eliminarPublicacionYArchivos(reporteSeleccionado.publicacionId);
+        const motivo = motivoArg && motivoArg.trim().length > 0 ? motivoArg : "Sin motivo especificado";
+        const fecha = await completarReportesDePublicacion(
+          reporteSeleccionado.publicacionId,
+          "Usuario baneado",
+          motivo
+        );
+        const fechaStr = fecha && typeof fecha.toLocaleDateString === 'function' ? fecha.toLocaleDateString() : '';
+        setReportes((prev) =>
+          prev.map((r) =>
+            r.publicacionId === reporteSeleccionado.publicacionId
+              ? {
+                  ...r,
+                  estado: "completado",
+                  decision: "Usuario baneado",
+                  motivoDecision: motivo,
+                  fechaDecision: fechaStr,
+                }
+              : r
+          )
+        );
+        cerrarModal();
+        setAlertTitle("Éxito");
+        setAlertMessage("Usuario baneado del sistema");
+        setAlertType("success");
+        setAlertButtons([{ text: "OK", onPress: () => {} }]);
+        setAlertVisible(true);
+      } catch (error) {
+        console.error("Error al banear usuario:", error);
+        setAlertTitle("Error");
+        setAlertMessage("No se pudo banear al usuario");
+        setAlertType("error");
+        setAlertButtons([{ text: "OK", onPress: () => {} }]);
+        setAlertVisible(true);
+      }
+    }, 'ban');
   };
 
   return (
@@ -540,6 +541,122 @@ export default function ReportsScreen() {
           onDismiss={cerrarModal}
           contentContainerStyle={styles.modalContent}
         >
+          <Portal>
+            <Modal
+              visible={modalMotivoVisible}
+              onDismiss={() => setModalMotivoVisible(false)}
+              contentContainerStyle={[
+                styles.modalContent,
+                {
+                  width: modalWidth,
+                  maxWidth: 400,
+                  minWidth: 260,
+                  alignSelf: 'center',
+                },
+              ]}
+            >
+              {motivoSeleccionado === "Otra razón..." ? (
+                <>
+                  <View style={{ minHeight: 40, justifyContent: 'center' }}>
+                    <View style={{ position: 'absolute', left: -10, top: -10, zIndex: 10 }}>
+                      <IconButton
+                        icon="arrow-left"
+                        size={22}
+                        onPress={() => setMotivoSeleccionado("")}
+                        style={{ margin: 0, padding: 0, backgroundColor: 'transparent' }}
+                        iconColor={theme.colors.primary}
+                        animated
+                      />
+                    </View>
+                    <Text
+                      variant="titleMedium"
+                      style={{ flex: 1, textAlign: 'center' }}
+                    >
+                      Razón Personalizada
+                    </Text>
+                  </View>
+                  <TextInput
+                    mode="outlined"
+                    label="Escribe el motivo"
+                    value={motivoPersonalizado}
+                    onChangeText={setMotivoPersonalizado}
+                    style={{
+                      marginBottom: 8,
+                      marginTop: 16,
+                      minHeight: 40,
+                      maxHeight: 60,
+                      width: '100%',
+                      alignSelf: 'center',
+                    }}
+                    maxLength={200}
+                    numberOfLines={1}
+                    textAlignVertical="center"
+                  />
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+                    <Button
+                      icon="close"
+                      mode="text"
+                      onPress={() => setModalMotivoVisible(false)}
+                      style={{ marginRight: 8 }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      mode="contained"
+                      onPress={confirmarMotivoYAccion}
+                      disabled={motivoPersonalizado.trim().length === 0}
+                    >
+                      Confirmar
+                    </Button>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text variant="titleMedium" style={{ marginBottom: 16, textAlign: 'center' }}>
+                    Selecciona el motivo de la decisión
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8, justifyContent: 'center' }}>
+                    {(MOTIVOS_POR_ACCION[tipoAccionMotivo] || []).map((motivo) => (
+                      <Chip
+                        key={motivo}
+                        selected={motivoSeleccionado === motivo}
+                        onPress={() => setMotivoSeleccionado(motivo)}
+                        style={{
+                          marginBottom: 8,
+                          marginRight: 8,
+                          backgroundColor: motivoSeleccionado === motivo ? theme.colors.primary : undefined,
+                        }}
+                        textStyle={{
+                          color: motivoSeleccionado === motivo
+                            ? '#fff'
+                            : theme.colors.onSurface,
+                        }}
+                      >
+                        {motivo}
+                      </Chip>
+                    ))}
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 12 }}>
+                    <Button
+                      icon="close"
+                      mode="text"
+                      onPress={() => setModalMotivoVisible(false)}
+                      style={{ marginRight: 8 }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      mode="contained"
+                      onPress={confirmarMotivoYAccion}
+                      disabled={!motivoSeleccionado}
+                    >
+                      Confirmar
+                    </Button>
+                  </View>
+                </>
+              )}
+            </Modal>
+          </Portal>
           <ScrollView showsVerticalScrollIndicator={false}>
             {reporteSeleccionado && (
               <>
@@ -623,6 +740,12 @@ export default function ReportsScreen() {
                       {reporteSeleccionado.fechaDecision && (
                         <Text variant="bodySmall" style={styles.subtitle}>
                           {reporteSeleccionado.fechaDecision}
+                        </Text>
+                      )}
+                      {reporteSeleccionado.motivoDecision && (
+                        <Text variant="bodySmall" style={{ marginTop: 4 }}>
+                          <Text style={{ fontWeight: 'bold' }}>Motivo: </Text>
+                          {reporteSeleccionado.motivoDecision}
                         </Text>
                       )}
                     </Card.Content>
