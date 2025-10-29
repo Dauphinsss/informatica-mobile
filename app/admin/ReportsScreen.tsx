@@ -1,17 +1,25 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { db, auth } from "@/firebase";
+import { auth } from "@/firebase";
 import { obtenerArchivosConTipo } from "@/scripts/services/Publications";
 import {
   aplicarStrikeAlAutor,
   banearUsuarioPorNombre,
   completarReportesDePublicacion,
   eliminarPublicacionYArchivos,
-  obtenerReportes,
+  escucharReportes,
 } from "@/scripts/services/Reports";
 import { ArchivoPublicacion } from "@/scripts/types/Publication.type";
 import { useNavigation } from "@react-navigation/native";
-import { collection, onSnapshot } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+
+type ReportCardProps = {
+  reporte: Report;
+  onPress: (reporte: Report) => void;
+  styles: any;
+  theme: any;
+  getDecisionLabel: (r: Report) => string;
+};
+
 import { Image, Linking, ScrollView, TouchableOpacity, View } from "react-native";
 import {
   ActivityIndicator,
@@ -29,6 +37,46 @@ import {
 import CustomAlert, { CustomAlertButton, CustomAlertType } from "../../components/ui/CustomAlert";
 import { FilterType, Report } from "../../scripts/types/Reports.type";
 import { getStyles } from "./ReportsScreen.styles";
+
+
+const ReportCard = React.memo(function ReportCard({ reporte, onPress, styles, theme, getDecisionLabel }: ReportCardProps) {
+  return (
+    <Card
+      key={reporte.id}
+      style={styles.card}
+      onPress={() => onPress(reporte)}
+    >
+      <Card.Content>
+        <Text variant="titleMedium" style={styles.cardTitle}>
+          {reporte.titulo}
+        </Text>
+        <Text variant="bodySmall" style={styles.cardAuthor}>
+          Por {reporte.autor}
+        </Text>
+        <Text variant="bodySmall" style={styles.cardDate}>
+          {reporte.ultimaFecha}
+        </Text>
+
+        <View style={styles.chipContainer}>
+          <Chip icon="flag" compact style={styles.leftChip}>
+            {reporte.ultimoMotivo}
+          </Chip>
+
+          {reporte.estado === "completado" ? (
+            <Chip compact style={styles.rightChip}>
+              {getDecisionLabel(reporte)}
+            </Chip>
+          ) : (
+            <Chip icon="alert-circle" compact>
+              {reporte.totalReportes}{" "}
+              {reporte.totalReportes === 1 ? "reporte" : "reportes"}
+            </Chip>
+          )}
+        </View>
+      </Card.Content>
+    </Card>
+  );
+});
 
 export default function ReportsScreen() {
   const [alertVisible, setAlertVisible] = useState(false);
@@ -49,29 +97,28 @@ export default function ReportsScreen() {
 
   useEffect(() => {
     setCargando(true);
-    const unsubscribe = onSnapshot(collection(db, "reportes"), async () => {
-      const datos = await obtenerReportes();
+    const unsubscribe = escucharReportes((datos) => {
       setReportes(datos);
       setCargando(false);
     });
-    obtenerReportes().then(datos => {
-      setReportes(datos);
-      setCargando(false);
-    });
-    return () => unsubscribe();
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, []);
 
-  const reportesFiltrados = reportes
-    .filter((reporte) => {
-      if (filtroActivo === "pendientes") return reporte.estado === "pendiente";
-      if (filtroActivo === "completados") return reporte.estado === "completado";
-      return true;
-    })
-    .sort((a, b) => {
-      if (!a.ultimaFechaTimestamp) return 1;
-      if (!b.ultimaFechaTimestamp) return -1;
-      return b.ultimaFechaTimestamp - a.ultimaFechaTimestamp;
-    });
+  const reportesFiltrados = useMemo(() => {
+    return reportes
+      .filter((reporte) => {
+        if (filtroActivo === "pendientes") return reporte.estado === "pendiente";
+        if (filtroActivo === "completados") return reporte.estado === "completado";
+        return true;
+      })
+      .sort((a, b) => {
+        if (!a.ultimaFechaTimestamp) return 1;
+        if (!b.ultimaFechaTimestamp) return -1;
+        return b.ultimaFechaTimestamp - a.ultimaFechaTimestamp;
+      });
+  }, [reportes, filtroActivo]);
 
   const getDecisionLabel = (r: Report) => {
     const text = (r.decision || "").toLowerCase();
@@ -474,40 +521,14 @@ export default function ReportsScreen() {
           </View>
         ) : (
           reportesFiltrados.map((reporte) => (
-            <Card
+            <ReportCard
               key={reporte.id}
-              style={styles.card}
-              onPress={() => abrirDetalles(reporte)}
-            >
-              <Card.Content>
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  {reporte.titulo}
-                </Text>
-                <Text variant="bodySmall" style={styles.cardAuthor}>
-                  Por {reporte.autor}
-                </Text>
-                <Text variant="bodySmall" style={styles.cardDate}>
-                  {reporte.ultimaFecha}
-                </Text>
-
-                <View style={styles.chipContainer}>
-                  <Chip icon="flag" compact style={styles.leftChip}>
-                    {reporte.ultimoMotivo}
-                  </Chip>
-
-                  {reporte.estado === "completado" ? (
-                    <Chip compact style={styles.rightChip}>
-                      {getDecisionLabel(reporte)}
-                    </Chip>
-                  ) : (
-                    <Chip icon="alert-circle" compact>
-                      {reporte.totalReportes}{" "}
-                      {reporte.totalReportes === 1 ? "reporte" : "reportes"}
-                    </Chip>
-                  )}
-                </View>
-              </Card.Content>
-            </Card>
+              reporte={reporte}
+              onPress={abrirDetalles}
+              styles={styles}
+              theme={theme}
+              getDecisionLabel={getDecisionLabel}
+            />
           ))
         )}
       </ScrollView>
