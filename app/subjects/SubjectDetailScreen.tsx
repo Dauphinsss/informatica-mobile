@@ -10,7 +10,7 @@ import {
   useNavigation,
   useRoute,
 } from "@react-navigation/native";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { escucharPublicacionesPorMateria } from "@/scripts/services/Publications";
 import React, { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
@@ -55,45 +55,10 @@ export default function SubjectDetailScreen() {
     useCallback(() => {
       if (!materiaId) return;
       setCargando(true);
-      const publicacionesRef = collection(db, "publicaciones");
-      const q = query(
-        publicacionesRef,
-        where("materiaId", "==", materiaId),
-        where("estado", "==", "activo")
-      );
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const items: Publicacion[] = snapshot.docs.map((doc) => {
-            const data = doc.data() as any;
-            const fecha = data.fechaPublicacion?.toDate?.() ?? new Date();
-            return {
-              id: doc.id,
-              titulo: data.titulo,
-              descripcion: data.descripcion,
-              autorNombre: data.autorNombre,
-              autorFoto: data.autorFoto ?? null,
-              fechaPublicacion: fecha,
-              vistas: data.vistas ?? 0,
-              totalComentarios: data.totalComentarios ?? 0,
-              materiaId: data.materiaId,
-            } as Publicacion;
-          });
-          // Ordenar en cliente por fecha más reciente
-          items.sort(
-            (a, b) =>
-              b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime()
-          );
-          setPublicaciones(items);
-          setCargando(false);
-        },
-        (error) => {
-          console.error("Error en onSnapshot publicaciones:", error);
-          setCargando(false);
-        }
-      );
-
+      const unsubscribe = escucharPublicacionesPorMateria(materiaId, (items) => {
+        setPublicaciones(items);
+        setCargando(false);
+      });
       return () => unsubscribe();
     }, [materiaId])
   );

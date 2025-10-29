@@ -9,13 +9,12 @@ import {
   orderBy,
   Timestamp,
   updateDoc,
+  onSnapshot,
+  Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/firebase";
 import { Publicacion, ArchivoPublicacion } from "../types/Publication.type";
 
-/**
- * Crea una nueva publicación
- */
 export const crearPublicacion = async (
   materiaId: string,
   autorUid: string,
@@ -47,9 +46,6 @@ export const crearPublicacion = async (
   }
 };
 
-/**
- * Obtiene todas las publicaciones de una materia
- */
 export const obtenerPublicacionesPorMateria = async (
   materiaId: string
 ): Promise<Publicacion[]> => {
@@ -79,9 +75,6 @@ export const obtenerPublicacionesPorMateria = async (
   return publicaciones;
 };
 
-/**
- * Obtiene una publicación por ID
- */
 export const obtenerPublicacionPorId = async (
   publicacionId: string
 ): Promise<Publicacion | null> => {
@@ -102,15 +95,11 @@ export const obtenerPublicacionPorId = async (
   return null;
 };
 
-/**
- * Obtiene los archivos de una publicación con información del tipo
- */
 export const obtenerArchivosConTipo = async (
   publicacionId: string
 ): Promise<ArchivoPublicacion[]> => {
   const archivos: ArchivoPublicacion[] = [];
   try {
-    // Obtener archivos
     const archivosSnap = await getDocs(
       query(
         collection(db, "archivos"),
@@ -119,13 +108,11 @@ export const obtenerArchivosConTipo = async (
       )
     );
 
-    // Obtener tipos de archivo únicos
     const tiposIds = new Set<string>();
     archivosSnap.docs.forEach((doc) => {
       tiposIds.add(doc.data().tipoArchivoId);
     });
 
-    // Cargar tipos de archivo
     const tiposCache = new Map<string, any>();
     await Promise.all(
       Array.from(tiposIds).map(async (tipoId) => {
@@ -136,7 +123,6 @@ export const obtenerArchivosConTipo = async (
       })
     );
 
-    // Construir array de archivos con información del tipo
     archivosSnap.docs.forEach((docSnap) => {
       const data = docSnap.data();
       const tipoInfo = tiposCache.get(data.tipoArchivoId);
@@ -156,9 +142,6 @@ export const obtenerArchivosConTipo = async (
   return archivos;
 };
 
-/**
- * Incrementa el contador de vistas de una publicación
- */
 export const incrementarVistas = async (publicacionId: string): Promise<void> => {
   try {
     const publicacionRef = doc(db, "publicaciones", publicacionId);
@@ -175,9 +158,6 @@ export const incrementarVistas = async (publicacionId: string): Promise<void> =>
   }
 };
 
-/**
- * Elimina una publicación (eliminación lógica)
- */
 export const eliminarPublicacion = async (publicacionId: string): Promise<void> => {
   try {
     await updateDoc(doc(db, "publicaciones", publicacionId), {
@@ -189,9 +169,6 @@ export const eliminarPublicacion = async (publicacionId: string): Promise<void> 
   }
 };
 
-/**
- * Obtiene todas las publicaciones de un autor
- */
 export const obtenerPublicacionesPorAutor = async (
   autorUid: string
 ): Promise<Publicacion[]> => {
@@ -219,3 +196,51 @@ export const obtenerPublicacionesPorAutor = async (
   }
   return publicaciones;
 };
+
+export function escucharPublicacionesPorAutor(
+  autorUid: string,
+  callback: (publicaciones: Publicacion[]) => void
+): Unsubscribe {
+  const publicacionesQuery = query(
+    collection(db, "publicaciones"),
+    where("autorUid", "==", autorUid),
+    where("estado", "==", "activo"),
+    orderBy("fechaPublicacion", "desc")
+  );
+  return onSnapshot(publicacionesQuery, (pubsSnap) => {
+    const pubs = pubsSnap.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+        autorFoto: data.autorFoto ?? null,
+        fechaPublicacion: data.fechaPublicacion.toDate(),
+      } as Publicacion;
+    });
+    callback(pubs);
+  });
+}
+
+export function escucharPublicacionesPorMateria(
+  materiaId: string,
+  callback: (publicaciones: Publicacion[]) => void
+): Unsubscribe {
+  const publicacionesQuery = query(
+    collection(db, "publicaciones"),
+    where("materiaId", "==", materiaId),
+    where("estado", "==", "activo"),
+    orderBy("fechaPublicacion", "desc")
+  );
+  return onSnapshot(publicacionesQuery, (pubsSnap) => {
+    const pubs = pubsSnap.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+        autorFoto: data.autorFoto ?? null,
+        fechaPublicacion: data.fechaPublicacion.toDate(),
+      } as Publicacion;
+    });
+    callback(pubs);
+  });
+}

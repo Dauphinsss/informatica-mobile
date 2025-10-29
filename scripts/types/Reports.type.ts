@@ -23,4 +23,5 @@ export interface Report {
   strikesAutor: number;
   decision?: string;
   fechaDecision?: string;
+  motivoDecision?: string;
 }

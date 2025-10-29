@@ -2,12 +2,25 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
 import { Publicacion } from "@/scripts/types/Publication.type";
 import { getDocs, collection } from "firebase/firestore";
-import { obtenerPublicacionesPorAutor } from "@/scripts/services/Publications";
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { ScrollView, useWindowDimensions, View } from "react-native";
-import { ActivityIndicator, Appbar, Avatar, Card, Chip, IconButton, Searchbar, Text, TouchableRipple } from "react-native-paper";
+import {
+  ActivityIndicator,
+  Appbar,
+  Avatar,
+  Card,
+  Chip,
+  IconButton,
+  Searchbar,
+  Text,
+  TouchableRipple
+} from "react-native-paper";
 import getStyles from "./MisPublicacionesScreen.styles";
+import { obtenerPublicacionesPorAutor,
+  escucharPublicacionesPorAutor
+} from "@/scripts/services/Publications";
 
 interface Materia {
   id: string;
@@ -17,9 +30,16 @@ interface Materia {
 
 type PublicacionConMateria = Publicacion & { materiaNombre: string; materiaSemestre: number };
 
+type ProfileStackParamList = {
+  ProfileMain: undefined;
+  MisPublicacionesScreen: undefined;
+  PublicationDetail: { publicacionId: string; materiaNombre: string };
+  FileGallery: any;
+};
+
 export default function MisPublicacionesScreen() {
   const { theme } = useTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const user = auth.currentUser;
   const [publicaciones, setPublicaciones] = useState<PublicacionConMateria[]>([]);
   const [materias, setMaterias] = useState<Materia[]>([]);
@@ -34,12 +54,20 @@ export default function MisPublicacionesScreen() {
   }, []);
   const { width } = useWindowDimensions();
 
+  const handlePress = (pub: PublicacionConMateria) => {
+    navigation.navigate('PublicationDetail', {
+      publicacionId: pub.id,
+      materiaNombre: pub.materiaNombre,
+    });
+  };
+
   useEffect(() => {
     let isMounted = true;
-    const fetchAll = async () => {
+    let unsubscribe: (() => void) | undefined;
+    const fetchMaterias = async () => {
       setCargando(true);
       const snap = await getDocs(collection(db, "materias"));
-      const mats = snap.docs.map(doc => {
+      const mats = snap.docs.map((doc: any) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -52,25 +80,38 @@ export default function MisPublicacionesScreen() {
 
       if (user) {
         const pubs = await obtenerPublicacionesPorAutor(user.uid);
-        const pubsConMateria = pubs.map(pub => {
-          const materia = mats.find(m => m.id === pub.materiaId);
-          return {
-            ...pub,
-            materiaNombre: materia?.nombre || "Materia",
-            materiaSemestre: materia?.semestre || 0,
-          };
-        }) as (Publicacion & { materiaNombre: string; materiaSemestre: number })[];
-        pubsConMateria.sort((a, b) => {
-          if (!b.fechaPublicacion || !a.fechaPublicacion) return 0;
-          return b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime();
-        });
         if (!isMounted) return;
-        setPublicaciones(pubsConMateria);
+        setPublicaciones(
+          pubs.map(pub => {
+            const materia = mats.find((m: Materia) => m.id === pub.materiaId);
+            return {
+              ...pub,
+              materiaNombre: materia?.nombre || "Materia",
+              materiaSemestre: materia?.semestre || 0,
+            };
+          }) as (Publicacion & { materiaNombre: string; materiaSemestre: number })[]
+        );
+        unsubscribe = escucharPublicacionesPorAutor(user.uid, (pubs) => {
+          if (!isMounted) return;
+          setPublicaciones(
+            pubs.map(pub => {
+              const materia = mats.find((m: Materia) => m.id === pub.materiaId);
+              return {
+                ...pub,
+                materiaNombre: materia?.nombre || "Materia",
+                materiaSemestre: materia?.semestre || 0,
+              };
+            }) as (Publicacion & { materiaNombre: string; materiaSemestre: number })[]
+          );
+        });
       }
       setCargando(false);
     };
-    fetchAll();
-    return () => { isMounted = false; };
+    fetchMaterias();
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+    };
   }, [user]);
 
   function normalizar(texto: string) {
@@ -154,7 +195,11 @@ export default function MisPublicacionesScreen() {
             </Text>
           ) : (
             filtered.map((pub: PublicacionConMateria) => (
-              <Card key={pub.id} style={styles.card}>
+              <Card 
+                key={pub.id} 
+                style={styles.card}
+                onPress={() => handlePress(pub)}
+              >
                 <Card.Content>
                   <View style={styles.cardContent}>
                     {pub.autorFoto ? (
