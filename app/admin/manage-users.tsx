@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { collection, doc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
+  Animated,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -12,8 +13,9 @@ import {
 } from "react-native";
 import {
   Appbar,
+  Avatar,
   Button,
-  Card,
+  Chip,
   Dialog,
   Divider,
   List,
@@ -30,6 +32,7 @@ const ManageUsers = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [filter, setFilter] = useState<"all" | "admin" | "usuario">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const navigation = useNavigation();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
@@ -38,6 +41,9 @@ const ManageUsers = () => {
   const [actionType, setActionType] = useState<"activate" | "suspend">(
     "suspend"
   );
+  const [expandAnimations, setExpandAnimations] = useState<{
+    [key: string]: Animated.Value;
+  }>({});
 
   {
     /* Función para filtrar usuarios según el filtro seleccionado y la búsqueda */
@@ -69,14 +75,40 @@ const ManageUsers = () => {
   };
 
   const filteredUsers = getFilteredUsers();
-  const adminUsers = filteredUsers.filter((user) => user.rol === "admin");
-  const normalUsers = filteredUsers.filter((user) => user.rol === "usuario");
 
   const totalAdmins = users.filter((user) => user.rol === "admin").length;
   const totalUsers = users.filter((user) => user.rol === "usuario").length;
 
+  const getOrCreateAnimation = (userId: string) => {
+    if (!expandAnimations[userId]) {
+      const newAnim = new Animated.Value(0);
+      setExpandAnimations((prev) => ({ ...prev, [userId]: newAnim }));
+      return newAnim;
+    }
+    return expandAnimations[userId];
+  };
+
   const handleToggleExpand = (userId: string) => {
-    setExpandedUser((prevState) => (prevState === userId ? null : userId));
+    const isExpanding = expandedUser !== userId;
+    const animation = getOrCreateAnimation(userId);
+
+    if (isExpanding) {
+      setExpandedUser(userId);
+      Animated.spring(animation, {
+        toValue: 1,
+        useNativeDriver: false,
+        tension: 50,
+        friction: 8,
+      }).start();
+    } else {
+      Animated.timing(animation, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start(() => {
+        setExpandedUser(null);
+      });
+    }
   };
 
   const handleCloseCollapse = () => {
@@ -141,6 +173,10 @@ const ManageUsers = () => {
         <Appbar.Header>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
           <Appbar.Content title="Administrar Usuarios" />
+          <Appbar.Action
+            icon="magnify"
+            onPress={() => setSearchOpen(!searchOpen)}
+          />
         </Appbar.Header>
 
         <ScrollView
@@ -148,12 +184,15 @@ const ManageUsers = () => {
           contentContainerStyle={{ paddingBottom: 20 }}
         >
           {/* Buscador dinámico */}
-          <Searchbar
-            placeholder="Buscar por nombre o email"
-            onChangeText={setSearchQuery}
-            value={searchQuery}
-            style={styles.searchbar}
-          />
+          {searchOpen && (
+            <Searchbar
+              placeholder="Buscar por nombre o email"
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+              style={styles.searchbar}
+              autoFocus
+            />
+          )}
 
           {/* Filtros de usuarios */}
           <View style={styles.filterButtons}>
@@ -183,227 +222,232 @@ const ManageUsers = () => {
             </Button>
           </View>
 
-          {/* Card para Usuarios */}
-          {normalUsers.length > 0 &&
-            (filter === "all" || filter === "usuario") && (
-              <Card style={styles.card}>
-                <Card.Content>
-                  <Text variant="titleMedium" style={styles.sectionTitle}>
-                    Usuarios
-                  </Text>
-                  <Text variant="bodyMedium" style={styles.subtitle}>
-                    {searchQuery
-                      ? `${normalUsers.length} de ${totalUsers} usuarios`
-                      : `Total: ${normalUsers.length} usuarios`}
-                  </Text>
-                  <Divider style={styles.divider} />
-                </Card.Content>
-                {normalUsers.map((user) => (
+          {/* Lista Unificada de Usuarios */}
+          {filteredUsers.length > 0 && (
+            <View style={styles.userSection}>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                {filter === "all"
+                  ? "Todos los Usuarios"
+                  : filter === "admin"
+                  ? "Administradores"
+                  : "Usuarios"}
+              </Text>
+              <Text variant="bodyMedium" style={styles.subtitle}>
+                {searchQuery
+                  ? `${filteredUsers.length} resultado(s)`
+                  : `Total: ${filteredUsers.length} usuario(s)`}
+              </Text>
+              <Divider style={styles.divider} />
+              {filteredUsers.map((user) => {
+                const animation = getOrCreateAnimation(user.uid);
+                const maxHeight = animation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 300],
+                });
+
+                return (
                   <View key={user.uid}>
                     <TouchableWithoutFeedback>
-                      <View>
+                      <View
+                        style={[
+                          user.estado === "suspendido" &&
+                            styles.suspendedUserItem,
+                        ]}
+                      >
                         <List.Item
                           title={user.nombre}
-                          description={`${user.correo} • Estado: ${
-                            user.estado || "activo"
-                          }`}
+                          description={user.correo}
+                          titleStyle={[
+                            styles.userName,
+                            user.estado === "suspendido" &&
+                              styles.suspendedUserName,
+                          ]}
+                          descriptionStyle={styles.userEmail}
                           left={(props) => (
-                            <List.Icon {...props} icon="account" />
+                            <View style={styles.avatarContainer}>
+                              {user.foto ? (
+                                <Avatar.Image
+                                  size={40}
+                                  source={{ uri: user.foto }}
+                                  style={[
+                                    styles.avatar,
+                                    user.estado === "suspendido" &&
+                                      styles.suspendedAvatar,
+                                  ]}
+                                />
+                              ) : (
+                                <Avatar.Icon
+                                  size={40}
+                                  icon={
+                                    user.rol === "admin"
+                                      ? "shield-account"
+                                      : "account"
+                                  }
+                                  style={[
+                                    styles.avatar,
+                                    user.estado === "suspendido" &&
+                                      styles.suspendedAvatar,
+                                  ]}
+                                />
+                              )}
+                              {user.estado === "suspendido" && (
+                                <View style={styles.suspendedIndicator} />
+                              )}
+                            </View>
                           )}
                           right={(props) => (
-                            <TouchableOpacity
-                              onPress={() => handleToggleExpand(user.uid)}
-                            >
-                              <MaterialCommunityIcons
-                                name={
-                                  expandedUser === user.uid
-                                    ? "chevron-up"
-                                    : "chevron-down"
-                                }
-                                size={24}
-                                color="#666"
-                              />
-                            </TouchableOpacity>
+                            <View style={styles.rightContainer}>
+                              {user.rol === "admin" && (
+                                <MaterialCommunityIcons
+                                  name="shield-crown"
+                                  size={18}
+                                  color={theme.colors.primary}
+                                  style={styles.adminIcon}
+                                />
+                              )}
+                              <TouchableOpacity
+                                onPress={() => handleToggleExpand(user.uid)}
+                              >
+                                <MaterialCommunityIcons
+                                  name={
+                                    expandedUser === user.uid
+                                      ? "chevron-up"
+                                      : "chevron-down"
+                                  }
+                                  size={24}
+                                  color={theme.colors.onSurfaceVariant}
+                                />
+                              </TouchableOpacity>
+                            </View>
                           )}
                           onPress={() => handleToggleExpand(user.uid)}
                         />
 
-                        {/* Collapse personalizado */}
+                        {/* Collapse animado */}
                         {expandedUser === user.uid && (
-                          <TouchableWithoutFeedback>
-                            <View
-                              style={[
-                                styles.collapseContent,
-                                {
-                                  backgroundColor: theme.colors.surfaceVariant,
-                                  borderLeftColor: theme.colors.primary,
-                                },
-                              ]}
-                            >
+                          <Animated.View
+                            style={[
+                              styles.collapseWrapper,
+                              { maxHeight, overflow: "hidden" },
+                            ]}
+                          >
+                            <View style={styles.collapseContent}>
+                              {/* Información del usuario */}
+                              <View style={styles.infoSection}>
+                                <Text
+                                  variant="labelSmall"
+                                  style={[
+                                    styles.infoLabel,
+                                    { color: theme.colors.primary },
+                                  ]}
+                                >
+                                  INFORMACIÓN
+                                </Text>
+
+                                <View style={styles.infoRow}>
+                                  <MaterialCommunityIcons
+                                    name="account-badge"
+                                    size={18}
+                                    color={theme.colors.onSurfaceVariant}
+                                  />
+                                  <Text variant="bodyMedium" style={styles.infoText}>
+                                    Rol: {user.rol === "admin" ? "Administrador" : "Usuario"}
+                                  </Text>
+                                </View>
+
+                                <View style={styles.infoRow}>
+                                  <MaterialCommunityIcons
+                                    name={
+                                      user.estado === "suspendido"
+                                        ? "cancel"
+                                        : "check-circle"
+                                    }
+                                    size={18}
+                                    color={
+                                      user.estado === "suspendido"
+                                        ? theme.colors.error
+                                        : theme.colors.primary
+                                    }
+                                  />
+                                  <Text variant="bodyMedium" style={styles.infoText}>
+                                    Estado:{" "}
+                                    <Text
+                                      style={{
+                                        fontWeight: "bold",
+                                        color:
+                                          user.estado === "suspendido"
+                                            ? theme.colors.error
+                                            : theme.colors.primary,
+                                      }}
+                                    >
+                                      {user.estado === "suspendido"
+                                        ? "Suspendido"
+                                        : "Activo"}
+                                    </Text>
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Acciones */}
                               <Text
-                                variant="bodySmall"
+                                variant="labelSmall"
                                 style={[
                                   styles.actionsLabel,
-                                  { color: theme.colors.onSurfaceVariant },
+                                  { color: theme.colors.primary },
                                 ]}
                               >
-                                Acciones de usuario:
+                                ACCIONES
                               </Text>
                               <View style={styles.actionButtons}>
-                                <Button
-                                  mode="contained"
-                                  onPress={() =>
-                                    openConfirmDialog(user, "suspend")
-                                  }
-                                  disabled={
-                                    user.estado === "suspendido" ||
-                                    user.uid === auth.currentUser?.uid
-                                  }
-                                  buttonColor={theme.colors.errorContainer}
-                                  textColor={theme.colors.onErrorContainer}
-                                  style={styles.actionButton}
-                                  icon="account-cancel"
-                                >
-                                  Suspender
-                                </Button>
-                                <Button
-                                  mode="contained"
-                                  onPress={() =>
-                                    openConfirmDialog(user, "activate")
-                                  }
-                                  disabled={
-                                    user.estado === "activo" ||
-                                    user.uid === auth.currentUser?.uid
-                                  }
-                                  buttonColor={theme.colors.primaryContainer}
-                                  textColor={theme.colors.onPrimaryContainer}
-                                  style={styles.actionButton}
-                                  icon="account-check"
-                                >
-                                  Activar
-                                </Button>
+                                {user.estado !== "suspendido" &&
+                                  user.uid !== auth.currentUser?.uid && (
+                                    <Button
+                                      mode="contained"
+                                      onPress={() =>
+                                        openConfirmDialog(user, "suspend")
+                                      }
+                                      style={styles.actionButton}
+                                      icon="account-cancel"
+                                    >
+                                      Suspender
+                                    </Button>
+                                  )}
+                                {user.estado === "suspendido" &&
+                                  user.uid !== auth.currentUser?.uid && (
+                                    <Button
+                                      mode="contained"
+                                      onPress={() =>
+                                        openConfirmDialog(user, "activate")
+                                      }
+                                      style={styles.actionButton}
+                                      icon="account-check"
+                                    >
+                                      Activar
+                                    </Button>
+                                  )}
+                                {user.uid === auth.currentUser?.uid && (
+                                  <Text
+                                    variant="bodySmall"
+                                    style={[
+                                      styles.noActionText,
+                                      { color: theme.colors.onSurfaceVariant },
+                                    ]}
+                                  >
+                                    No puedes modificar tu propia cuenta
+                                  </Text>
+                                )}
                               </View>
                             </View>
-                          </TouchableWithoutFeedback>
+                          </Animated.View>
                         )}
                       </View>
                     </TouchableWithoutFeedback>
                     <Divider />
                   </View>
-                ))}
-              </Card>
-            )}
-
-          {/* Card para Admins */}
-          {adminUsers.length > 0 &&
-            (filter === "all" || filter === "admin") && (
-              <Card style={styles.card}>
-                <Card.Content>
-                  <Text variant="titleMedium" style={styles.sectionTitle}>
-                    Administradores
-                  </Text>
-                  <Text variant="bodyMedium" style={styles.subtitle}>
-                    {searchQuery
-                      ? `${adminUsers.length} de ${totalAdmins} administradores`
-                      : `Total: ${adminUsers.length} administradores`}
-                  </Text>
-                  <Divider style={styles.divider} />
-                </Card.Content>
-                {adminUsers.map((user) => (
-                  <View key={user.uid}>
-                    <TouchableWithoutFeedback>
-                      <View>
-                        <List.Item
-                          title={user.nombre}
-                          description={`${user.correo} • Estado: ${
-                            user.estado || "activo"
-                          }`}
-                          left={(props) => (
-                            <List.Icon {...props} icon="shield-account" />
-                          )}
-                          right={(props) => (
-                            <TouchableOpacity
-                              onPress={() => handleToggleExpand(user.uid)}
-                            >
-                              <MaterialCommunityIcons
-                                name={
-                                  expandedUser === user.uid
-                                    ? "chevron-up"
-                                    : "chevron-down"
-                                }
-                                size={24}
-                                color="#666"
-                              />
-                            </TouchableOpacity>
-                          )}
-                          onPress={() => handleToggleExpand(user.uid)}
-                        />
-
-                        {/* Collapse personalizado */}
-                        {expandedUser === user.uid && (
-                          <TouchableWithoutFeedback>
-                            <View
-                              style={[
-                                styles.collapseContent,
-                                {
-                                  backgroundColor: theme.colors.surfaceVariant,
-                                  borderLeftColor: theme.colors.primary,
-                                },
-                              ]}
-                            >
-                              <Text
-                                variant="bodySmall"
-                                style={[
-                                  styles.actionsLabel,
-                                  { color: theme.colors.onSurfaceVariant },
-                                ]}
-                              >
-                                Acciones de administrador:
-                              </Text>
-                              <View style={styles.actionButtons}>
-                                <Button
-                                  mode="contained"
-                                  onPress={() =>
-                                    openConfirmDialog(user, "suspend")
-                                  }
-                                  disabled={
-                                    user.estado === "suspendido" ||
-                                    user.uid === auth.currentUser?.uid
-                                  }
-                                  buttonColor={theme.colors.errorContainer}
-                                  textColor={theme.colors.onErrorContainer}
-                                  style={styles.actionButton}
-                                  icon="account-cancel"
-                                >
-                                  Suspender
-                                </Button>
-                                <Button
-                                  mode="contained"
-                                  onPress={() =>
-                                    openConfirmDialog(user, "activate")
-                                  }
-                                  disabled={
-                                    user.estado === "activo" ||
-                                    user.uid === auth.currentUser?.uid
-                                  }
-                                  buttonColor={theme.colors.primaryContainer}
-                                  textColor={theme.colors.onPrimaryContainer}
-                                  style={styles.actionButton}
-                                  icon="account-check"
-                                >
-                                  Activar
-                                </Button>
-                              </View>
-                            </View>
-                          </TouchableWithoutFeedback>
-                        )}
-                      </View>
-                    </TouchableWithoutFeedback>
-                    <Divider />
-                  </View>
-                ))}
-              </Card>
-            )}
+                );
+              })}
+            </View>
+          )}
         </ScrollView>
 
         {/* Dialog de confirmación */}
@@ -449,11 +493,12 @@ const styles = StyleSheet.create({
   searchbar: {
     marginBottom: 16,
   },
-  card: {
+  userSection: {
     marginBottom: 16,
   },
   sectionTitle: {
     fontWeight: "bold",
+    marginBottom: 4,
   },
   subtitle: {
     opacity: 0.7,
@@ -472,25 +517,98 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Nuevos estilos para collapse
+  // Avatar y estado suspendido
+  avatarContainer: {
+    position: "relative",
+    marginLeft: 8,
+  },
+  avatar: {
+    marginLeft: 0,
+  },
+  suspendedAvatar: {
+    opacity: 0.5,
+  },
+  suspendedIndicator: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#F44336",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  suspendedUserItem: {
+    opacity: 0.85,
+  },
+  suspendedUserName: {
+    textDecorationLine: "line-through",
+    opacity: 0.6,
+  },
+
+  // Usuario item
+  userName: {
+    fontSize: 15,
+  },
+  userEmail: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  rightContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  adminIcon: {
+    marginHorizontal: 4,
+  },
+
+  // Estilos para collapse animado
+  collapseWrapper: {
+    overflow: "hidden",
+  },
   collapseContent: {
     padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 8,
-    borderLeftWidth: 3,
+    paddingTop: 12,
   },
-  actionsLabel: {
-    marginBottom: 12,
+
+  // Sección de información
+  infoSection: {
+    marginBottom: 20,
+  },
+  infoLabel: {
     fontWeight: "bold",
+    marginBottom: 12,
+    letterSpacing: 0.5,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 10,
+  },
+  infoText: {
+    flex: 1,
+  },
+
+  // Acciones
+  actionsLabel: {
+    fontWeight: "bold",
+    marginBottom: 12,
+    letterSpacing: 0.5,
   },
   actionButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
     gap: 12,
   },
   actionButton: {
     flex: 1,
+  },
+  noActionText: {
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 8,
   },
 });
 

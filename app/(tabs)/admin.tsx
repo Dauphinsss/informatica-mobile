@@ -1,11 +1,9 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { auth, db } from "@/firebase";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Appbar, Card, Divider, List, Text } from "react-native-paper";
+import { Appbar, Divider, List, Text } from "react-native-paper";
 
 // Definir el tipo de navegación para el stack de admin
 type AdminStackParamList = {
@@ -22,41 +20,18 @@ type AdminScreenNavigationProp = StackNavigationProp<
 
 export default function AdminScreen() {
   const { theme } = useTheme();
-  const [userData, setUserData] = useState<any>(null);
   const [pressed, setPressed] = useState(false);
   const navigation = useNavigation<AdminScreenNavigationProp>();
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (auth.currentUser) {
-        const userDoc = await getDoc(doc(db, "usuarios", auth.currentUser.uid));
-        if (userDoc.exists()) {
-          setUserData(userDoc.data());
-        }
-      }
-    };
-    fetchUserData();
-  }, []);
 
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <Appbar.Header>
-        <Appbar.Content title="Panel Admin" />
+        <Appbar.Content title="Panel de Administración" />
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="headlineSmall" style={styles.welcomeText}>
-              Panel de Administración
-            </Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              Bienvenido, {userData?.nombre || "Admin"}
-            </Text>
-          </Card.Content>
-        </Card>
 
         <View style={styles.section}>
           <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -150,9 +125,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
-  },
-  card: {
-    marginBottom: 16,
   },
   section: {
     marginBottom: 16,

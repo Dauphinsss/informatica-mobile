@@ -4,25 +4,78 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useNavigation } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
-import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import {
   Appbar,
   Avatar,
   Button,
+  Card,
   Dialog,
   Divider,
   List,
   Portal,
   RadioButton,
+  Surface,
   Text,
 } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function ProfileScreen() {
   const navigation: any = useNavigation();
   const user = auth.currentUser;
   const { themeMode, setThemeMode, theme } = useTheme();
   const [themeDialogVisible, setThemeDialogVisible] = useState(false);
+
+  // Animaciones
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const slideAnim1 = useRef(new Animated.Value(50)).current;
+  const slideAnim2 = useRef(new Animated.Value(50)).current;
+  const slideAnim3 = useRef(new Animated.Value(50)).current;
+  const slideAnim4 = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 40,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.stagger(100, [
+        Animated.spring(slideAnim1, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim2, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim3, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim4, {
+          toValue: 0,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
 
   if (!user) return null;
 
@@ -70,97 +123,271 @@ export default function ProfileScreen() {
         <Appbar.Content title="Perfil" />
       </Appbar.Header>
 
-      <ScrollView style={styles.content}>
-        <View style={[styles.section, styles.profileSection]}>
-          {user.photoURL && (
-            <Avatar.Image
-              size={100}
-              source={{ uri: user.photoURL }}
-              style={styles.avatar}
-            />
-          )}
-          <Text variant="headlineSmall" style={styles.name}>
-            {user.displayName || "Usuario"}
-          </Text>
-          <Text variant="bodyMedium" style={styles.email}>
-            {user.email}
-          </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Informacion de la cuenta
-          </Text>
-          <Divider style={styles.divider} />
-          <List.Item
-            title="Nombre completo"
-            description={user.displayName || "No disponible"}
-            left={(props) => <List.Icon {...props} icon="account" />}
-          />
-          <List.Item
-            title="Correo electronico"
-            description={user.email || "No disponible"}
-            left={(props) => <List.Icon {...props} icon="email" />}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Publicaciones
-          </Text>
-          <Divider style={styles.divider} />
-          <List.Item
-            title="Mis Publicaciones"
-            description="Ver todas tus publicaciones"
-            left={(props) => <List.Icon {...props} icon="book-open-variant" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => navigation.navigate("MisPublicacionesScreen")}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Configuracion
-          </Text>
-          <Divider style={styles.divider} />
-          <List.Item
-            title="Apariencia"
-            description={getThemeLabel()}
-            left={(props) => <List.Icon {...props} icon="theme-light-dark" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => setThemeDialogVisible(true)}
-          />
-          <List.Item
-            title="Notificaciones"
-            description="Gestionar notificaciones"
-            left={(props) => <List.Icon {...props} icon="bell" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
-          />
-          <List.Item
-            title="Privacidad"
-            description="Configuración de privacidad"
-            left={(props) => <List.Icon {...props} icon="shield-account" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
-          />
-          <List.Item
-            title="Ayuda"
-            description="Centro de ayuda"
-            left={(props) => <List.Icon {...props} icon="help-circle" />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
-          />
-        </View>
-
-        <Button
-          mode="contained"
-          onPress={handleLogout}
-          icon="logout"
-          style={styles.logoutButton}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Header animado con avatar */}
+        <Animated.View
+          style={[
+            styles.headerCard,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
         >
-          Cerrar sesión
-        </Button>
+          <Surface style={styles.surface} elevation={2}>
+            <View style={styles.profileSection}>
+              <View style={styles.avatarContainer}>
+                {user.photoURL ? (
+                  <Avatar.Image
+                    size={90}
+                    source={{ uri: user.photoURL }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <Avatar.Icon
+                    size={90}
+                    icon="account"
+                    style={styles.avatar}
+                  />
+                )}
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
+                />
+              </View>
+              <Text variant="headlineSmall" style={styles.name}>
+                {user.displayName || "Usuario"}
+              </Text>
+              <Text variant="bodyMedium" style={styles.email}>
+                {user.email}
+              </Text>
+            </View>
+          </Surface>
+        </Animated.View>
+
+        {/* Información de la cuenta */}
+        <Animated.View
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim1 }],
+            },
+          ]}
+        >
+          <Card elevation={1} style={styles.card}>
+            <Card.Content>
+              <View style={styles.cardHeader}>
+                <MaterialCommunityIcons
+                  name="account-details"
+                  size={20}
+                  color={theme.colors.primary}
+                />
+                <Text variant="titleMedium" style={styles.cardTitle}>
+                  Información de la cuenta
+                </Text>
+              </View>
+              <Divider style={styles.divider} />
+              <View style={styles.infoItem}>
+                <MaterialCommunityIcons
+                  name="account"
+                  size={20}
+                  color={theme.colors.onSurfaceVariant}
+                />
+                <View style={styles.infoContent}>
+                  <Text variant="bodySmall" style={styles.infoLabel}>
+                    Nombre completo
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.infoValue}>
+                    {user.displayName || "No disponible"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.infoItem}>
+                <MaterialCommunityIcons
+                  name="email"
+                  size={20}
+                  color={theme.colors.onSurfaceVariant}
+                />
+                <View style={styles.infoContent}>
+                  <Text variant="bodySmall" style={styles.infoLabel}>
+                    Correo electrónico
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.infoValue}>
+                    {user.email || "No disponible"}
+                  </Text>
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
+        </Animated.View>
+
+        {/* Publicaciones */}
+        <Animated.View
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim2 }],
+            },
+          ]}
+        >
+          <Card elevation={1} style={styles.card}>
+            <List.Item
+              title="Mis Publicaciones"
+              description="Ver todas tus publicaciones"
+              left={(props) => (
+                <View style={styles.iconWrapper}>
+                  <MaterialCommunityIcons
+                    name="book-open-variant"
+                    size={24}
+                    color={theme.colors.primary}
+                  />
+                </View>
+              )}
+              right={(props) => (
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              )}
+              onPress={() => navigation.navigate("MisPublicacionesScreen")}
+              style={styles.listItem}
+            />
+          </Card>
+        </Animated.View>
+
+        {/* Configuración */}
+        <Animated.View
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim3 }],
+            },
+          ]}
+        >
+          <Card elevation={1} style={styles.card}>
+            <Card.Content>
+              <View style={styles.cardHeader}>
+                <MaterialCommunityIcons
+                  name="cog"
+                  size={20}
+                  color={theme.colors.primary}
+                />
+                <Text variant="titleMedium" style={styles.cardTitle}>
+                  Configuración
+                </Text>
+              </View>
+            </Card.Content>
+            <List.Item
+              title="Apariencia"
+              description={getThemeLabel()}
+              left={(props) => (
+                <View style={styles.iconWrapper}>
+                  <MaterialCommunityIcons
+                    name="theme-light-dark"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </View>
+              )}
+              right={(props) => (
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              )}
+              onPress={() => setThemeDialogVisible(true)}
+            />
+            <List.Item
+              title="Notificaciones"
+              description="Gestionar notificaciones"
+              left={(props) => (
+                <View style={styles.iconWrapper}>
+                  <MaterialCommunityIcons
+                    name="bell"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </View>
+              )}
+              right={(props) => (
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              )}
+              onPress={() => {}}
+            />
+            <List.Item
+              title="Privacidad"
+              description="Configuración de privacidad"
+              left={(props) => (
+                <View style={styles.iconWrapper}>
+                  <MaterialCommunityIcons
+                    name="shield-account"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </View>
+              )}
+              right={(props) => (
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              )}
+              onPress={() => {}}
+            />
+            <List.Item
+              title="Ayuda"
+              description="Centro de ayuda"
+              left={(props) => (
+                <View style={styles.iconWrapper}>
+                  <MaterialCommunityIcons
+                    name="help-circle"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </View>
+              )}
+              right={(props) => (
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              )}
+              onPress={() => {}}
+            />
+          </Card>
+        </Animated.View>
+
+        {/* Botón de cerrar sesión */}
+        <Animated.View
+          style={[
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim4 }],
+            },
+          ]}
+        >
+          <Button
+            mode="contained"
+            onPress={handleLogout}
+            icon="logout"
+            style={styles.logoutButton}
+          >
+            Cerrar sesión
+          </Button>
+        </Animated.View>
       </ScrollView>
 
       {/* Dialog para seleccionar tema */}
@@ -233,31 +460,88 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  section: {
-    marginBottom: 16,
+  headerCard: {
+    marginBottom: 20,
+  },
+  surface: {
+    borderRadius: 16,
+    overflow: "hidden",
   },
   profileSection: {
     alignItems: "center",
-    paddingBottom: 24,
+    padding: 24,
+  },
+  avatarContainer: {
+    position: "relative",
+    marginBottom: 16,
   },
   avatar: {
-    marginBottom: 16,
+    backgroundColor: "transparent",
+  },
+  statusDot: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 3,
+    borderColor: "#fff",
   },
   name: {
     fontWeight: "bold",
-    marginBottom: 8,
-  },
-  email: {
     marginBottom: 4,
   },
-  sectionTitle: {
-    fontWeight: "bold",
+  email: {
+    opacity: 0.7,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  card: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  cardTitle: {
+    fontWeight: "600",
   },
   divider: {
-    marginVertical: 8,
+    marginVertical: 12,
+  },
+  infoItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 16,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
+    opacity: 0.6,
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontWeight: "500",
+  },
+  iconWrapper: {
+    marginLeft: 8,
+    width: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listItem: {
+    paddingVertical: 4,
   },
   logoutButton: {
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 40,
+    borderRadius: 8,
   },
 });
