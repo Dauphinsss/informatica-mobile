@@ -66,8 +66,8 @@ const ManageUsers = () => {
     if (searchQuery.trim() !== "") {
       filtered = filtered.filter(
         (user) =>
-          user.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.correo.toLowerCase().includes(searchQuery.toLowerCase())
+          (user.nombre && user.nombre.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (user.correo && user.correo.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
 
@@ -255,8 +255,8 @@ const ManageUsers = () => {
                         ]}
                       >
                         <List.Item
-                          title={user.nombre}
-                          description={user.correo}
+                          title={user.nombre || "Sin nombre"}
+                          description={user.correo || "Sin correo"}
                           titleStyle={[
                             styles.userName,
                             user.estado === "suspendido" &&
