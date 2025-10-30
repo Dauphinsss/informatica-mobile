@@ -23,16 +23,20 @@ export const PublicationActions: React.FC<PublicationActionsProps> = ({
     container: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "space-between", // Cambiado para separar los elementos
       paddingHorizontal: 16,
       paddingVertical: 8,
     },
+    leftContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
     actionButton: {
-      marginHorizontal: 12,
+      marginHorizontal: 0, // Eliminamos el margen horizontal original
     },
     likesContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginRight: 8,
     },
     likesCount: {
       marginLeft: 8,
@@ -43,7 +47,7 @@ export const PublicationActions: React.FC<PublicationActionsProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.likesContainer}>
+      <View style={styles.leftContainer}>
         <LikeButton
           publicacionId={publicacionId}
           initialLikes={initialLikes}
