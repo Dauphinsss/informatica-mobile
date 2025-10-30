@@ -101,7 +101,11 @@ export const crearNotificacion = async (
 
   if (enviarPush) {
     try {
-      await enviarNotificacionLocal(titulo, descripcion, metadata);
+      const { auth } = require("@/firebase");
+      const currentUser = auth.currentUser;
+      if (currentUser && currentUser.uid === userId) {
+        await enviarNotificacionLocal(titulo, descripcion, metadata);
+      }
     } catch (error) {
       console.error("Error al enviar push:", error);
     }
@@ -407,4 +411,89 @@ export const notificarCreacionMateria = async (
     console.error("Error al notificar creación de materia:", error);
     throw error;
   }
+};
+
+export const notificarDecisionAdminAutor = async ({
+  autorUid,
+  publicacionTitulo,
+  motivo,
+  decision,
+  tipoAccion
+}: {
+  autorUid: string;
+  publicacionTitulo: string;
+  motivo: string;
+  decision: string;
+  tipoAccion: 'quitar' | 'strike' | 'ban';
+}) => {
+  let titulo = '';
+  let descripcion = '';
+  if (tipoAccion === 'quitar') {
+    titulo = 'Tu publicación fue revisada';
+    descripcion = `La denuncia sobre "${publicacionTitulo}" fue descartada. Motivo: ${motivo}`;
+  } else if (tipoAccion === 'strike') {
+    titulo = 'Tu publicación fue eliminada';
+    descripcion = `Se eliminó "${publicacionTitulo}" y recibiste un strike. Motivo: ${motivo}`;
+  } else if (tipoAccion === 'ban') {
+    titulo = 'Has sido baneado';
+    descripcion = `Tu publicación "${publicacionTitulo}" fue eliminada y tu cuenta fue baneada. Motivo: ${motivo}`;
+  }
+  await crearNotificacion(
+    autorUid,
+    titulo,
+    descripcion,
+    'info',
+    'account-alert',
+    {
+      tipo: 'admin_decision',
+      publicacionTitulo,
+      motivo,
+      decision,
+      tipoAccion,
+    },
+    true
+  );
+};
+
+export const notificarDecisionAdminDenunciantes = async ({
+  reportadores,
+  publicacionTitulo,
+  motivo,
+  decision,
+  tipoAccion
+}: {
+  reportadores: Array<{ usuario: string; uid?: string }>;
+  publicacionTitulo: string;
+  motivo: string;
+  decision: string;
+  tipoAccion: 'quitar' | 'strike' | 'ban';
+}) => {
+  let titulo = '';
+  let descripcion = '';
+  if (tipoAccion === 'quitar') {
+    titulo = 'Tu denuncia fue revisada';
+    descripcion = `La denuncia sobre "${publicacionTitulo}" fue descartada. Motivo: ${motivo}`;
+  } else if (tipoAccion === 'strike') {
+    titulo = 'Denuncia aceptada';
+    descripcion = `La publicación "${publicacionTitulo}" fue eliminada y el autor recibió un strike. Motivo: ${motivo}`;
+  } else if (tipoAccion === 'ban') {
+    titulo = 'Denuncia aceptada - usuario baneado';
+    descripcion = `La publicación "${publicacionTitulo}" fue eliminada y el autor fue baneado. Motivo: ${motivo}`;
+  }
+  const userIds = reportadores.map(r => r.uid).filter(Boolean) as string[];
+  if (userIds.length === 0) return;
+  await crearNotificacionMasiva(
+    userIds,
+    titulo,
+    descripcion,
+    'info',
+    'account-alert',
+    {
+      tipo: 'admin_decision',
+      publicacionTitulo,
+      motivo,
+      decision,
+      tipoAccion,
+    }
+  );
 };

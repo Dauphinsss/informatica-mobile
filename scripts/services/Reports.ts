@@ -90,6 +90,7 @@ export const obtenerReportes = async (): Promise<Report[]> => {
         motivo: data.tipo,
         fecha,
         fechaTimestamp,
+        uid: data.autorUid,
       };
 
       if (!agrupados.has(publicacionId)) {
@@ -330,6 +331,7 @@ export const escucharReportes = (onChange: (reportes: Report[]) => void) => {
         motivo: data.tipo,
         fecha,
         fechaTimestamp,
+        uid: data.autorUid,
       };
 
       if (!agrupados.has(publicacionId)) {

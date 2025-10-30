@@ -8,6 +8,10 @@ import {
   eliminarPublicacionYArchivos,
   escucharReportes,
 } from "@/scripts/services/Reports";
+import {
+  notificarDecisionAdminAutor,
+  notificarDecisionAdminDenunciantes
+} from "@/services/notifications";
 import { ArchivoPublicacion } from "@/scripts/types/Publication.type";
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -365,6 +369,20 @@ export default function ReportsScreen() {
               : r
           )
         );
+        await notificarDecisionAdminAutor({
+          autorUid: reporteSeleccionado.autorUid,
+          publicacionTitulo: reporteSeleccionado.titulo,
+          motivo,
+          decision: "Reporte descartado",
+          tipoAccion: 'quitar',
+        });
+        await notificarDecisionAdminDenunciantes({
+          reportadores: reporteSeleccionado.reportadores,
+          publicacionTitulo: reporteSeleccionado.titulo,
+          motivo,
+          decision: "Reporte descartado",
+          tipoAccion: 'quitar',
+        });
         cerrarModal();
         setAlertTitle("Éxito");
         setAlertMessage("Reporte descartado correctamente");
@@ -409,6 +427,20 @@ export default function ReportsScreen() {
               : r
           )
         );
+        await notificarDecisionAdminAutor({
+          autorUid: reporteSeleccionado.autorUid,
+          publicacionTitulo: reporteSeleccionado.titulo,
+          motivo,
+          decision: "Publicación eliminada + strike",
+          tipoAccion: 'strike',
+        });
+        await notificarDecisionAdminDenunciantes({
+          reportadores: reporteSeleccionado.reportadores,
+          publicacionTitulo: reporteSeleccionado.titulo,
+          motivo,
+          decision: "Publicación eliminada + strike",
+          tipoAccion: 'strike',
+        });
         cerrarModal();
         setAlertTitle("Éxito");
         setAlertMessage("Publicación eliminada y strike aplicado");
@@ -452,6 +484,20 @@ export default function ReportsScreen() {
               : r
           )
         );
+        await notificarDecisionAdminAutor({
+          autorUid: reporteSeleccionado.autorUid,
+          publicacionTitulo: reporteSeleccionado.titulo,
+          motivo,
+          decision: "Usuario baneado",
+          tipoAccion: 'ban',
+        });
+        await notificarDecisionAdminDenunciantes({
+          reportadores: reporteSeleccionado.reportadores,
+          publicacionTitulo: reporteSeleccionado.titulo,
+          motivo,
+          decision: "Usuario baneado",
+          tipoAccion: 'ban',
+        });
         cerrarModal();
         setAlertTitle("Éxito");
         setAlertMessage("Usuario baneado del sistema");

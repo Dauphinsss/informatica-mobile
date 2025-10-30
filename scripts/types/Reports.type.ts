@@ -19,6 +19,7 @@ export interface Report {
     motivo: string;
     fecha: string;
     fechaTimestamp?: number;
+    uid?: string;
   }>;
   strikesAutor: number;
   decision?: string;
