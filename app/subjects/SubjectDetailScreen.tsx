@@ -1,5 +1,5 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { db } from "@/firebase";
+import { escucharPublicacionesPorMateria } from "@/scripts/services/Publications";
 import {
   ArchivoPublicacion,
   Publicacion,
@@ -10,7 +10,6 @@ import {
   useNavigation,
   useRoute,
 } from "@react-navigation/native";
-import { escucharPublicacionesPorMateria } from "@/scripts/services/Publications";
 import React, { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
@@ -55,10 +54,13 @@ export default function SubjectDetailScreen() {
     useCallback(() => {
       if (!materiaId) return;
       setCargando(true);
-      const unsubscribe = escucharPublicacionesPorMateria(materiaId, (items) => {
-        setPublicaciones(items);
-        setCargando(false);
-      });
+      const unsubscribe = escucharPublicacionesPorMateria(
+        materiaId,
+        (items) => {
+          setPublicaciones(items);
+          setCargando(false);
+        }
+      );
       return () => unsubscribe();
     }, [materiaId])
   );
@@ -136,7 +138,8 @@ export default function SubjectDetailScreen() {
                       <Avatar.Text
                         size={40}
                         label={
-                          publicacion.autorNombre?.charAt(0).toUpperCase() || "?"
+                          publicacion.autorNombre?.charAt(0).toUpperCase() ||
+                          "?"
                         }
                       />
                     )}
@@ -182,6 +185,16 @@ export default function SubjectDetailScreen() {
                       textStyle={styles.statText}
                     >
                       {publicacion.totalComentarios}
+                    </Chip>
+                  )}
+                  {publicacion.totalCalificaciones > 0 && (
+                    <Chip
+                      icon="heart"
+                      compact
+                      style={styles.statChip}
+                      textStyle={styles.statText}
+                    >
+                      {publicacion.totalCalificaciones}
                     </Chip>
                   )}
                 </View>
