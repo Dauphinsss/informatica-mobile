@@ -15,7 +15,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.informatica.app"
+      "bundleIdentifier": "com.informatica.app",
+      "associatedDomains": [
+        "applinks:mobile-1dae0.firebaseapp.com"
+      ]
     },
     "android": {
       "package": "com.informatica.app",
@@ -34,10 +37,12 @@
           "data": [
             {
               "scheme": "https",
-              "host": "mobile-1dae0.firebaseapp.com"
+              "host": "mobile-1dae0.firebaseapp.com",
+              "pathPrefix": "/"
             },
             {
-              "scheme": "informatica"
+              "scheme": "informatica",
+              "host": "*"
             }
           ],
           "category": [

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Informática - Plataforma Educativa</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 24px;
+      padding: 48px 32px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+    
+    .icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 40px;
+    }
+    
+    h1 {
+      color: #1a202c;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    
+    p {
+      color: #718096;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    
+    .features {
+      margin-top: 48px;
+      display: grid;
+      gap: 16px;
+      text-align: left;
+    }
+    
+    .feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    
+    .feature-icon {
+      width: 24px;
+      height: 24px;
+      background: #edf2f7;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .feature-text {
+      flex: 1;
+    }
+    
+    .feature-title {
+      color: #2d3748;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    
+    .feature-desc {
+      color: #718096;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .footer {
+      margin-top: 32px;
+      padding-top: 32px;
+      border-top: 1px solid #e2e8f0;
+      color: #a0aec0;
+      font-size: 14px;
+    }
+    
+    @media (max-width: 640px) {
+      .container {
+        padding: 32px 24px;
+      }
+      
+      h1 {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📚</div>
+    <h1>Informática</h1>
+    <p>
+      Plataforma educativa para compartir y descubrir contenido académico.
+      Descarga la app para acceder a todas las funcionalidades.
+    </p>
+    
+    <a href="#" class="btn" id="downloadBtn">
+      Descargar App
+    </a>
+    
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">📢</div>
+        <div class="feature-text">
+          <div class="feature-title">Notificaciones en tiempo real</div>
+          <div class="feature-desc">Recibe alertas de nuevas publicaciones en tus materias</div>
+        </div>
+      </div>
+      
+      <div class="feature">
+        <div class="feature-icon">📄</div>
+        <div class="feature-text">
+          <div class="feature-title">Comparte contenido</div>
+          <div class="feature-desc">Envía links directos a publicaciones específicas</div>
+        </div>
+      </div>
+      
+      <div class="feature">
+        <div class="feature-icon">🔔</div>
+        <div class="feature-text">
+          <div class="feature-title">Deep linking</div>
+          <div class="feature-desc">Los links te llevan directamente a la publicación</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      © 2025 Informática. Todos los derechos reservados.
+    </div>
+  </div>
+  
+  <script>
+    
+    const downloadBtn = document.getElementById('downloadBtn');
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isAndroid = userAgent.includes('android');
+    const isIOS = /iphone|ipad|ipod/.test(userAgent);
+    
+    const path = window.location.pathname;
+    if (path !== '/' && path !== '/index.html') {
+
+      const deepLink = 'informatica:/' + path;
+
+      const appLink = document.createElement('div');
+      appLink.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #48bb78; color: white; padding: 16px 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; max-width: 90%; text-align: center;';
+      appLink.innerHTML = '🚀 Abriendo en la app...<br><small style="opacity: 0.9; font-size: 12px; margin-top: 4px; display: block;">Si no se abre, descarga la app</small>';
+      document.body.appendChild(appLink);
+
+      setTimeout(() => {
+        window.location.href = deepLink;
+      }, 100);
+
+      setTimeout(() => {
+        appLink.style.background = '#f56565';
+        appLink.innerHTML = 'App no instalada<br><small style="opacity: 0.9; font-size: 12px; margin-top: 4px; display: block;">Haz clic abajo para descargar</small>';
+      }, 2000);
+    }
+    
+    // Configurar botón de descarga
+    if (isAndroid) {
+      downloadBtn.textContent = 'Descargar para Android';
+      downloadBtn.href = '#';
+    } else if (isIOS) {
+      downloadBtn.textContent = 'Descargar para iOS';
+      downloadBtn.href = '#';
+    } else {
+      downloadBtn.textContent = 'Ver en dispositivo móvil';
+      downloadBtn.href = '#';
+    }
+    
+    downloadBtn.addEventListener('click', (e) => {
+      if (downloadBtn.href === '#') {
+        e.preventDefault();
+        alert('La app aún no está publicada en las tiendas. Mantente atento a futuras actualizaciones.');
+      }
+    });
+  </script>
+</body>
+</html>
