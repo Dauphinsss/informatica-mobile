@@ -373,7 +373,8 @@ export default function CreatePublicationScreen() {
           "Nueva publicación",
           `${nombreUsuario} publicó: ${titulo}`,
           "info",
-          "newspaper"
+          "newspaper",
+          pubId
         );
         console.log("Notificaciones enviadas");
       } catch (notifError) {

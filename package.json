@@ -1,6 +1,6 @@
 {
   "name": "informatica",
-  "main": "expo-router/entry",
+  "main": "node_modules/expo/AppEntry",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",

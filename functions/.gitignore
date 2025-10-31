@@ -1,3 +1,5 @@
 node_modules/
 *.local
 mobile-1dae0-firebase-adminsdk-fbsvc-80d9e727aa.json
+
+mobile*.json

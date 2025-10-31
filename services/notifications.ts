@@ -288,7 +288,8 @@ export const notificarUsuariosMateria = async (
   titulo: string,
   descripcion: string,
   tipo: "info" | "exito" | "advertencia" | "error" = "info",
-  icono: string = "school"
+  icono: string = "school",
+  publicacionId: string
 ) => {
   try {
     // Buscar usuarios que tengan materiaId en su array materiasInscritas
@@ -318,23 +319,23 @@ export const notificarUsuariosMateria = async (
       return;
     }
 
-    // Crear notificación masiva
     await crearNotificacionMasiva(userIds, titulo, descripcion, tipo, icono, {
       materiaId,
       materiaNombre,
-      accion: "notificacion_materia",
+      accion: 'ver_publicacion',
+      publicacionId,
     });
 
-    // Enviar notificación push local
     try {
       await enviarNotificacionLocal(titulo, descripcion, {
-        tipo: "materia",
+        tipo: 'publicacion',
         materiaId,
         materiaNombre,
-        accion: "ver_materia",
+        publicacionId,
+        accion: 'ver_publicacion',
       });
     } catch (error) {
-      console.error("Error al enviar push:", error);
+      console.error('Error al enviar push:', error);
     }
   } catch (error) {
     console.error("Error al notificar usuarios de materia:", error);
