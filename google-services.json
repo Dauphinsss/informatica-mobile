@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "262339683739-utmt2i21mkse5urt0c8meh5dmnkmc6d8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.informatica.app",
+            "certificate_hash": "d45f80d3e24bf07cef7f234d529e889304b80e94"
+          }
+        },
+        {
           "client_id": "262339683739-p5qq1du1e4uvaussr6tafu226jcfo0jh.apps.googleusercontent.com",
           "client_type": 3
         }
