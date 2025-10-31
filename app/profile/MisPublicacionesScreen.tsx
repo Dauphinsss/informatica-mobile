@@ -1,10 +1,16 @@
+// src/screens/MisPublicacionesScreen.tsx
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
+import {
+  escucharPublicacionesPorAutor,
+  obtenerPublicacionesPorAutor
+} from "@/scripts/services/Publications";
 import { Publicacion } from "@/scripts/types/Publication.type";
-import { getDocs, collection } from "firebase/firestore";
-import React, { useCallback, useEffect, useState } from "react";
+import { likesService } from "@/services/likes.service";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { collection, getDocs } from "firebase/firestore";
+import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import {
   ActivityIndicator,
@@ -18,9 +24,6 @@ import {
   TouchableRipple
 } from "react-native-paper";
 import getStyles from "./MisPublicacionesScreen.styles";
-import { obtenerPublicacionesPorAutor,
-  escucharPublicacionesPorAutor
-} from "@/scripts/services/Publications";
 
 interface Materia {
   id: string;
@@ -28,7 +31,11 @@ interface Materia {
   semestre: number;
 }
 
-type PublicacionConMateria = Publicacion & { materiaNombre: string; materiaSemestre: number };
+type PublicacionConMateria = Publicacion & { 
+  materiaNombre: string; 
+  materiaSemestre: number;
+  userLiked?: boolean;
+};
 
 type ProfileStackParamList = {
   ProfileMain: undefined;
@@ -45,13 +52,14 @@ export default function MisPublicacionesScreen() {
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [cargando, setCargando] = useState(true);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<'fecha' | 'vistas' | 'semestre'>("fecha");
+  const [sortBy, setSortBy] = useState<'fecha' | 'vistas' | 'semestre' | 'likes' | 'comentarios'>("fecha");
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>("desc");
 
-  const handleFilterChange = useCallback((newSortBy: 'fecha' | 'vistas' | 'semestre', newSortOrder: 'asc' | 'desc') => {
+  const handleFilterChange = useCallback((newSortBy: 'fecha' | 'vistas' | 'semestre' | 'likes' | 'comentarios', newSortOrder: 'asc' | 'desc') => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
   }, []);
+  
   const { width } = useWindowDimensions();
 
   const handlePress = (pub: PublicacionConMateria) => {
@@ -61,9 +69,30 @@ export default function MisPublicacionesScreen() {
     });
   };
 
+  // ✅ FUNCIÓN CORREGIDA: Usa el servicio existente de likes
+  const handleLike = async (publicacion: PublicacionConMateria) => {
+    if (!user) return;
+    
+    try {
+      await likesService.darLike(user.uid, publicacion.id);
+      // El snapshot listener actualizará automáticamente el estado
+    } catch (error) {
+      console.error("Error al dar like:", error);
+    }
+  };
+
+  // ✅ FUNCIÓN NUEVA: Navegar a detalle para comentar
+  const handleCommentPress = (publicacion: PublicacionConMateria) => {
+    navigation.navigate('PublicationDetail', {
+      publicacionId: publicacion.id,
+      materiaNombre: publicacion.materiaNombre,
+    });
+  };
+
   useEffect(() => {
     let isMounted = true;
     let unsubscribe: (() => void) | undefined;
+    
     const fetchMaterias = async () => {
       setCargando(true);
       const snap = await getDocs(collection(db, "materias"));
@@ -75,38 +104,43 @@ export default function MisPublicacionesScreen() {
           semestre: data.semestre,
         } as Materia;
       });
+      
       if (!isMounted) return;
       setMaterias(mats);
 
       if (user) {
         const pubs = await obtenerPublicacionesPorAutor(user.uid);
         if (!isMounted) return;
-        setPublicaciones(
-          pubs.map(pub => {
+        
+        // ✅ CORREGIDO: Usa autorUid y totalCalificaciones según tu tipo
+        const publicacionesConMateria = pubs.map(pub => {
+          const materia = mats.find((m: Materia) => m.id === pub.materiaId);
+          return {
+            ...pub,
+            materiaNombre: materia?.nombre || "Materia",
+            materiaSemestre: materia?.semestre || 0,
+          };
+        }) as PublicacionConMateria[];
+
+        setPublicaciones(publicacionesConMateria);
+        
+        unsubscribe = escucharPublicacionesPorAutor(user.uid, (pubs) => {
+          if (!isMounted) return;
+          const publicacionesActualizadas = pubs.map(pub => {
             const materia = mats.find((m: Materia) => m.id === pub.materiaId);
             return {
               ...pub,
               materiaNombre: materia?.nombre || "Materia",
               materiaSemestre: materia?.semestre || 0,
             };
-          }) as (Publicacion & { materiaNombre: string; materiaSemestre: number })[]
-        );
-        unsubscribe = escucharPublicacionesPorAutor(user.uid, (pubs) => {
-          if (!isMounted) return;
-          setPublicaciones(
-            pubs.map(pub => {
-              const materia = mats.find((m: Materia) => m.id === pub.materiaId);
-              return {
-                ...pub,
-                materiaNombre: materia?.nombre || "Materia",
-                materiaSemestre: materia?.semestre || 0,
-              };
-            }) as (Publicacion & { materiaNombre: string; materiaSemestre: number })[]
-          );
+          }) as PublicacionConMateria[];
+          
+          setPublicaciones(publicacionesActualizadas);
         });
       }
       setCargando(false);
     };
+    
     fetchMaterias();
     return () => {
       isMounted = false;
@@ -129,6 +163,8 @@ export default function MisPublicacionesScreen() {
       normalizar(pub.materiaNombre).includes(s)
     );
   });
+
+  // ✅ FILTROS CORREGIDOS: Usa totalCalificaciones y totalComentarios
   if (sortBy === 'fecha') {
     filtered = filtered.sort((a, b) => sortOrder === 'desc'
       ? b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime()
@@ -153,6 +189,16 @@ export default function MisPublicacionesScreen() {
         ? b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime()
         : a.fechaPublicacion.getTime() - b.fechaPublicacion.getTime();
     });
+  } else if (sortBy === 'likes') {
+    filtered = filtered.sort((a, b) => sortOrder === 'desc'
+      ? (b.totalCalificaciones || 0) - (a.totalCalificaciones || 0)
+      : (a.totalCalificaciones || 0) - (b.totalCalificaciones || 0)
+    );
+  } else if (sortBy === 'comentarios') {
+    filtered = filtered.sort((a, b) => sortOrder === 'desc'
+      ? (b.totalComentarios || 0) - (a.totalComentarios || 0)
+      : (a.totalComentarios || 0) - (b.totalComentarios || 0)
+    );
   }
 
   const styles = getStyles(theme);
@@ -200,56 +246,90 @@ export default function MisPublicacionesScreen() {
                 style={styles.card}
                 onPress={() => handlePress(pub)}
               >
-                <Card.Content>
-                  <View style={styles.cardContent}>
-                    {pub.autorFoto ? (
-                      <Avatar.Image size={44} source={{ uri: pub.autorFoto }} />
-                    ) : (
-                      <Avatar.Text size={44} label={pub.autorNombre?.charAt(0).toUpperCase() || "?"} />
-                    )}
-                    <Text
-                      variant="bodySmall"
-                      style={styles.fecha}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {formatearFecha(pub.fechaPublicacion)}
-                    </Text>
-                    <View style={styles.autorContainer}>
+                
+                  <Card.Content>
+                    <View style={styles.cardContent}>
+                      {pub.autorFoto ? (
+                        <Avatar.Image size={44} source={{ uri: pub.autorFoto }} />
+                      ) : (
+                        <Avatar.Text size={44} label={pub.autorNombre?.charAt(0).toUpperCase() || "?"} />
+                      )}
                       <Text
-                        variant="titleMedium"
-                        style={styles.titulo}
-                        numberOfLines={2}
-                        ellipsizeMode="tail"
-                      >
-                        {pub.titulo}
-                      </Text>
-                      <Text
-                        variant="bodyMedium"
-                        style={styles.descripcion}
+                        variant="bodySmall"
+                        style={styles.fecha}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        {pub.descripcion}
+                        {formatearFecha(pub.fechaPublicacion)}
                       </Text>
+                      <View style={styles.autorContainer}>
+                        <Text
+                          variant="titleMedium"
+                          style={styles.titulo}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                        >
+                          {pub.titulo}
+                        </Text>
+                        <Text
+                          variant="bodyMedium"
+                          style={styles.descripcion}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {pub.descripcion}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  <Text
-                    variant="bodyMedium"
-                    style={styles.materiaNombre}
-                    numberOfLines={1}
-                  >
-                    {pub.materiaNombre} - Sem {pub.materiaSemestre}
-                  </Text>
-                  <View style={styles.statsContainer}> 
-                    <Chip icon="eye" compact style={styles.statChip} textStyle={styles.statText}>
-                      {pub.vistas > 0 ? pub.vistas : ""}
-                    </Chip>
-                    {pub.totalComentarios > 0 && (
-                      <Chip icon="comment" compact style={styles.statChip} textStyle={styles.statText}>{pub.totalComentarios}</Chip>
-                    )}
-                  </View>
-                </Card.Content>
+                    <Text
+                      variant="bodyMedium"
+                      style={styles.materiaNombre}
+                      numberOfLines={1}
+                    >
+                      {pub.materiaNombre} - Sem {pub.materiaSemestre}
+                    </Text>
+                    <View style={styles.statsContainer}> 
+                      <Chip icon="eye" compact style={styles.statChip} textStyle={styles.statText}>
+                        {pub.vistas > 0 ? pub.vistas : "0"}
+                      </Chip>
+                      
+                      {/* ✅ LIKE CORREGIDO: Usa totalCalificaciones y servicio existente */}
+                      <TouchableRipple 
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleLike(pub);
+                        }}
+                        style={styles.actionButton}
+                      >
+                        <Chip 
+                          icon="heart" 
+                          compact 
+                          style={styles.statChip} 
+                          textStyle={styles.statText}
+                        >
+                          {pub.totalCalificaciones > 0 ? pub.totalCalificaciones : "0"}
+                        </Chip>
+                      </TouchableRipple>
+
+                      {/* ✅ COMENTARIO CORREGIDO: Navega al detalle */}
+                      <TouchableRipple 
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleCommentPress(pub);
+                        }}
+                        style={styles.actionButton}
+                      >
+                        <Chip 
+                          icon="comment" 
+                          compact 
+                          style={styles.statChip} 
+                          textStyle={styles.statText}
+                        >
+                          {pub.totalComentarios > 0 ? pub.totalComentarios : "0"}
+                        </Chip>
+                      </TouchableRipple>
+                    </View>
+                  </Card.Content>
               </Card>
             ))
           )}
@@ -260,9 +340,9 @@ export default function MisPublicacionesScreen() {
 }
 
 type FiltroFlotanteProps = {
-  sortBy: 'fecha' | 'vistas' | 'semestre';
+  sortBy: 'fecha' | 'vistas' | 'semestre' | 'likes' | 'comentarios';
   sortOrder: 'asc' | 'desc';
-  onChange: (sortBy: 'fecha' | 'vistas' | 'semestre', sortOrder: 'asc' | 'desc') => void;
+  onChange: (sortBy: 'fecha' | 'vistas' | 'semestre' | 'likes' | 'comentarios', sortOrder: 'asc' | 'desc') => void;
   theme: any;
 };
 
@@ -300,6 +380,20 @@ function FiltroFlotante({ sortBy, sortOrder, onChange, theme }: FiltroFlotantePr
             <View style={sortBy === 'semestre' ? styles.filtroItemActive : styles.filtroItem}>
               <Text style={sortBy === 'semestre' ? styles.filtroTextActive : styles.filtroText}>
                 Por semestre
+              </Text>
+            </View>
+          </TouchableRipple>
+          <TouchableRipple onPress={() => { onChange('likes', sortOrder); setVisible(false); }} style={styles.filtroRipple}>
+            <View style={sortBy === 'likes' ? styles.filtroItemActive : styles.filtroItem}>
+              <Text style={sortBy === 'likes' ? styles.filtroTextActive : styles.filtroText}>
+                Por likes
+              </Text>
+            </View>
+          </TouchableRipple>
+          <TouchableRipple onPress={() => { onChange('comentarios', sortOrder); setVisible(false); }} style={styles.filtroRipple}>
+            <View style={sortBy === 'comentarios' ? styles.filtroItemActive : styles.filtroItem}>
+              <Text style={sortBy === 'comentarios' ? styles.filtroTextActive : styles.filtroText}>
+                Por comentarios
               </Text>
             </View>
           </TouchableRipple>

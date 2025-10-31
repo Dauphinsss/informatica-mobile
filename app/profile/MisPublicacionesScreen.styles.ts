@@ -166,6 +166,10 @@ export const getStyles = (theme: MD3Theme) =>
       fontWeight: '600',
       color: theme.colors.onBackground,
     },
+    actionButton: {
+      borderRadius: 16,
+      overflow: 'hidden',
+    }
   });
 
 export default getStyles;
