@@ -104,6 +104,7 @@ export const getStyles = (theme: MD3Theme) =>
     scrollView: {
       flex: 1,
       paddingHorizontal: 16,
+      paddingTop: 12,
     },
     loadingIndicator: {
       marginTop: 32,
