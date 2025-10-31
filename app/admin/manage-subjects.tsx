@@ -45,6 +45,7 @@ export default function ManageSubjectsScreen() {
   const theme = useTheme();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -315,15 +316,7 @@ export default function ManageSubjectsScreen() {
 
   // Abrir modal de edición
   const handleOpenEditModal = (subject: Subject) => {
-    setEditingSubject(subject);
-    setEditFormData({
-      nombre: subject.nombre,
-      descripcion: subject.descripcion,
-      semestre: subject.semestre as SemestreOption,
-      imagenUrl: subject.imagenUrl || "",
-    });
-    setEditErrors({ nombre: "", descripcion: "", semestre: "" });
-    setEditModalVisible(true);
+    navigation.navigate("EditSubject", { subject });
   };
 
   // Validación edición
@@ -424,15 +417,22 @@ export default function ManageSubjectsScreen() {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Gestión de Materias" />
+        <Appbar.Action
+          icon="magnify"
+          onPress={() => setSearchOpen(!searchOpen)}
+        />
       </Appbar.Header>
 
       <View style={styles.content}>
-        <Searchbar
-          placeholder="Buscar materia..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchbar}
-        />
+        {searchOpen && (
+          <Searchbar
+            placeholder="Buscar materia..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchbar}
+            autoFocus
+          />
+        )}
 
         {loadingSubjects ? (
           <View style={styles.loadingContainer}>
@@ -443,11 +443,13 @@ export default function ManageSubjectsScreen() {
           <ScrollView
             showsVerticalScrollIndicator={false}
             style={styles.scrollView}
+            contentContainerStyle={styles.scrollViewContent}
           >
-            {filteredSubjects.map((subject) => (
+            {filteredSubjects.map((subject, index) => (
               <SubjectCard
                 key={subject.id}
                 subject={subject}
+                index={index}
                 onToggleStatus={toggleSubjectStatus}
                 onEdit={handleOpenEditModal}
                 isUpdating={updatingSubjectId === subject.id}
@@ -510,7 +512,7 @@ export default function ManageSubjectsScreen() {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => setModalVisible(true)}
+        onPress={() => navigation.navigate("CreateSubject")}
       />
 
       <Snackbar
@@ -543,10 +545,13 @@ const styles = {
   },
   content: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16,
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 100,
   },
   searchbar: {
     marginBottom: 16,

@@ -15,6 +15,8 @@ export type AdminStackParamList = {
   ManageUsers: undefined;
   Reports: undefined;
   ManageSubjects: undefined;
+  CreateSubject: undefined;
+  EditSubject: { subject: Subject };
 };
 
 export type SemestreOption = number | 'Electiva';

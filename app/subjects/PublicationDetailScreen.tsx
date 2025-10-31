@@ -1,4 +1,7 @@
+import { CommentInput, CommentList } from "@/app/components/comments";
+import { PublicationActions } from "@/app/components/publications/PublicationActions";
 import { useTheme } from "@/contexts/ThemeContext";
+import { db } from "@/firebase";
 import {
   incrementarVistas,
   obtenerArchivosConTipo,
@@ -9,8 +12,26 @@ import {
   Publicacion,
 } from "@/scripts/types/Publication.type";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { getAuth } from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Image, Linking, ScrollView, View } from "react-native";
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  View,
+} from "react-native";
 import {
   ActivityIndicator,
   Appbar,
@@ -21,17 +42,8 @@ import {
   IconButton,
   Text,
 } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getStyles } from "./_PublicationDetailScreen.styles";
-import { 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs, 
-  Timestamp 
-} from "firebase/firestore";
-import { db } from "@/firebase";
-import { getAuth } from "firebase/auth";
 
 const reportarPublicacion = async (
   publicacionId: string,
@@ -96,22 +108,83 @@ export default function PublicationDetailScreen() {
   const [publicacion, setPublicacion] = useState<Publicacion | null>(null);
   const [archivos, setArchivos] = useState<ArchivoPublicacion[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [showComments, setShowComments] = useState(false);
+  const [commentsUpdated, setCommentsUpdated] = useState(0);
+  const [userLiked, setUserLiked] = useState(false);
 
   const cargarPublicacion = useCallback(async () => {
     setCargando(true);
-    const pub = await obtenerPublicacionPorId(publicacionId);
-    if (pub) {
-      setPublicacion(pub);
-      await incrementarVistas(publicacionId);
-      const archivosData = await obtenerArchivosConTipo(publicacionId);
-      setArchivos(archivosData);
+    try {
+      const pub = await obtenerPublicacionPorId(publicacionId);
+      if (pub) {
+        setPublicacion(pub);
+        await incrementarVistas(publicacionId);
+        const archivosData = await obtenerArchivosConTipo(publicacionId);
+        setArchivos(archivosData);
+        if (usuario) {
+          const likeQuery = query(
+            collection(db, "likes"),
+            where("publicacionId", "==", publicacionId),
+            where("autorUid", "==", usuario.uid)
+          );
+          const likeSnapshot = await getDocs(likeQuery);
+          setUserLiked(!likeSnapshot.empty);
+        }
+      }
+    } catch (error) {
+      console.error("Error cargando publicación:", error);
+    } finally {
+      setCargando(false);
     }
-    setCargando(false);
+  }, [publicacionId, usuario]);
+
+  useEffect(() => {
+    if (!publicacionId) return;
+    const unsubscribe = onSnapshot(
+      doc(db, "publicaciones", publicacionId),
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          setPublicacion({
+            id: doc.id,
+            ...data,
+            fechaPublicacion: data.fechaPublicacion.toDate(),
+          } as Publicacion);
+        }
+      }
+    );
+    return () => unsubscribe();
   }, [publicacionId]);
+
+  useEffect(() => {
+    if (!publicacionId || !usuario) return;
+    const likeQuery = query(
+      collection(db, "likes"),
+      where("publicacionId", "==", publicacionId),
+      where("autorUid", "==", usuario.uid)
+    );
+    const unsubscribe = onSnapshot(likeQuery, (snapshot) => {
+      setUserLiked(!snapshot.empty);
+    });
+    return () => unsubscribe();
+  }, [publicacionId, usuario]);
 
   useEffect(() => {
     cargarPublicacion();
   }, [cargarPublicacion]);
+
+  const handleCommentsUpdated = () => {
+    setCommentsUpdated((prev) => prev + 1);
+  };
+
+  const handleCommentAdded = useCallback(() => {
+    handleCommentsUpdated();
+    setShowComments(false);
+  }, [handleCommentsUpdated]);
+
+  const handleCommentPress = useCallback(() => {
+    setShowComments((prev) => !prev);
+  }, []);
 
   const formatearFecha = (fecha: Date): string => {
     return fecha.toLocaleDateString("es-BO", {
@@ -396,7 +469,7 @@ export default function PublicationDetailScreen() {
 
   if (cargando) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Appbar.Header>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
           <Appbar.Content title={materiaNombre} />
@@ -407,13 +480,13 @@ export default function PublicationDetailScreen() {
             Cargando publicación...
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (!publicacion) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Appbar.Header>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
           <Appbar.Content title={materiaNombre} />
@@ -423,156 +496,197 @@ export default function PublicationDetailScreen() {
             Publicación no encontrada
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={materiaNombre} />
         {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
-          <Appbar.Action 
-            icon="flag" 
-            onPress={mostrarDialogoReporte}
-          />
+          <Appbar.Action icon="flag" onPress={mostrarDialogoReporte} />
         )}
       </Appbar.Header>
-
-      <ScrollView style={styles.content}>
-        <Card style={styles.headerCard}>
-          <Card.Content>
-            <View style={styles.autorContainer}>
-              {publicacion.autorFoto ? (
-                <Avatar.Image
-                  size={48}
-                  source={{ uri: publicacion.autorFoto }}
-                />
-              ) : (
-                <Avatar.Text
-                  size={48}
-                  label={
-                    publicacion.autorNombre?.charAt(0).toUpperCase() || "?"
-                  }
-                />
-              )}
-              <View style={styles.autorInfo}>
-                <Text variant="titleMedium" style={styles.autorNombre}>
-                  {publicacion.autorNombre}
-                </Text>
-                <Text variant="bodySmall" style={styles.fecha}>
-                  {formatearFecha(publicacion.fechaPublicacion)}
-                </Text>
-              </View>
-            </View>
-
-            <Divider style={styles.divider} />
-
-            <Text variant="headlineSmall" style={styles.titulo}>
-              {publicacion.titulo}
-            </Text>
-
-            <Text variant="bodyLarge" style={styles.descripcion}>
-              {publicacion.descripcion}
-            </Text>
-
-            <View style={styles.statsContainer}>
-              <Chip
-                icon="eye"
-                compact
-                style={styles.statChip}
-                textStyle={styles.statText}
-              >
-                {publicacion.vistas}
-              </Chip>
-              {publicacion.totalComentarios > 0 && (
-                <Chip
-                  icon="comment"
-                  compact
-                  style={styles.statChip}
-                  textStyle={styles.statText}
-                >
-                  {publicacion.totalComentarios}
-                </Chip>
-              )}
-            </View>
-          </Card.Content>
-        </Card>
-
-        {archivos.length > 0 && (
-          <View style={styles.archivosContainer}>
-            <Text variant="titleMedium" style={styles.archivosTitle}>
-              Archivos adjuntos ({archivos.length})
-            </Text>
-
-            <View style={styles.archivosGrid}>
-              {archivos.map((archivo) => (
-                <View key={archivo.id} style={styles.archivoCardWrapper}>
-                  <Card
-                    style={styles.archivoCard}
-                    onPress={() => abrirArchivo(archivo)}
-                    onLongPress={() => descargarArchivo(archivo)}
-                  >
-                    {!archivo.esEnlaceExterno && (
-                      <IconButton
-                        icon="download"
-                        size={18}
-                        onPress={(e) => {
-                          descargarArchivo(archivo);
-                        }}
-                        style={styles.downloadButton}
-                        iconColor={theme.colors.onSurface}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={
+          Platform.OS === "ios"
+            ? "padding"
+            : showComments
+            ? "height"
+            : undefined
+        }
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        <CommentList
+          publicacionId={publicacion.id}
+          reloadTrigger={commentsUpdated}
+          autorPublicacionUid={publicacion.autorUid}
+          headerComponent={
+            <>
+              {/* Contenido de la publicación */}
+              <Card style={styles.headerCard}>
+                <Card.Content>
+                  <View style={styles.autorContainer}>
+                    {publicacion.autorFoto ? (
+                      <Avatar.Image
+                        size={48}
+                        source={{ uri: publicacion.autorFoto }}
+                      />
+                    ) : (
+                      <Avatar.Text
+                        size={48}
+                        label={
+                          publicacion.autorNombre?.charAt(0).toUpperCase() ||
+                          "?"
+                        }
                       />
                     )}
-
-                    {archivo.esEnlaceExterno && (
-                      <IconButton
-                        icon="link-variant"
-                        size={18}
-                        style={styles.downloadButton}
-                        iconColor={theme.colors.onSurface}
-                        onPress={() => {}}
-                      />
-                    )}
-
-                    {renderArchivoPreview(archivo)}
-                  </Card>
-
-                  <View style={styles.archivoInfoContainer}>
-                    <View style={styles.archivoInfoRow}>
-                      <IconButton
-                        icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
-                        size={20}
-                        iconColor={theme.colors.primary}
-                        style={{ margin: 0, marginRight: 4 }}
-                      />
-                      <Text
-                        variant="bodyMedium"
-                        style={styles.archivoTitulo}
-                        numberOfLines={2}
-                      >
-                        {archivo.titulo}
+                    <View style={styles.autorInfo}>
+                      <Text variant="titleMedium" style={styles.autorNombre}>
+                        {publicacion.autorNombre}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.fecha}>
+                        {formatearFecha(publicacion.fechaPublicacion)}
                       </Text>
                     </View>
                   </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
 
-        <Card style={styles.comentariosCard}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.comentariosTitle}>
-              Comentarios
-            </Text>
-            <Text variant="bodyMedium" style={styles.comentariosPlaceholder}>
-              Los comentarios estarán disponibles próximamente
-            </Text>
-          </Card.Content>
-        </Card>
-      </ScrollView>
-    </View>
+                  <Divider style={styles.divider} />
+
+                  <Text variant="headlineSmall" style={styles.titulo}>
+                    {publicacion.titulo}
+                  </Text>
+
+                  <Text variant="bodyLarge" style={styles.descripcion}>
+                    {publicacion.descripcion}
+                  </Text>
+
+                  <View style={styles.statsContainer}>
+                    <Chip
+                      icon="eye"
+                      compact
+                      style={styles.statChip}
+                      textStyle={styles.statText}
+                    >
+                      {publicacion.vistas}
+                    </Chip>
+                    {publicacion.totalComentarios > 0 && (
+                      <Chip
+                        icon="comment"
+                        compact
+                        style={styles.statChip}
+                        textStyle={styles.statText}
+                      >
+                        {publicacion.totalComentarios}
+                      </Chip>
+                    )}
+                    {publicacion.totalCalificaciones > 0 && (
+                      <Chip
+                        icon="heart"
+                        compact
+                        style={styles.statChip}
+                        textStyle={styles.statText}
+                      >
+                        {publicacion.totalCalificaciones}
+                      </Chip>
+                    )}
+                  </View>
+                  <Divider style={styles.actionsDivider} />
+                  <PublicationActions
+                    publicacionId={publicacion.id}
+                    onCommentPress={handleCommentPress}
+                    initialLikes={publicacion.totalCalificaciones}
+                    initialLiked={userLiked}
+                  />
+                </Card.Content>
+              </Card>
+
+              {/* Archivos adjuntos */}
+              {archivos.length > 0 && (
+                <View style={styles.archivosContainer}>
+                  <Text variant="titleMedium" style={styles.archivosTitle}>
+                    Archivos adjuntos ({archivos.length})
+                  </Text>
+
+                  <View style={styles.archivosGrid}>
+                    {archivos.map((archivo) => (
+                      <View key={archivo.id} style={styles.archivoCardWrapper}>
+                        <Card
+                          style={styles.archivoCard}
+                          onPress={() => abrirArchivo(archivo)}
+                          onLongPress={() => descargarArchivo(archivo)}
+                        >
+                          {!archivo.esEnlaceExterno && (
+                            <IconButton
+                              icon="download"
+                              size={18}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                descargarArchivo(archivo);
+                              }}
+                              style={styles.downloadButton}
+                              iconColor={theme.colors.onSurface}
+                            />
+                          )}
+
+                          {archivo.esEnlaceExterno && (
+                            <IconButton
+                              icon="link-variant"
+                              size={18}
+                              style={styles.downloadButton}
+                              iconColor={theme.colors.onSurface}
+                              onPress={() => {}}
+                            />
+                          )}
+
+                          {renderArchivoPreview(archivo)}
+                        </Card>
+
+                        <View style={styles.archivoInfoContainer}>
+                          <View style={styles.archivoInfoRow}>
+                            <IconButton
+                              icon={obtenerIconoPorTipo(
+                                archivo.tipoNombre || ""
+                              )}
+                              size={20}
+                              iconColor={theme.colors.primary}
+                              style={{ margin: 0, marginRight: 4 }}
+                            />
+                            <Text
+                              variant="bodyMedium"
+                              style={styles.archivoTitulo}
+                              numberOfLines={2}
+                            >
+                              {archivo.titulo}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </>
+          }
+          footerComponent={
+            showComments ? (
+              <View style={{ backgroundColor: theme.colors.background }}>
+                <Divider />
+                <CommentInput
+                  publicacionId={publicacion.id}
+                  onCommentAdded={handleCommentAdded}
+                  autoFocus={true}
+                  onCancel={() => setShowComments(false)}
+                  showCancelButton={true}
+                />
+              </View>
+            ) : undefined
+          }
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

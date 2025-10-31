@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(copy \"c:\\Users\\markv\\OneDrive\\Escritorio\\movil\\informatica\\assets\\images\\icon.png\" \"c:\\Users\\markv\\OneDrive\\Escritorio\\movil\\informatica\\assets\\images\\adaptive-icon.png\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -35,27 +35,39 @@ export default function LoginScreen() {
       const usuarioRef = doc(db, "usuarios", user.uid);
       const usuarioDoc = await getDoc(usuarioRef);
 
+      console.log("Datos del usuario de Google:", {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      });
+
       if (!usuarioDoc.exists()) {
+        console.log("Creando nuevo usuario en Firestore");
         await setDoc(usuarioRef, {
           uid: user.uid,
-          correo: user.email,
-          nombre: user.displayName,
-          foto: user.photoURL,
+          correo: user.email || "",
+          nombre: user.displayName || "Usuario sin nombre",
+          foto: user.photoURL || "",
           rol: "usuario",
           estado: "activo",
           creadoEn: serverTimestamp(),
           ultimoAcceso: serverTimestamp(),
         });
+        await crearEstadisticasUsuario(user.uid);
       } else {
+        console.log("Usuario ya existe, actualizando datos");
         await setDoc(
           usuarioRef,
           {
+            correo: user.email || usuarioDoc.data()?.correo || "",
+            nombre: user.displayName || usuarioDoc.data()?.nombre || "Usuario sin nombre",
+            foto: user.photoURL || usuarioDoc.data()?.foto || "",
             ultimoAcceso: serverTimestamp(),
           },
           { merge: true }
         );
       }
-      await crearEstadisticasUsuario(user.uid);
     } catch (error: any) {
       console.error("Error:", error);
       setLoading(false);

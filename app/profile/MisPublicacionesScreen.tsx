@@ -1,10 +1,17 @@
+// app/profile/MisPublicacionesScreen.tsx
+import { PublicationFilters, SortBy, SortOrder } from "@/app/components/filters/PublicationFilters";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
+import {
+  escucharPublicacionesPorAutor,
+  obtenerPublicacionesPorAutor
+} from "@/scripts/services/Publications";
 import { Publicacion } from "@/scripts/types/Publication.type";
-import { getDocs, collection } from "firebase/firestore";
-import React, { useCallback, useEffect, useState } from "react";
+import { likesService } from "@/services/likes.service";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { collection, getDocs } from "firebase/firestore";
+import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import {
   ActivityIndicator,
@@ -12,15 +19,11 @@ import {
   Avatar,
   Card,
   Chip,
-  IconButton,
   Searchbar,
   Text,
   TouchableRipple
 } from "react-native-paper";
 import getStyles from "./MisPublicacionesScreen.styles";
-import { obtenerPublicacionesPorAutor,
-  escucharPublicacionesPorAutor
-} from "@/scripts/services/Publications";
 
 interface Materia {
   id: string;
@@ -28,7 +31,11 @@ interface Materia {
   semestre: number;
 }
 
-type PublicacionConMateria = Publicacion & { materiaNombre: string; materiaSemestre: number };
+type PublicacionConMateria = Publicacion & { 
+  materiaNombre: string; 
+  materiaSemestre: number;
+  userLiked?: boolean;
+};
 
 type ProfileStackParamList = {
   ProfileMain: undefined;
@@ -45,13 +52,14 @@ export default function MisPublicacionesScreen() {
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [cargando, setCargando] = useState(true);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<'fecha' | 'vistas' | 'semestre'>("fecha");
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>("desc");
+  const [sortBy, setSortBy] = useState<SortBy>('fecha');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  const handleFilterChange = useCallback((newSortBy: 'fecha' | 'vistas' | 'semestre', newSortOrder: 'asc' | 'desc') => {
+  const handleFilterChange = useCallback((newSortBy: SortBy, newSortOrder: SortOrder) => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
   }, []);
+  
   const { width } = useWindowDimensions();
 
   const handlePress = (pub: PublicacionConMateria) => {
@@ -61,9 +69,27 @@ export default function MisPublicacionesScreen() {
     });
   };
 
+  const handleLike = async (publicacion: PublicacionConMateria) => {
+    if (!user) return;
+    
+    try {
+      await likesService.darLike(user.uid, publicacion.id);
+    } catch (error) {
+      console.error("Error al dar like:", error);
+    }
+  };
+
+  const handleCommentPress = (publicacion: PublicacionConMateria) => {
+    navigation.navigate('PublicationDetail', {
+      publicacionId: publicacion.id,
+      materiaNombre: publicacion.materiaNombre,
+    });
+  };
+
   useEffect(() => {
     let isMounted = true;
     let unsubscribe: (() => void) | undefined;
+    
     const fetchMaterias = async () => {
       setCargando(true);
       const snap = await getDocs(collection(db, "materias"));
@@ -75,38 +101,42 @@ export default function MisPublicacionesScreen() {
           semestre: data.semestre,
         } as Materia;
       });
+      
       if (!isMounted) return;
       setMaterias(mats);
 
       if (user) {
         const pubs = await obtenerPublicacionesPorAutor(user.uid);
         if (!isMounted) return;
-        setPublicaciones(
-          pubs.map(pub => {
+        
+        const publicacionesConMateria = pubs.map(pub => {
+          const materia = mats.find((m: Materia) => m.id === pub.materiaId);
+          return {
+            ...pub,
+            materiaNombre: materia?.nombre || "Materia",
+            materiaSemestre: materia?.semestre || 0,
+          };
+        }) as PublicacionConMateria[];
+
+        setPublicaciones(publicacionesConMateria);
+        
+        unsubscribe = escucharPublicacionesPorAutor(user.uid, (pubs) => {
+          if (!isMounted) return;
+          const publicacionesActualizadas = pubs.map(pub => {
             const materia = mats.find((m: Materia) => m.id === pub.materiaId);
             return {
               ...pub,
               materiaNombre: materia?.nombre || "Materia",
               materiaSemestre: materia?.semestre || 0,
             };
-          }) as (Publicacion & { materiaNombre: string; materiaSemestre: number })[]
-        );
-        unsubscribe = escucharPublicacionesPorAutor(user.uid, (pubs) => {
-          if (!isMounted) return;
-          setPublicaciones(
-            pubs.map(pub => {
-              const materia = mats.find((m: Materia) => m.id === pub.materiaId);
-              return {
-                ...pub,
-                materiaNombre: materia?.nombre || "Materia",
-                materiaSemestre: materia?.semestre || 0,
-              };
-            }) as (Publicacion & { materiaNombre: string; materiaSemestre: number })[]
-          );
+          }) as PublicacionConMateria[];
+          
+          setPublicaciones(publicacionesActualizadas);
         });
       }
       setCargando(false);
     };
+    
     fetchMaterias();
     return () => {
       isMounted = false;
@@ -129,6 +159,8 @@ export default function MisPublicacionesScreen() {
       normalizar(pub.materiaNombre).includes(s)
     );
   });
+
+  // Aplicar filtros
   if (sortBy === 'fecha') {
     filtered = filtered.sort((a, b) => sortOrder === 'desc'
       ? b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime()
@@ -153,6 +185,16 @@ export default function MisPublicacionesScreen() {
         ? b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime()
         : a.fechaPublicacion.getTime() - b.fechaPublicacion.getTime();
     });
+  } else if (sortBy === 'likes') {
+    filtered = filtered.sort((a, b) => sortOrder === 'desc'
+      ? (b.totalCalificaciones || 0) - (a.totalCalificaciones || 0)
+      : (a.totalCalificaciones || 0) - (b.totalCalificaciones || 0)
+    );
+  } else if (sortBy === 'comentarios') {
+    filtered = filtered.sort((a, b) => sortOrder === 'desc'
+      ? (b.totalComentarios || 0) - (a.totalComentarios || 0)
+      : (a.totalComentarios || 0) - (b.totalComentarios || 0)
+    );
   }
 
   const styles = getStyles(theme);
@@ -179,11 +221,13 @@ export default function MisPublicacionesScreen() {
               iconColor={theme.colors.onBackground}
             />
           </View>
-          <FiltroFlotante
+          <PublicationFilters
             sortBy={sortBy}
             sortOrder={sortOrder}
-            onChange={handleFilterChange}
+            onFilterChange={handleFilterChange}
             theme={theme}
+            styles={styles}
+            showSemestreFilter={true}
           />
         </View>
         <ScrollView style={styles.scrollView}>
@@ -245,9 +289,40 @@ export default function MisPublicacionesScreen() {
                     <Chip icon="eye" compact style={styles.statChip} textStyle={styles.statText}>
                       {pub.vistas > 0 ? pub.vistas : ""}
                     </Chip>
-                    {pub.totalComentarios > 0 && (
-                      <Chip icon="comment" compact style={styles.statChip} textStyle={styles.statText}>{pub.totalComentarios}</Chip>
-                    )}
+                      
+                    <TouchableRipple 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleLike(pub);
+                      }}
+                      style={styles.actionButton}
+                    >
+                      <Chip 
+                        icon="heart" 
+                        compact 
+                        style={styles.statChip} 
+                        textStyle={styles.statText}
+                      >
+                        {pub.totalCalificaciones > 0 ? pub.totalCalificaciones : ""}
+                      </Chip>
+                    </TouchableRipple>
+
+                    <TouchableRipple 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleCommentPress(pub);
+                      }}
+                      style={styles.actionButton}
+                    >
+                      <Chip 
+                        icon="comment" 
+                        compact 
+                        style={styles.statChip} 
+                        textStyle={styles.statText}
+                      >
+                        {pub.totalComentarios > 0 ? pub.totalComentarios : ""}
+                      </Chip>
+                    </TouchableRipple>
                   </View>
                 </Card.Content>
               </Card>
@@ -255,63 +330,6 @@ export default function MisPublicacionesScreen() {
           )}
         </ScrollView>
       </View>
-    </View>
-  );
-}
-
-type FiltroFlotanteProps = {
-  sortBy: 'fecha' | 'vistas' | 'semestre';
-  sortOrder: 'asc' | 'desc';
-  onChange: (sortBy: 'fecha' | 'vistas' | 'semestre', sortOrder: 'asc' | 'desc') => void;
-  theme: any;
-};
-
-function FiltroFlotante({ sortBy, sortOrder, onChange, theme }: FiltroFlotanteProps) {
-  const [visible, setVisible] = React.useState(false);
-  const styles = getStyles(theme);
-  
-  return (
-    <View style={styles.filtroContainer}>
-      <IconButton
-        icon="tune"
-        size={28}
-        onPress={() => setVisible(v => !v)}
-        style={styles.filtroButton}
-        iconColor={theme.colors.onBackground}
-        accessibilityLabel="Abrir filtros"
-      />
-      {visible && (
-        <View style={styles.filtroMenu}>
-          <TouchableRipple onPress={() => { onChange('fecha', sortOrder); setVisible(false); }} style={styles.filtroRipple}>
-            <View style={sortBy === 'fecha' ? styles.filtroItemActive : styles.filtroItem}>
-              <Text style={sortBy === 'fecha' ? styles.filtroTextActive : styles.filtroText}>
-                Por fecha
-              </Text>
-            </View>
-          </TouchableRipple>
-          <TouchableRipple onPress={() => { onChange('vistas', sortOrder); setVisible(false); }} style={styles.filtroRipple}>
-            <View style={sortBy === 'vistas' ? styles.filtroItemActive : styles.filtroItem}>
-              <Text style={sortBy === 'vistas' ? styles.filtroTextActive : styles.filtroText}>
-                Por vistas
-              </Text>
-            </View>
-          </TouchableRipple>
-          <TouchableRipple onPress={() => { onChange('semestre', sortOrder); setVisible(false); }} style={styles.filtroRipple}>
-            <View style={sortBy === 'semestre' ? styles.filtroItemActive : styles.filtroItem}>
-              <Text style={sortBy === 'semestre' ? styles.filtroTextActive : styles.filtroText}>
-                Por semestre
-              </Text>
-            </View>
-          </TouchableRipple>
-          <TouchableRipple onPress={() => { onChange(sortBy, sortOrder === 'asc' ? 'desc' : 'asc'); setVisible(false); }} style={styles.filtroRipple}>
-            <View style={styles.filtroItem}>
-              <Text style={styles.filtroText}>
-                {sortOrder === 'asc' ? 'Ascendente ▲' : 'Descendente ▼'}
-              </Text>
-            </View>
-          </TouchableRipple>
-        </View>
-      )}
     </View>
   );
 }

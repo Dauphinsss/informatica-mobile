@@ -1,12 +1,23 @@
 import React from "react";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Card, Chip, Text, useTheme } from "react-native-paper";
+import { Card, Chip, IconButton, Text, useTheme } from "react-native-paper";
 import { Subject } from "../_types";
 
-const CARD_IMAGE_ASPECT = 16 / 9;
+// Colores para las tarjetas estilo Classroom
+const SUBJECT_COLORS = [
+  { bg: "#1976d2", accent: "#0d47a1" }, // Azul
+  { bg: "#388e3c", accent: "#1b5e20" }, // Verde
+  { bg: "#f57c00", accent: "#ef6c00" }, // Naranja
+  { bg: "#7b1fa2", accent: "#4a148c" }, // Morado
+  { bg: "#d32f2f", accent: "#b71c1c" }, // Rojo
+  { bg: "#303f9f", accent: "#1a237e" }, // Azul índigo
+  { bg: "#0097a7", accent: "#006064" }, // Cian
+  { bg: "#689f38", accent: "#33691e" }, // Verde lima
+];
 
 interface SubjectCardProps {
   subject: Subject;
+  index: number;
   onToggleStatus: (
     subjectId: string,
     currentStatus: "active" | "inactive"
@@ -17,19 +28,27 @@ interface SubjectCardProps {
 
 const SubjectCard: React.FC<SubjectCardProps> = ({
   subject,
+  index,
   onToggleStatus,
   onEdit,
   isUpdating = false,
 }) => {
   const theme = useTheme();
+  const colorScheme = SUBJECT_COLORS[index % SUBJECT_COLORS.length];
+  const hasImage = !!subject?.imagenUrl;
 
   const handlePress = () => {
     onEdit(subject);
   };
 
-  // ahora robusto: acepta number, '10', 10, 'Electiva' o cualquier string
+  const handleToggleStatus = (e: any) => {
+    e.stopPropagation();
+    if (!isUpdating) {
+      onToggleStatus(subject.id, subject.estado);
+    }
+  };
+
   const getSemestreText = (semestre: any) => {
-    // normalizar
     if (
       semestre === 10 ||
       semestre === "10" ||
@@ -39,84 +58,81 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
     }
     const n = Number(semestre);
     if (!Number.isNaN(n) && n > 0) {
-      return `Semestre ${n}`;
+      return `${n}º Semestre`;
     }
-    // fallback: mostrar tal cual si es texto o vacío
     return String(semestre || "");
   };
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-      <Card style={styles.subjectCard} mode="elevated">
-        <Card.Content style={styles.cardContent}>
-          {subject?.imagenUrl && (
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: subject.imagenUrl }} style={styles.image} />
-              <View style={styles.imageOverlay} />
-            </View>
+      <Card style={styles.classroomCard} elevation={2}>
+        {/* Header con color o imagen */}
+        <View style={styles.cardHeader}>
+          {hasImage ? (
+            <>
+              <Image
+                source={{ uri: subject.imagenUrl }}
+                style={styles.cardHeaderImage}
+              />
+              <View style={styles.cardHeaderImageOverlay} />
+            </>
+          ) : (
+            <>
+              <View
+                style={[
+                  styles.cardHeaderColor,
+                  { backgroundColor: colorScheme.bg },
+                ]}
+              />
+              <View
+                style={[
+                  styles.cardHeaderAccent,
+                  { backgroundColor: colorScheme.accent },
+                ]}
+              />
+            </>
           )}
 
-          <View style={styles.cardHeader}>
-            <View style={styles.subjectMainInfo}>
-              <Text
-                variant="titleMedium"
-                style={styles.subjectName}
-                numberOfLines={1}
-              >
-                {subject.nombre}
+          {/* Badge de estado en la esquina */}
+          <TouchableOpacity
+            onPress={handleToggleStatus}
+            disabled={isUpdating}
+            style={styles.statusBadgeContainer}
+            activeOpacity={0.7}
+          >
+            <View
+              style={[
+                styles.statusChip,
+                {
+                  backgroundColor: isUpdating ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.4)",
+                  opacity: isUpdating ? 0.5 : 1,
+                },
+              ]}
+            >
+              <Text style={styles.statusText}>
+                {subject.estado === "active" ? "Activa" : "Inactiva"}
               </Text>
-              <View style={styles.metaInfo}>
-                <View
-                  style={[
-                    styles.semesterBadge,
-                    { backgroundColor: theme.colors.primary },
-                  ]}
-                >
-                  <Text style={styles.semesterText}>
-                    {getSemestreText(subject.semestre)}
-                  </Text>
-                </View>
-                <Chip
-                  mode="outlined"
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    !isUpdating && onToggleStatus(subject.id, subject.estado);
-                  }}
-                  style={[
-                    styles.statusChip,
-                    subject.estado === "active"
-                      ? styles.activeChip
-                      : styles.inactiveChip,
-                  ]}
-                  disabled={isUpdating}
-                  textStyle={styles.chipText}
-                >
-                  {isUpdating
-                    ? "..."
-                    : subject.estado === "active"
-                    ? "Activa"
-                    : "Inactiva"}
-                </Chip>
-              </View>
             </View>
-          </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Contenido del card */}
+        <Card.Content style={styles.cardBody}>
+          <Text variant="titleMedium" style={styles.subjectTitle} numberOfLines={2}>
+            {subject.nombre}
+          </Text>
+
+          <Text variant="bodySmall" style={styles.semestreText}>
+            {getSemestreText(subject.semestre)}
+          </Text>
 
           <Text
-            variant="bodyMedium"
-            style={styles.subjectDescription}
+            variant="bodySmall"
+            style={styles.descriptionText}
             numberOfLines={2}
           >
             {subject.descripcion}
           </Text>
-
-          <View style={styles.cardFooter}>
-            <Text variant="labelSmall" style={styles.createdDate}>
-              Creada:{" "}
-              {subject.createdAt instanceof Date
-                ? subject.createdAt.toLocaleDateString()
-                : String(subject.createdAt)}
-            </Text>
-          </View>
         </Card.Content>
       </Card>
     </TouchableOpacity>
@@ -124,81 +140,74 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  subjectCard: {
+  classroomCard: {
     marginBottom: 16,
-  },
-  cardContent: {
-    padding: 16,
-  },
-  imageContainer: {
-    position: "relative",
-    marginBottom: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: "hidden",
   },
-  image: {
-    width: "100%",
-    aspectRatio: CARD_IMAGE_ASPECT,
+  cardHeader: {
+    height: 100,
+    position: "relative",
+    overflow: "hidden",
   },
-  imageOverlay: {
+  cardHeaderColor: {
+    width: "100%",
+    height: "100%",
+  },
+  cardHeaderAccent: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 12,
+  },
+  cardHeaderImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  cardHeaderImageOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.1)",
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
-  cardHeader: {
-    marginBottom: 12,
-  },
-  subjectMainInfo: {
-    flex: 1,
-  },
-  subjectName: {
-    marginBottom: 8,
-  },
-  metaInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  semesterBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  semesterText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
+  statusBadgeContainer: {
+    position: "absolute",
+    top: 8,
+    right: 8,
   },
   statusChip: {
-    height: 28,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 12,
   },
-  activeChip: {
-    backgroundColor: "#e8f5e8",
-  },
-  inactiveChip: {
-    backgroundColor: "#ffebee",
-  },
-  chipText: {
+  statusText: {
     fontSize: 11,
-    fontWeight: "bold",
+    fontWeight: "600",
     lineHeight: 14,
     textAlignVertical: "center",
-    includeFontPadding: false,
+    color: "#FFFFFF",
   },
-  subjectDescription: {
-    lineHeight: 20,
-    marginBottom: 12,
+  cardBody: {
+    paddingTop: 16,
+    paddingBottom: 16,
   },
-  cardFooter: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.12)",
-    paddingTop: 12,
+  subjectTitle: {
+    fontWeight: "bold",
+    marginBottom: 4,
   },
-  createdDate: {
-    fontStyle: "italic",
+  semestreText: {
+    opacity: 0.7,
+    marginBottom: 8,
+  },
+  descriptionText: {
+    opacity: 0.8,
+    lineHeight: 18,
   },
 });
 

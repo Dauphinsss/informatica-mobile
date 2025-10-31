@@ -5,6 +5,8 @@ import FileGalleryScreen from "../subjects/FileGalleryScreen";
 import ManageSubjectsScreen from "./manage-subjects";
 import ManageUsers from "./manage-users";
 import ReportsScreen from "./ReportsScreen";
+import CreateSubjectScreen from "./create-subject";
+import EditSubjectScreen from "./edit-subject";
 
 const Stack = createStackNavigator();
 
@@ -48,6 +50,16 @@ export default function AdminLayOut() {
           headerShown: false,
           animation: 'slide_from_bottom',
         }}
+      />
+      <Stack.Screen
+        name="CreateSubject"
+        component={CreateSubjectScreen}
+        options={{ title: "Nueva Materia" }}
+      />
+      <Stack.Screen
+        name="EditSubject"
+        component={EditSubjectScreen}
+        options={{ title: "Editar Materia" }}
       />
     </Stack.Navigator>
   );

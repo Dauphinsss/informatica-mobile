@@ -181,11 +181,8 @@ export const getStyles = (theme: MD3Theme) =>
       lineHeight: 18,
     },
     comentariosCard: {
-      marginHorizontal: "4%",
-      marginVertical: 16,
-      marginTop: 12,
-      elevation: 1,
-      borderRadius: 12,
+      marginHorizontal: 8,
+      marginBottom: 8,
     },
     comentariosTitle: {
       fontWeight: "bold",
@@ -196,6 +193,26 @@ export const getStyles = (theme: MD3Theme) =>
       opacity: 0.6,
       textAlign: "center",
       paddingVertical: 16,
+      color: theme.colors.onSurface,
+    },
+    actionsCard: {
+      marginHorizontal: 16,
+    },
+    comentariosHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    actionsDivider: {
+      marginVertical: 0,
+      paddingTop: 0,
+      marginTop: 0,
+      backgroundColor: theme.colors.outline,
+    },
+    likesCount: {
+      marginTop: 8,
+      fontWeight: "bold",
       color: theme.colors.onSurface,
     },
   });
