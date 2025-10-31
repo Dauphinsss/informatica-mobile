@@ -3,10 +3,17 @@ import { PublicationActions } from "@/app/components/publications/PublicationAct
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
+  eliminarArchivo,
+  obtenerTiposArchivo,
+  seleccionarArchivo,
+  subirArchivo,
+} from "@/scripts/services/Files";
+import {
   incrementarVistas,
   obtenerArchivosConTipo,
   obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
+import { eliminarPublicacionYArchivos } from "@/scripts/services/Reports";
 import {
   ArchivoPublicacion,
   Publicacion,
@@ -21,6 +28,7 @@ import {
   onSnapshot,
   query,
   Timestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
@@ -36,12 +44,14 @@ import {
   ActivityIndicator,
   Appbar,
   Avatar,
+  Button,
   Card,
   Chip,
   Divider,
   IconButton,
   Portal,
   Text,
+  TextInput,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomAlert, { CustomAlertButton, CustomAlertType } from "../../components/ui/CustomAlert";
@@ -67,6 +77,21 @@ export default function PublicationDetailScreen() {
   const [publicacion, setPublicacion] = useState<Publicacion | null>(null);
   const [archivos, setArchivos] = useState<ArchivoPublicacion[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState<string>("");
+  const [editDescription, setEditDescription] = useState<string>("");
+  const [tiposArchivo, setTiposArchivo] = useState<any[]>([]);
+  const [fileProcessing, setFileProcessing] = useState(false);
+  const [confirmDeleteFileVisible, setConfirmDeleteFileVisible] = useState(false);
+  const [fileToDeleteId, setFileToDeleteId] = useState<string | null>(null);
+  const [filesMarkedForDelete, setFilesMarkedForDelete] = useState<string[]>([]);
+  const [stagedAdds, setStagedAdds] = useState<{
+    id: string;
+    file: any;
+    tipoId: string;
+    name: string;
+  }[]>([]);
+  const [confirmDeletePubVisible, setConfirmDeletePubVisible] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentsUpdated, setCommentsUpdated] = useState(0);
   const [userLiked, setUserLiked] = useState(false);
@@ -105,6 +130,16 @@ export default function PublicationDetailScreen() {
     setMotivoPersonalizado("");
     setMotivoDialogVisible(true);
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const tipos = await obtenerTiposArchivo();
+        setTiposArchivo(tipos);
+      } catch (err) {
+      }
+    })();
+  }, []);
 
   const confirmarMotivoYAccion = async () => {
     try {
@@ -235,6 +270,24 @@ export default function PublicationDetailScreen() {
   }, [publicacionId]);
 
   useEffect(() => {
+    if (!publicacionId) return;
+    const q = query(
+      collection(db, "archivos"),
+      where("publicacionId", "==", publicacionId),
+      where("activo", "==", true)
+    );
+    const unsub = onSnapshot(q, async () => {
+      try {
+        const nuevos = await obtenerArchivosConTipo(publicacionId);
+        setArchivos(nuevos);
+      } catch (err) {
+        console.error('Error al refrescar archivos en realtime', err);
+      }
+    });
+    return () => unsub();
+  }, [publicacionId]);
+
+  useEffect(() => {
     if (!publicacionId || !usuario) return;
     const likeQuery = query(
       collection(db, "likes"),
@@ -348,6 +401,142 @@ export default function PublicationDetailScreen() {
           { text: "Descargar", onPress: () => descargarArchivo(archivo), mode: "contained" },
         ]
       );
+    }
+  };
+
+  const detectarTipoArchivoLocal = (
+    mimeType: string,
+    nombre: string
+  ): string | null => {
+    for (const tipo of tiposArchivo) {
+      if (tipo.mimetype.some((m: string) => mimeType && mimeType.includes(m))) {
+        return tipo.id;
+      }
+    }
+
+    const extension = "." + nombre.split(".").pop()?.toLowerCase();
+    for (const tipo of tiposArchivo) {
+      if (tipo.extensiones.includes(extension)) return tipo.id;
+    }
+    return null;
+  };
+
+  const agregarArchivo = async () => {
+    try {
+      setFileProcessing(true);
+      const archivo = await seleccionarArchivo();
+      if (!archivo) return;
+
+      const tipoId = detectarTipoArchivoLocal(archivo.mimeType || "", archivo.name);
+      if (!tipoId) {
+        showAlert("Tipo no soportado", "El tipo de archivo seleccionado no está soportado.", "error");
+        return;
+      }
+
+      const staged = {
+        id: `staged-${Date.now()}`,
+        file: archivo,
+        tipoId,
+        name: archivo.name,
+      };
+      setStagedAdds((prev) => [...prev, staged]);
+    } catch (error) {
+      console.error("Error al agregar archivo (staged):", error);
+      showAlert("Error", "No se pudo preparar el archivo", "error");
+    } finally {
+      setFileProcessing(false);
+    }
+  };
+
+  const confirmarEliminarArchivo = (archivoId: string) => {
+    if (filesMarkedForDelete.includes(archivoId)) {
+      setFilesMarkedForDelete(prev => prev.filter(id => id !== archivoId));
+      return;
+    }
+
+    setFileToDeleteId(archivoId);
+    setConfirmDeleteFileVisible(true);
+  };
+
+  const handleConfirmDeleteFile = async () => {
+    if (!fileToDeleteId) return;
+    try {
+      setFilesMarkedForDelete(prev => {
+        if (prev.includes(fileToDeleteId)) return prev;
+        return [...prev, fileToDeleteId!];
+      });
+    } catch (err) {
+      console.error('Error al marcar archivo para eliminación', err);
+      showAlert('Error', 'No se pudo marcar el archivo', 'error');
+    } finally {
+      setConfirmDeleteFileVisible(false);
+      setFileToDeleteId(null);
+    }
+  };
+
+  const handleSaveEdits = async () => {
+    try {
+      setFileProcessing(true);
+
+      await updateDoc(doc(db, "publicaciones", publicacionId), {
+        titulo: editTitle,
+        descripcion: editDescription,
+      });
+
+      if (filesMarkedForDelete.length > 0) {
+        await Promise.all(
+          filesMarkedForDelete.map((id) => eliminarArchivo(id))
+        );
+        setFilesMarkedForDelete([]);
+      }
+
+      if (stagedAdds.length > 0) {
+        await Promise.all(
+          stagedAdds.map((s) =>
+            subirArchivo(publicacionId, s.file, s.tipoId, s.name, undefined, (prog) => {})
+          )
+        );
+        setStagedAdds([]);
+      }
+
+      setEditMode(false);
+      await cargarPublicacion();
+      showAlert('Éxito', 'Publicación actualizada', 'success');
+    } catch (err) {
+      console.error('Error al guardar cambios', err);
+      showAlert('Error', 'No se pudo guardar los cambios', 'error');
+    } finally {
+      setFileProcessing(false);
+    }
+  };
+
+  const handleCancelEdit = async () => {
+    setEditMode(false);
+    setFilesMarkedForDelete([]);
+    setStagedAdds([]);
+    if (publicacion) {
+      setEditTitle(publicacion.titulo);
+      setEditDescription(publicacion.descripcion || "");
+    }
+    try {
+      const nuevos = await obtenerArchivosConTipo(publicacionId);
+      setArchivos(nuevos);
+    } catch (err) {
+      console.error('Error al refrescar archivos al cancelar edición', err);
+    }
+  };
+
+  const handleDeletePublication = async () => {
+    try {
+      await eliminarPublicacionYArchivos(publicacionId);
+      showAlert('Eliminada', 'La publicación fue eliminada', 'success', [
+        { text: 'OK', onPress: () => navigation.goBack(), mode: 'contained' }
+      ]);
+    } catch (err) {
+      console.error('Error al eliminar publicación', err);
+      showAlert('Error', 'No se pudo eliminar la publicación', 'error');
+    } finally {
+      setConfirmDeletePubVisible(false);
     }
   };
 
@@ -559,6 +748,29 @@ export default function PublicationDetailScreen() {
         {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
           <Appbar.Action icon="flag" onPress={mostrarDialogoReporte} />
         )}
+
+        {publicacion && usuario && publicacion.autorUid === usuario.uid && (
+          <>
+            {!editMode ? (
+              <Appbar.Action
+                icon="pencil"
+                onPress={() => {
+                  setEditMode(true);
+                  setEditTitle(publicacion.titulo);
+                  setEditDescription(publicacion.descripcion || "");
+                }}
+                style={{ marginHorizontal: 4 }}
+              />
+            ) : (
+              <>
+                <Appbar.Action icon="close" onPress={handleCancelEdit} style={{ marginHorizontal: 4 }} />
+                <Appbar.Action icon="content-save" onPress={handleSaveEdits} style={{ marginHorizontal: 4 }} />
+              </>
+            )}
+
+            <Appbar.Action icon="trash-can" onPress={() => setConfirmDeletePubVisible(true)} style={{ marginHorizontal: 4 }} />
+          </>
+        )}
       </Appbar.Header>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -606,14 +818,38 @@ export default function PublicationDetailScreen() {
                   </View>
 
                   <Divider style={styles.divider} />
+                  <Divider style={styles.divider} />
 
-                  <Text variant="headlineSmall" style={styles.titulo}>
-                    {publicacion.titulo}
-                  </Text>
+                  {!editMode ? (
+                    <>
+                      <Text variant="headlineSmall" style={styles.titulo}>
+                        {publicacion.titulo}
+                      </Text>
 
-                  <Text variant="bodyLarge" style={styles.descripcion}>
-                    {publicacion.descripcion}
-                  </Text>
+                      <Text variant="bodyLarge" style={styles.descripcion}>
+                        {publicacion.descripcion}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <TextInput
+                        label="Título"
+                        value={editTitle}
+                        onChangeText={setEditTitle}
+                        mode="outlined"
+                        style={{ marginBottom: 12 }}
+                      />
+                      <TextInput
+                        label="Descripción"
+                        value={editDescription}
+                        onChangeText={setEditDescription}
+                        mode="outlined"
+                        multiline
+                        numberOfLines={6}
+                        style={{ marginBottom: 12 }}
+                      />
+                    </>
+                  )}
 
                   <View style={styles.statsContainer}>
                     <Chip
@@ -663,60 +899,142 @@ export default function PublicationDetailScreen() {
                   </Text>
 
                   <View style={styles.archivosGrid}>
-                    {archivos.map((archivo) => (
-                      <View key={archivo.id} style={styles.archivoCardWrapper}>
-                        <Card
-                          style={styles.archivoCard}
-                          onPress={() => abrirArchivo(archivo)}
-                          onLongPress={() => descargarArchivo(archivo)}
-                        >
-                          {!archivo.esEnlaceExterno && (
-                            <IconButton
-                              icon="download"
-                              size={18}
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                descargarArchivo(archivo);
-                              }}
-                              style={styles.downloadButton}
-                              iconColor={theme.colors.onSurface}
-                            />
-                          )}
+                    {archivos.map((archivo) => {
+                      const isMarked = filesMarkedForDelete.includes(archivo.id);
+                      return (
+                        <View key={archivo.id} style={styles.archivoCardWrapper}>
+                          <Card
+                            style={[styles.archivoCard, { position: 'relative' }, isMarked ? { opacity: 0.45 } : undefined]}
+                            onPress={() => abrirArchivo(archivo)}
+                            onLongPress={() => descargarArchivo(archivo)}
+                          >
+                            {!editMode ? (
+                              <>
+                                {!archivo.esEnlaceExterno && (
+                                  <IconButton
+                                    icon="download"
+                                    size={18}
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      descargarArchivo(archivo);
+                                    }}
+                                    style={styles.downloadButton}
+                                    iconColor={theme.colors.onSurface}
+                                  />
+                                )}
 
-                          {archivo.esEnlaceExterno && (
-                            <IconButton
-                              icon="link-variant"
-                              size={18}
-                              style={styles.downloadButton}
-                              iconColor={theme.colors.onSurface}
-                              onPress={() => {}}
-                            />
-                          )}
+                                {archivo.esEnlaceExterno && (
+                                  <IconButton
+                                    icon="link-variant"
+                                    size={18}
+                                    style={styles.downloadButton}
+                                    iconColor={theme.colors.onSurface}
+                                    onPress={() => {}}
+                                  />
+                                )}
+                              </>
+                            ) : (
+                              <IconButton
+                                icon={isMarked ? "check" : "close"}
+                                size={16}
+                                onPress={() => confirmarEliminarArchivo(archivo.id)}
+                                style={{
+                                  margin: 0,
+                                  position: 'absolute',
+                                  top: 6,
+                                  right: 6,
+                                  backgroundColor: theme.colors.primary,
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: 14,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  zIndex: 50,
+                                  elevation: 6,
+                                }}
+                                iconColor={theme.colors.onPrimary || '#fff'}
+                              />
+                            )}
 
-                          {renderArchivoPreview(archivo)}
-                        </Card>
+                            {renderArchivoPreview(archivo)}
+                          </Card>
 
-                        <View style={styles.archivoInfoContainer}>
-                          <View style={styles.archivoInfoRow}>
-                            <IconButton
-                              icon={obtenerIconoPorTipo(
-                                archivo.tipoNombre || ""
-                              )}
-                              size={20}
-                              iconColor={theme.colors.primary}
-                              style={{ margin: 0, marginRight: 4 }}
-                            />
-                            <Text
-                              variant="bodyMedium"
-                              style={styles.archivoTitulo}
-                              numberOfLines={2}
-                            >
-                              {archivo.titulo}
-                            </Text>
+                          <View style={styles.archivoInfoContainer}>
+                            <View style={styles.archivoInfoRow}>
+                              <IconButton
+                                icon={obtenerIconoPorTipo(
+                                  archivo.tipoNombre || ""
+                                )}
+                                size={20}
+                                iconColor={theme.colors.primary}
+                                style={{ margin: 0, marginRight: 4 }}
+                              />
+                              <Text
+                                variant="bodyMedium"
+                                style={styles.archivoTitulo}
+                                numberOfLines={2}
+                              >
+                                {archivo.titulo}
+                              </Text>
+                            </View>
+                            {isMarked && (
+                              <Text style={{ color: theme.colors.error, fontSize: 12, marginTop: 4 }}>
+                                Marcado para eliminar (se eliminará al guardar)
+                              </Text>
+                            )}
                           </View>
                         </View>
+                      );
+                    })}
+
+                   {stagedAdds.map((s) => (
+                      <View key={s.id} style={styles.archivoCardWrapper}>
+                        <Card
+                          style={[styles.archivoCard, { position: 'relative' }]}
+                        >
+                          <IconButton
+                            icon="close"
+                            size={16}
+                            onPress={() => setStagedAdds(prev => prev.filter(x => x.id !== s.id))}
+                            style={{
+                              margin: 0,
+                              position: 'absolute',
+                              top: 6,
+                              right: 6,
+                              backgroundColor: theme.colors.primary,
+                              width: 28,
+                              height: 28,
+                              borderRadius: 14,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              zIndex: 50,
+                              elevation: 6,
+                            }}
+                            iconColor={theme.colors.onPrimary || '#fff'}
+                          />
+
+                          <View style={{ padding: 12, alignItems: 'center' }}>
+                            <IconButton icon="file-document" size={48} iconColor={theme.colors.primary} style={{ margin: 0 }} />
+                            <Text variant="bodyMedium" style={[styles.archivoTitulo, { textAlign: 'center', marginTop: 4 }]} numberOfLines={2}>{s.name}</Text>
+                            <Text style={{ color: theme.colors.primary, fontSize: 12, marginTop: 4 }}>Nuevo — se subirá al guardar</Text>
+                          </View>
+                        </Card>
+
+                        <View style={styles.archivoInfoContainer} />
                       </View>
                     ))}
+
+                    {editMode && (
+                      <View style={styles.archivoCardWrapper}>
+                        <Card style={[styles.archivoCard, { alignItems: 'center', justifyContent: 'center' }]} onPress={agregarArchivo}>
+                          <Card.Content>
+                            <Button icon="plus" mode="contained" onPress={agregarArchivo} loading={fileProcessing}>
+                              Agregar
+                            </Button>
+                          </Card.Content>
+                        </Card>
+                      </View>
+                    )}
                   </View>
                 </View>
               )}
@@ -774,6 +1092,29 @@ export default function PublicationDetailScreen() {
         message={alertMessage}
         type={alertType}
         buttons={alertButtons}
+      />
+      <CustomAlert
+        visible={confirmDeleteFileVisible}
+        onDismiss={() => setConfirmDeleteFileVisible(false)}
+        title="Eliminar archivo"
+        message="¿Estás seguro que quieres eliminar este archivo? Esta acción no se puede deshacer."
+        type="confirm"
+        buttons={[
+          { text: 'Cancelar', onPress: () => setConfirmDeleteFileVisible(false), mode: 'text' },
+          { text: 'Eliminar', onPress: handleConfirmDeleteFile, mode: 'contained', preventDismiss: true }
+        ]}
+      />
+
+      <CustomAlert
+        visible={confirmDeletePubVisible}
+        onDismiss={() => setConfirmDeletePubVisible(false)}
+        title="Eliminar publicación"
+        message="¿Estás seguro que quieres eliminar esta publicación y todos sus archivos? Esta acción no se puede deshacer."
+        type="confirm"
+        buttons={[
+          { text: 'Cancelar', onPress: () => setConfirmDeletePubVisible(false), mode: 'text' },
+          { text: 'Eliminar', onPress: handleDeletePublication, mode: 'contained', preventDismiss: true }
+        ]}
       />
     </SafeAreaView>
   );
