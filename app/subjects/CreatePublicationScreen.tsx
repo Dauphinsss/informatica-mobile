@@ -12,7 +12,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import { getAuth } from "firebase/auth";
 import React, { useEffect, useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import {
   Appbar,
   Button,
@@ -27,6 +27,10 @@ import {
 } from "react-native-paper";
 import { getStyles } from "./_CreatePublicationScreen.styles";
 import { notificarUsuariosMateria } from "../../services/notifications";
+import CustomAlert, {
+  CustomAlertButton,
+  CustomAlertType,
+} from "../../components/ui/CustomAlert";
 
 interface ArchivoTemp {
   id?: string;
@@ -65,6 +69,34 @@ export default function CreatePublicationScreen() {
   const [urlEnlace, setUrlEnlace] = useState("");
   const [nombreEnlace, setNombreEnlace] = useState("");
   const [dialogSeleccionVisible, setDialogSeleccionVisible] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState<CustomAlertType>("info");
+  const [alertButtons, setAlertButtons] = useState<CustomAlertButton[] | undefined>(
+    undefined
+  );
+
+  const showAlert = (
+    title: string | undefined,
+    message: string,
+    type: CustomAlertType = "info",
+    buttons?: CustomAlertButton[]
+  ) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    setAlertButtons(
+      buttons || [
+        {
+          text: "OK",
+          onPress: () => {},
+          mode: "contained",
+        },
+      ]
+    );
+    setAlertVisible(true);
+  };
 
   useEffect(() => {
     cargarTiposArchivo();
@@ -140,9 +172,10 @@ export default function CreatePublicationScreen() {
       const tipoId = detectarTipoArchivo(archivo.mimeType || "", archivo.name);
 
       if (!tipoId) {
-        Alert.alert(
+        showAlert(
           "Tipo no soportado",
-          "El tipo de archivo seleccionado no está soportado."
+          "El tipo de archivo seleccionado no está soportado.",
+          "error"
         );
         return;
       }
@@ -158,7 +191,7 @@ export default function CreatePublicationScreen() {
       setArchivos((prev) => [...prev, nuevoArchivo]);
     } catch (error) {
       console.error("Error al agregar archivo:", error);
-      Alert.alert("Error", "No se pudo agregar el archivo");
+      showAlert("Error", "No se pudo agregar el archivo", "error");
     }
   };
 
@@ -169,26 +202,34 @@ export default function CreatePublicationScreen() {
 
   const agregarEnlace = () => {
     if (!urlEnlace.trim()) {
-      Alert.alert("Error", "La URL es obligatoria");
+      showAlert("Error", "La URL es obligatoria", "error");
       return;
     }
 
     if (!nombreEnlace.trim()) {
-      Alert.alert("Error", "El nombre del enlace es obligatorio");
+      showAlert("Error", "El nombre del enlace es obligatorio", "error");
       return;
     }
 
     try {
       new URL(urlEnlace);
     } catch {
-      Alert.alert("Error", "La URL no es válida. Debe incluir http:// o https://");
+      showAlert(
+        "Error",
+        "La URL no es válida. Debe incluir http:// o https://",
+        "error"
+      );
       return;
     }
 
     const tipoEnlace = tipos.find((t) => t.nombre.toLowerCase() === "enlace");
     
     if (!tipoEnlace) {
-      Alert.alert("Error", "No se encontró el tipo de archivo 'Enlace' en la base de datos");
+      showAlert(
+        "Error",
+        "No se encontró el tipo de archivo 'Enlace' en la base de datos",
+        "error"
+      );
       return;
     }
 
@@ -224,18 +265,18 @@ export default function CreatePublicationScreen() {
 
   const publicar = async () => {
     if (!titulo.trim()) {
-      Alert.alert("Error", "El título es obligatorio");
+      showAlert("Error", "El título es obligatorio", "error");
       return;
     }
 
     if (!descripcion.trim()) {
-      Alert.alert("Error", "La descripción es obligatoria");
+      showAlert("Error", "La descripción es obligatoria", "error");
       return;
     }
 
     const user = auth.currentUser;
     if (!user) {
-      Alert.alert("Error", "Debes iniciar sesión");
+      showAlert("Error", "Debes iniciar sesión", "error");
       return;
     }
 
@@ -357,9 +398,10 @@ export default function CreatePublicationScreen() {
               ? archivo.nombreEnlace 
               : archivo.asset?.name;
 
-            Alert.alert(
+            showAlert(
               "Error al subir archivo",
-              `No se pudo subir "${nombreElemento}": ${mensajeError}\n\nLos demás elementos continuarán procesándose.`
+              `No se pudo subir "${nombreElemento}": ${mensajeError}\n\nLos demás elementos continuarán procesándose.`,
+              "error"
             );
           }
         }
@@ -382,17 +424,20 @@ export default function CreatePublicationScreen() {
       }
 
       console.log("Publicación completada exitosamente");
-      Alert.alert("Éxito", "Publicación creada correctamente", [
+      showAlert("Éxito", "Publicación creada correctamente", "success", [
         {
           text: "OK",
-          onPress: () => navigation.goBack(),
+          onPress: async () => {
+            navigation.goBack();
+          },
+          mode: "contained",
         },
       ]);
     } catch (error) {
       console.error("Error al publicar:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Error desconocido";
-      Alert.alert("Error", `No se pudo crear la publicación: ${errorMessage}`);
+      showAlert("Error", `No se pudo crear la publicación: ${errorMessage}`, "error");
     } finally {
       setPublicando(false);
     }
@@ -616,6 +661,14 @@ export default function CreatePublicationScreen() {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+      <CustomAlert
+        visible={alertVisible}
+        onDismiss={() => setAlertVisible(false)}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        buttons={alertButtons}
+      />
     </View>
   );
 }

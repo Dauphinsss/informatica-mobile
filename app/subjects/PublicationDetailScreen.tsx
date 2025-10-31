@@ -25,7 +25,7 @@ import {
 } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
+  Dimensions,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -40,54 +40,13 @@ import {
   Chip,
   Divider,
   IconButton,
+  Portal,
   Text,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import CustomAlert, { CustomAlertButton, CustomAlertType } from "../../components/ui/CustomAlert";
+import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import { getStyles } from "./_PublicationDetailScreen.styles";
-
-const reportarPublicacion = async (
-  publicacionId: string,
-  motivo: string
-): Promise<boolean> => {
-  try {
-    const auth = getAuth();
-    const usuario = auth.currentUser;
-
-    if (!usuario) {
-      Alert.alert("Error", "Debes iniciar sesión para reportar");
-      return false;
-    }
-
-    const reportesExistentes = await getDocs(
-      query(
-        collection(db, "reportes"),
-        where("publicacionUid", "==", publicacionId),
-        where("autorUid", "==", usuario.uid)
-      )
-    );
-
-    if (!reportesExistentes.empty) {
-      Alert.alert(
-        "Ya reportaste esta publicación",
-        "No puedes reportar la misma publicación más de una vez"
-      );
-      return false;
-    }
-
-    await addDoc(collection(db, "reportes"), {
-      publicacionUid: publicacionId,
-      autorUid: usuario.uid,
-      tipo: motivo,
-      fechaCreacion: Timestamp.now(),
-      estado: "pendiente",
-    });
-
-    return true;
-  } catch (error) {
-    console.error("Error al reportar publicación:", error);
-    throw error;
-  }
-};
 
 export default function PublicationDetailScreen() {
   const { theme } = useTheme();
@@ -111,6 +70,125 @@ export default function PublicationDetailScreen() {
   const [showComments, setShowComments] = useState(false);
   const [commentsUpdated, setCommentsUpdated] = useState(0);
   const [userLiked, setUserLiked] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState<CustomAlertType>("info");
+  const [alertButtons, setAlertButtons] = useState<CustomAlertButton[] | undefined>(
+    undefined
+  );
+  const [motivoDialogVisible, setMotivoDialogVisible] = useState(false);
+  const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>("");
+  const [motivoPersonalizado, setMotivoPersonalizado] = useState<string>("");
+  const [isReporting, setIsReporting] = useState(false);
+  const accionPendiente = React.useRef<null | ((motivo: string) => Promise<void>)>(
+    null
+  );
+  const [savedMotivo, setSavedMotivo] = useState<string>("");
+
+  const deviceWidth = Dimensions.get("window").width;
+  const modalWidth = Math.min(400, deviceWidth * 0.9);
+
+  const MOTIVOS = [
+    "Spam",
+    "Contenido inapropiado",
+    "Acoso o bullying",
+    "Información falsa",
+    "Otra razón...",
+  ];
+
+  const pedirMotivoYContinuar = (
+    accion: (motivo: string) => Promise<void>
+  ) => {
+    accionPendiente.current = accion;
+    setMotivoSeleccionado("");
+    setMotivoPersonalizado("");
+    setMotivoDialogVisible(true);
+  };
+
+  const confirmarMotivoYAccion = async () => {
+    try {
+      setIsReporting(true);
+      if (accionPendiente.current) {
+        const motivo =
+          motivoSeleccionado === "Otra razón..."
+            ? motivoPersonalizado
+            : motivoSeleccionado;
+        await accionPendiente.current(motivo);
+        accionPendiente.current = null;
+      }
+      setMotivoDialogVisible(false);
+    } catch (err) {
+      setMotivoDialogVisible(false);
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  const showAlert = (
+    title: string | undefined,
+    message: string,
+    type: CustomAlertType = "info",
+    buttons?: CustomAlertButton[]
+  ) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    setAlertButtons(
+      buttons || [
+        {
+          text: "OK",
+          onPress: () => {},
+          mode: "contained",
+        },
+      ]
+    );
+    setAlertVisible(true);
+  };
+
+  const reportarPublicacion = async (
+    publicacionId: string,
+    motivo: string
+  ): Promise<boolean> => {
+    try {
+      const usuarioLocal = auth.currentUser;
+
+      if (!usuarioLocal) {
+        showAlert("Error", "Debes iniciar sesión para reportar", "error");
+        return false;
+      }
+
+      const reportesExistentes = await getDocs(
+        query(
+          collection(db, "reportes"),
+          where("publicacionUid", "==", publicacionId),
+          where("autorUid", "==", usuarioLocal.uid)
+        )
+      );
+
+      if (!reportesExistentes.empty) {
+        showAlert(
+          "Ya reportaste esta publicación",
+          "No puedes reportar la misma publicación más de una vez",
+          "info"
+        );
+        return false;
+      }
+
+      await addDoc(collection(db, "reportes"), {
+        publicacionUid: publicacionId,
+        autorUid: usuarioLocal.uid,
+        tipo: motivo,
+        fechaCreacion: Timestamp.now(),
+        estado: "pendiente",
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error al reportar publicación:", error);
+      throw error;
+    }
+  };
 
   const cargarPublicacion = useCallback(async () => {
     setCargando(true);
@@ -232,14 +310,14 @@ export default function PublicationDetailScreen() {
     if (archivo.esEnlaceExterno) {
       try {
         const canOpen = await Linking.canOpenURL(archivo.webUrl);
-        if (canOpen) {
-          await Linking.openURL(archivo.webUrl);
-        } else {
-          Alert.alert("Error", "No se puede abrir este enlace");
-        }
+          if (canOpen) {
+            await Linking.openURL(archivo.webUrl);
+          } else {
+            showAlert("Error", "No se puede abrir este enlace", "error");
+          }
       } catch (error) {
         console.error("Error al abrir enlace:", error);
-        Alert.alert("Error", "No se pudo abrir el enlace");
+        showAlert("Error", "No se pudo abrir el enlace", "error");
       }
       return;
     }
@@ -261,15 +339,13 @@ export default function PublicationDetailScreen() {
         materiaNombre,
       });
     } else {
-      Alert.alert(
+      showAlert(
         "No visualizable",
         "Este tipo de archivo no se puede previsualizar. ¿Deseas descargarlo?",
+        "confirm",
         [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Descargar",
-            onPress: () => descargarArchivo(archivo),
-          },
+          { text: "Cancelar", onPress: () => {}, mode: "text" },
+          { text: "Descargar", onPress: () => descargarArchivo(archivo), mode: "contained" },
         ]
       );
     }
@@ -281,66 +357,41 @@ export default function PublicationDetailScreen() {
       return;
     }
 
-    Alert.alert("Descargar", `¿Descargar ${archivo.titulo}?`, [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Descargar",
-        onPress: () => {
-          Alert.alert(
-            "Info",
-            "La función de descarga estará disponible próximamente"
-          );
+    showAlert(
+      "Descargar",
+      `¿Descargar ${archivo.titulo}?`,
+      "confirm",
+      [
+        { text: "Cancelar", onPress: () => {}, mode: "text" },
+        {
+          text: "Descargar",
+          onPress: () => {
+            showAlert(
+              "Info",
+              "La función de descarga estará disponible próximamente",
+              "info"
+            );
+          },
+          mode: "contained",
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const mostrarDialogoReporte = () => {
-    Alert.alert(
-      "Reportar Publicación",
-      "¿Por qué deseas reportar esta publicación?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Spam",
-          onPress: () => enviarReporte("Spam"),
-        },
-        {
-          text: "Contenido inapropiado",
-          onPress: () => enviarReporte("Contenido inapropiado"),
-        },
-        {
-          text: "Acoso o bullying",
-          onPress: () => enviarReporte("Acoso o bullying"),
-        },
-        {
-          text: "Información falsa",
-          onPress: () => enviarReporte("Información falsa"),
-        },
-        {
-          text: "Otro",
-          onPress: () => enviarReporte("Otro"),
-        },
-      ],
-      { cancelable: true }
-    );
+    pedirMotivoYContinuar(async (motivo) => {
+      await enviarReporte(motivo);
+    });
   };
 
   const enviarReporte = async (motivo: string) => {
     try {
       const exito = await reportarPublicacion(publicacionId, motivo);
       if (exito) {
-        Alert.alert(
-          "Reporte enviado",
-          "Gracias por tu reporte. Lo revisaremos pronto.",
-          [{ text: "OK" }]
-        );
+        showAlert("Reporte enviado", "Gracias por tu reporte. Lo revisaremos pronto.", "success");
       }
     } catch (error) {
-      Alert.alert(
-        "Error",
-        "No se pudo enviar el reporte. Intenta de nuevo más tarde."
-      );
+      showAlert("Error", "No se pudo enviar el reporte. Intenta de nuevo más tarde.", "error");
     }
   };
 
@@ -687,6 +738,43 @@ export default function PublicationDetailScreen() {
           }
         />
       </KeyboardAvoidingView>
+      <Portal>
+        <React.Suspense fallback={null}>
+          </React.Suspense>
+      </Portal>
+      <ReportReasonModal
+        visible={motivoDialogVisible}
+        initialSelection={savedMotivo}
+        onDismiss={(saved, motivo) => {
+          if (saved) {
+            setSavedMotivo(motivo || "");
+          } else {
+            setSavedMotivo("");
+          }
+          setMotivoDialogVisible(false);
+        }}
+        onConfirm={async (motivo: string) => {
+          if (accionPendiente.current) {
+            try {
+              await accionPendiente.current(motivo);
+            } finally {
+              accionPendiente.current = null;
+              setMotivoDialogVisible(false);
+            }
+          } else {
+            setMotivoDialogVisible(false);
+          }
+        }}
+      />
+
+      <CustomAlert
+        visible={alertVisible}
+        onDismiss={() => setAlertVisible(false)}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        buttons={alertButtons}
+      />
     </SafeAreaView>
   );
 }

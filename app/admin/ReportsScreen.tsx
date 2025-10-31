@@ -8,12 +8,12 @@ import {
   eliminarPublicacionYArchivos,
   escucharReportes,
 } from "@/scripts/services/Reports";
+import { ArchivoPublicacion } from "@/scripts/types/Publication.type";
+import { comentariosService } from "@/services/comments.service";
 import {
   notificarDecisionAdminAutor,
   notificarDecisionAdminDenunciantes
 } from "@/services/notifications";
-import { ArchivoPublicacion } from "@/scripts/types/Publication.type";
-import { comentariosService } from "@/services/comments.service";
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -25,7 +25,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 import {
   ActivityIndicator,
   Appbar,
@@ -37,13 +36,13 @@ import {
   List,
   Modal,
   Portal,
-  Text,
-  TextInput,
+  Text
 } from "react-native-paper";
 import CustomAlert, {
   CustomAlertButton,
   CustomAlertType,
 } from "../../components/ui/CustomAlert";
+import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import { FilterType, Report } from "../../scripts/types/Reports.type";
 import { getStyles } from "./ReportsScreen.styles";
 
@@ -100,6 +99,7 @@ export default function ReportsScreen() {
   const [modalMotivoVisible, setModalMotivoVisible] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>("");
   const [motivoPersonalizado, setMotivoPersonalizado] = useState<string>("");
+  const [savedMotivo, setSavedMotivo] = useState<string>("");
   const accionPendiente = useRef<null | ((motivo: string) => Promise<void>)>(
     null
   );
@@ -706,163 +706,29 @@ export default function ReportsScreen() {
           onDismiss={cerrarModal}
           contentContainerStyle={[styles.modalContent, { maxHeight: "85%" }]}
         >
-          <Portal>
-            <Modal
-              visible={modalMotivoVisible}
-              onDismiss={() => setModalMotivoVisible(false)}
-              contentContainerStyle={[
-                styles.modalContent,
-                {
-                  width: modalWidth,
-                  maxWidth: 400,
-                  minWidth: 260,
-                  alignSelf: "center",
-                },
-              ]}
-            >
-              {motivoSeleccionado === "Otra razón..." ? (
-                <>
-                  <View style={{ minHeight: 40, justifyContent: "center" }}>
-                    <View
-                      style={{
-                        position: "absolute",
-                        left: -10,
-                        top: -10,
-                        zIndex: 10,
-                      }}
-                    >
-                      <IconButton
-                        icon="arrow-left"
-                        size={22}
-                        onPress={() => setMotivoSeleccionado("")}
-                        style={{
-                          margin: 0,
-                          padding: 0,
-                          backgroundColor: "transparent",
-                        }}
-                        iconColor={theme.colors.primary}
-                        animated
-                      />
-                    </View>
-                    <Text
-                      variant="titleMedium"
-                      style={{ flex: 1, textAlign: "center" }}
-                    >
-                      Razón Personalizada
-                    </Text>
-                  </View>
-                  <TextInput
-                    mode="outlined"
-                    label="Escribe el motivo"
-                    value={motivoPersonalizado}
-                    onChangeText={setMotivoPersonalizado}
-                    style={{
-                      marginBottom: 8,
-                      marginTop: 16,
-                      minHeight: 40,
-                      maxHeight: 60,
-                      width: "100%",
-                      alignSelf: "center",
-                    }}
-                    maxLength={200}
-                    numberOfLines={1}
-                    textAlignVertical="center"
-                  />
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "center",
-                      marginTop: 12,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <Button
-                      icon="close"
-                      mode="text"
-                      onPress={() => setModalMotivoVisible(false)}
-                      style={{ marginRight: 8 }}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      mode="contained"
-                      onPress={confirmarMotivoYAccion}
-                      disabled={motivoPersonalizado.trim().length === 0}
-                    >
-                      Confirmar
-                    </Button>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text
-                    variant="titleMedium"
-                    style={{ marginBottom: 16, textAlign: "center" }}
-                  >
-                    Selecciona el motivo de la decisión
-                  </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      flexWrap: "wrap",
-                      gap: 8,
-                      marginBottom: 8,
-                      justifyContent: "center",
-                    }}
-                  >
-                    {(MOTIVOS_POR_ACCION[tipoAccionMotivo] || []).map(
-                      (motivo) => (
-                        <Chip
-                          key={motivo}
-                          selected={motivoSeleccionado === motivo}
-                          onPress={() => setMotivoSeleccionado(motivo)}
-                          style={{
-                            marginBottom: 8,
-                            marginRight: 8,
-                            backgroundColor:
-                              motivoSeleccionado === motivo
-                                ? theme.colors.primary
-                                : undefined,
-                          }}
-                          textStyle={{
-                            color:
-                              motivoSeleccionado === motivo
-                                ? "#fff"
-                                : theme.colors.onSurface,
-                          }}
-                        >
-                          {motivo}
-                        </Chip>
-                      )
-                    )}
-                  </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "center",
-                      marginTop: 12,
-                    }}
-                  >
-                    <Button
-                      icon="close"
-                      mode="text"
-                      onPress={() => setModalMotivoVisible(false)}
-                      style={{ marginRight: 8 }}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      mode="contained"
-                      onPress={confirmarMotivoYAccion}
-                      disabled={!motivoSeleccionado}
-                    >
-                      Confirmar
-                    </Button>
-                  </View>
-                </>
-              )}
-            </Modal>
-          </Portal>
+          <ReportReasonModal
+            visible={modalMotivoVisible}
+            initialSelection={savedMotivo}
+            motives={MOTIVOS_POR_ACCION[tipoAccionMotivo]}
+            title="Motivo de la decisión"
+            confirmLabel="Confirmar"
+            cancelLabel="Cancelar"
+            onDismiss={(saved, motivo) => {
+              if (saved) {
+                setSavedMotivo(motivo || "");
+              } else {
+                setSavedMotivo("");
+              }
+              setModalMotivoVisible(false);
+            }}
+            onConfirm={async (motivo) => {
+              setModalMotivoVisible(false);
+              if (accionPendiente.current) {
+                await accionPendiente.current(motivo);
+                accionPendiente.current = null;
+              }
+            }}
+          />
 
           {reporteSeleccionado && (
             <FlatList

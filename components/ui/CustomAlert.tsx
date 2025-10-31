@@ -4,9 +4,10 @@ import { Button, IconButton, Modal, Portal, Text, useTheme } from "react-native-
 
 export type CustomAlertButton = {
   text: string;
-  onPress: () => void;
+  onPress: () => void | Promise<void>;
   mode?: "text" | "outlined" | "contained";
   color?: string;
+  preventDismiss?: boolean;
 };
 
 export type CustomAlertType = "info" | "success" | "error" | "warning" | "confirm";
@@ -45,9 +46,6 @@ export default function CustomAlert({
 }: CustomAlertProps) {
 
   const theme = useTheme();
-  // Usar solo colores del theme, sin rojo ni error
-  // Usar SIEMPRE el lila de la app (secondary si es lila, si no tertiary)
-  // Lila fuerte para claro, lila claro para oscuro
   const lilacStrong = theme.dark ? (theme.colors.secondaryContainer || '#b39ddb') : (theme.colors.secondary || '#7c43bd');
   const lilacLight = theme.dark ? (theme.colors.secondary || '#d1b3ff') : (theme.colors.secondaryContainer || '#ede7f6');
   const buttonLilac = theme.dark ? lilacLight : lilacStrong;
@@ -99,25 +97,28 @@ export default function CustomAlert({
         </View>
         <Text variant="bodyMedium" style={[styles.message, { color: theme.colors.onSurfaceVariant || theme.colors.onSurface }]}> {message} </Text>
         <View style={styles.buttonRow}>
-          {buttons.map((btn, idx) => {
-            // Si es alerta de éxito y el botón no tiene modo, usar 'text' (sin fondo)
-            const mode = type === 'success' && !btn.mode ? 'text' : (btn.mode || 'contained');
-            return (
-              <Button
-                key={idx}
-                mode={mode}
-                onPress={() => {
-                  btn.onPress();
-                  onDismiss();
-                }}
-                style={styles.button}
-                buttonColor={mode === 'contained' ? (btn.color || buttonLilac) : undefined}
-                textColor={mode === 'contained' ? buttonText : (btn.color || buttonLilac)}
-              >
-                {btn.text}
-              </Button>
-            );
-          })}
+            {buttons.map((btn, idx) => {
+              const mode = type === 'success' && !btn.mode ? 'text' : (btn.mode || 'contained');
+              return (
+                <Button
+                  key={idx}
+                  mode={mode}
+                  onPress={async () => {
+                    try {
+                      await btn.onPress();
+                    } catch (err) {
+                      console.error('Error en CustomAlert button onPress:', err);
+                    }
+                    if (!btn.preventDismiss) onDismiss();
+                  }}
+                  style={styles.button}
+                  buttonColor={mode === 'contained' ? (btn.color || buttonLilac) : undefined}
+                  textColor={mode === 'contained' ? buttonText : (btn.color || buttonLilac)}
+                >
+                  {btn.text}
+                </Button>
+              );
+            })}
         </View>
       </Modal>
     </Portal>
@@ -152,7 +153,7 @@ const styles = StyleSheet.create({
   },
   message: {
     marginBottom: 18,
-    textAlign: "left",
+    textAlign: "center",
     fontSize: 15,
     letterSpacing: 0.05,
     color: undefined,

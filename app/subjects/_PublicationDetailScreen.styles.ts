@@ -215,6 +215,15 @@ export const getStyles = (theme: MD3Theme) =>
       fontWeight: "bold",
       color: theme.colors.onSurface,
     },
+    modalContent: {
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: "5%",
+      paddingVertical: 20,
+      marginHorizontal: "5%",
+      marginVertical: 20,
+      borderRadius: 12,
+      maxHeight: "90%",
+    },
   });
 
 export default getStyles;
