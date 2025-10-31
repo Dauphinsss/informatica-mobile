@@ -1,3 +1,5 @@
+// app/subjects/SubjectDetailScreen.tsx
+import { PublicationFilters, SortBy, SortOrder } from "@/app/components/filters/PublicationFilters";
 import { useTheme } from "@/contexts/ThemeContext";
 import { escucharPublicacionesPorMateria } from "@/scripts/services/Publications";
 import {
@@ -26,6 +28,7 @@ import { getStyles } from "./_SubjectDetailScreen.styles";
 export default function SubjectDetailScreen() {
   const { theme } = useTheme();
   const styles = getStyles(theme);
+  
   type RootStackParamList = {
     CreatePublication: { materiaId: string; materiaNombre: string };
     PublicationDetail: { publicacionId: string; materiaNombre: string };
@@ -35,6 +38,7 @@ export default function SubjectDetailScreen() {
       materiaNombre: string;
     };
   };
+  
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute();
 
@@ -46,9 +50,17 @@ export default function SubjectDetailScreen() {
 
   const subjectName = params?.nombre || "Materia";
   const materiaId = params?.id || "";
+  const materiaSemestre = params?.semestre || 0;
 
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [sortBy, setSortBy] = useState<SortBy>('fecha');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  const handleFilterChange = useCallback((newSortBy: SortBy, newSortOrder: SortOrder) => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -64,6 +76,53 @@ export default function SubjectDetailScreen() {
       return () => unsubscribe();
     }, [materiaId])
   );
+
+  // 🔧 FUNCIÓN PARA APLICAR FILTROS
+  const aplicarFiltros = (publicaciones: Publicacion[]): Publicacion[] => {
+    let filtered = [...publicaciones];
+
+    switch (sortBy) {
+      case 'fecha':
+        filtered = filtered.sort((a, b) => sortOrder === 'desc'
+          ? b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime()
+          : a.fechaPublicacion.getTime() - b.fechaPublicacion.getTime()
+        );
+        break;
+      
+      case 'vistas':
+        filtered = filtered.sort((a, b) => sortOrder === 'desc'
+          ? (b.vistas || 0) - (a.vistas || 0)
+          : (a.vistas || 0) - (b.vistas || 0)
+        );
+        break;
+      
+      case 'likes':
+        filtered = filtered.sort((a, b) => sortOrder === 'desc'
+          ? (b.totalCalificaciones || 0) - (a.totalCalificaciones || 0)
+          : (a.totalCalificaciones || 0) - (b.totalCalificaciones || 0)
+        );
+        break;
+      
+      case 'comentarios':
+        filtered = filtered.sort((a, b) => sortOrder === 'desc'
+          ? (b.totalComentarios || 0) - (a.totalComentarios || 0)
+          : (a.totalComentarios || 0) - (b.totalComentarios || 0)
+        );
+        break;
+      case 'semestre':
+      filtered = filtered.sort((a, b) => sortOrder === 'desc'
+        ? b.fechaPublicacion.getTime() - a.fechaPublicacion.getTime()
+        : a.fechaPublicacion.getTime() - b.fechaPublicacion.getTime()
+      );
+      break;
+      default:
+        break;
+    }
+
+    return filtered;
+  };
+
+  const publicacionesFiltradas = aplicarFiltros(publicaciones);
 
   const formatearFecha = (fecha: Date): string => {
     const ahora = new Date();
@@ -102,6 +161,19 @@ export default function SubjectDetailScreen() {
         <Appbar.Content title={subjectName} />
       </Appbar.Header>
 
+      {/* 🔧 SECCIÓN DE FILTROS */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchbarWrapper} />
+        <PublicationFilters
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onFilterChange={handleFilterChange}
+          theme={theme}
+          styles={styles}
+          showSemestreFilter={false}
+        />
+      </View>
+
       <ScrollView style={styles.content}>
         {cargando ? (
           <View style={styles.emptyContainer}>
@@ -110,7 +182,7 @@ export default function SubjectDetailScreen() {
               Cargando publicaciones...
             </Text>
           </View>
-        ) : publicaciones.length === 0 ? (
+        ) : publicacionesFiltradas.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text variant="headlineSmall" style={styles.emptyText}>
               No hay publicaciones aún
@@ -120,7 +192,7 @@ export default function SubjectDetailScreen() {
             </Text>
           </View>
         ) : (
-          publicaciones.map((publicacion) => (
+          publicacionesFiltradas.map((publicacion) => (
             <Card
               key={publicacion.id}
               style={styles.card}

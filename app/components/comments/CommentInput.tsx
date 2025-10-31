@@ -14,6 +14,7 @@ interface CommentInputProps {
   onCancel?: () => void;
   autoFocus?: boolean;
   onCommentAdded?: () => void;
+  showCancelButton?: boolean;
 }
 
 export const CommentInput: React.FC<CommentInputProps> = ({
@@ -22,7 +23,8 @@ export const CommentInput: React.FC<CommentInputProps> = ({
   onSubmit,
   onCancel,
   autoFocus = false,
-  onCommentAdded
+  onCommentAdded,
+  showCancelButton = false
 }) => {
   const { theme } = useTheme();
   const auth = getAuth();
@@ -118,7 +120,7 @@ export const CommentInput: React.FC<CommentInputProps> = ({
           />
           
           <View style={styles.actions}>
-            {onCancel && (
+            {(showCancelButton || onCancel) && (
               <IconButton
                 icon="close"
                 size={20}

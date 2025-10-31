@@ -523,6 +523,7 @@ export default function PublicationDetailScreen() {
         <CommentList
           publicacionId={publicacion.id}
           reloadTrigger={commentsUpdated}
+          autorPublicacionUid={publicacion.autorUid}
           headerComponent={
             <>
               {/* Contenido de la publicación */}
@@ -678,6 +679,8 @@ export default function PublicationDetailScreen() {
                   publicacionId={publicacion.id}
                   onCommentAdded={handleCommentAdded}
                   autoFocus={true}
+                  onCancel={() => setShowComments(false)}
+                  showCancelButton={true}
                 />
               </View>
             ) : undefined

@@ -17,6 +17,10 @@ interface CommentListProps {
   footerComponent?: React.ReactElement;
   reloadTrigger?: number | string;
   onCommentsLoaded?: (count: number) => void;
+  hideHeader?: boolean;
+  autorPublicacionUid?: string;
+  containerStyle?: any;
+  scrollEnabled?: boolean;
 }
 
 export const CommentList: React.FC<CommentListProps> = ({
@@ -25,6 +29,10 @@ export const CommentList: React.FC<CommentListProps> = ({
   footerComponent,
   reloadTrigger,
   onCommentsLoaded,
+  hideHeader,
+  autorPublicacionUid,
+  containerStyle, 
+  scrollEnabled = true, 
 }) => {
   const { theme } = useTheme();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -72,6 +80,9 @@ export const CommentList: React.FC<CommentListProps> = ({
     },
     footerContainer: {
       paddingBottom: 16,
+    },
+    commentItemContainer: {
+      paddingHorizontal: 16, // Margen a los costados
     },
   });
 
@@ -177,7 +188,7 @@ export const CommentList: React.FC<CommentListProps> = ({
   const ListHeader = () => (
     <View style={styles.headerContainer}>
       {headerComponent}
-      {!loading && !error && comments.length > 0 && (
+      {!hideHeader && !loading && !error && comments.length > 0 && (
         <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
           <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
             Comentarios ({comments.length})
@@ -216,6 +227,21 @@ export const CommentList: React.FC<CommentListProps> = ({
         >
           ¡Comparte tu opinión!
         </Text>
+      </View>
+    );
+  };
+  const renderCommentItem = ({ item }: { item: Comment }) => {
+    const CommentItemAny = CommentItem as unknown as React.ComponentType<any>;
+    return (
+      <View style={styles.commentItemContainer}>
+        <CommentItemAny
+          comment={item}
+          publicacionId={publicacionId}
+          onCommentAdded={handleCommentAdded}
+          scrollToInput={() => scrollToInput(item.id)}
+          registerInputRef={registerInputRef}
+          autorPublicacionUid={autorPublicacionUid}
+        />
       </View>
     );
   };
@@ -261,19 +287,7 @@ export const CommentList: React.FC<CommentListProps> = ({
         key={`flatlist-${!!footerComponent}`}
         data={comments}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          const CommentItemAny =
-            CommentItem as unknown as React.ComponentType<any>;
-          return (
-            <CommentItemAny
-              comment={item}
-              publicacionId={publicacionId}
-              onCommentAdded={handleCommentAdded}
-              scrollToInput={() => scrollToInput(item.id)}
-              registerInputRef={registerInputRef}
-            />
-          );
-        }}
+        renderItem={renderCommentItem}
         ListHeaderComponent={ListHeader}
         ListFooterComponent={ListFooter}
         ItemSeparatorComponent={() => <Divider />}
@@ -282,9 +296,9 @@ export const CommentList: React.FC<CommentListProps> = ({
         ListEmptyComponent={EmptyComponent}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingBottom: footerComponent ? 200 : 200,
+          paddingBottom: footerComponent ? 200 : 16,
         }}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         removeClippedSubviews={false}
@@ -292,6 +306,7 @@ export const CommentList: React.FC<CommentListProps> = ({
         updateCellsBatchingPeriod={50}
         windowSize={10}
         initialNumToRender={10}
+        scrollEnabled={scrollEnabled}
         maintainVisibleContentPosition={{
           minIndexForVisible: 0,
         }}

@@ -15,6 +15,7 @@ interface CommentItemProps {
   nivel?: number;
   scrollToInput?: () => void;
   registerInputRef?: (commentId: string, ref: View | null) => void;
+  autorPublicacionUid?: string; // Nueva prop para el UID del autor de la publicación
 }
 
 export const CommentItem: React.FC<CommentItemProps> = ({
@@ -24,6 +25,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   nivel = 0,
   scrollToInput,
   registerInputRef,
+  autorPublicacionUid, // Recibir el UID del autor de la publicación
 }) => {
   const { theme } = useTheme();
   const auth = getAuth();
@@ -31,6 +33,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   const [showReplies, setShowReplies] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const replyInputRef = useRef<View>(null);
+  
   React.useEffect(() => {
     if (registerInputRef) {
       if (showReplyInput) {
@@ -43,6 +46,32 @@ export const CommentItem: React.FC<CommentItemProps> = ({
       if (registerInputRef) registerInputRef(comment.id, null);
     };
   }, [showReplyInput]);
+
+  const truncarNombre = (nombreCompleto: string): string => {
+    if (!nombreCompleto) return "Usuario";
+    
+    if (nombreCompleto.length <= 20) return nombreCompleto;
+    
+    const partes = nombreCompleto.trim().split(/\s+/);
+    
+    if (partes.length === 1) {
+      return nombreCompleto.length > 20 
+        ? nombreCompleto.substring(0, 17) + '...' 
+        : nombreCompleto;
+    }
+    
+    const nombre = partes[0];
+    const primerApellido = partes[1];
+    
+    const nombreCorto = `${nombre} ${primerApellido}`;
+    if (nombreCorto.length <= 20) return nombreCorto;
+    
+    if (nombre.length <= 20) return nombre;
+    
+    return nombre.length > 20 
+      ? nombre.substring(0, 17) + '...' 
+      : nombre;
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -57,10 +86,33 @@ export const CommentItem: React.FC<CommentItemProps> = ({
       flex: 1,
       marginLeft: 8,
     },
-    header: {
+    headerCompact: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 4,
+    },
+    autorYFecha: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 4,
+      flex: 1,
+      flexWrap: "wrap",
+      marginRight: 8,
+    },
+    autorNombre: {
+      fontWeight: "bold",
+      color: theme.colors.onSurface,
+      maxWidth: "70%",
+    },
+    fecha: {
+      color: theme.colors.onSurfaceVariant,
+      marginLeft: 8,
+      fontSize: 12,
+      flexShrink: 0,
+    },
+    menuContainer: {
+      marginLeft: "auto",
+      flexShrink: 0,
     },
     actions: {
       flexDirection: "row",
@@ -87,6 +139,8 @@ export const CommentItem: React.FC<CommentItemProps> = ({
     },
     menuButton: {
       margin: 0,
+      width: 24,
+      height: 24,
     },
   });
 
@@ -132,7 +186,11 @@ export const CommentItem: React.FC<CommentItemProps> = ({
     }
   };
 
-  const puedeEliminar = auth.currentUser?.uid === comment.autorUid;
+  // Lógica mejorada: puede eliminar si es el autor del comentario O si es el autor de la publicación
+  const puedeEliminar = auth.currentUser && (
+    auth.currentUser.uid === comment.autorUid || 
+    auth.currentUser.uid === autorPublicacionUid
+  );
 
   const formatearFecha = (fecha: Date) => {
     const ahora = new Date();
@@ -147,6 +205,8 @@ export const CommentItem: React.FC<CommentItemProps> = ({
     if (diffDias < 7) return `hace ${diffDias}d`;
     return fecha.toLocaleDateString("es-BO");
   };
+
+  const nombreMostrado = truncarNombre(comment.autorNombre || "Usuario");
 
   return (
     <View style={styles.container}>
@@ -166,35 +226,42 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         )}
 
         <View style={styles.contentContainer}>
-          <View style={styles.header}>
-            <Text
-              variant="bodyMedium"
-              style={{ fontWeight: "bold", color: theme.colors.onSurface }}
-            >
-              {comment.autorNombre}
-            </Text>
-            <Text
-              variant="bodySmall"
-              style={{ color: theme.colors.onSurfaceVariant, marginLeft: 8 }}
-            >
-              {formatearFecha(comment.fechaCreacion)}
-            </Text>
-
-            {puedeEliminar && (
-              <Menu
-                visible={menuVisible}
-                onDismiss={() => setMenuVisible(false)}
-                anchor={
-                  <IconButton
-                    icon="dots-horizontal"
-                    size={16}
-                    onPress={() => setMenuVisible(true)}
-                    style={styles.menuButton}
-                  />
-                }
+          <View style={styles.headerCompact}>
+            <View style={styles.autorYFecha}>
+              <Text
+                variant="bodyMedium"
+                style={styles.autorNombre}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
-                <Menu.Item onPress={handleDelete} title="Eliminar" />
-              </Menu>
+                {nombreMostrado}
+              </Text>
+              <Text
+                variant="bodySmall"
+                style={styles.fecha}
+                numberOfLines={1}
+              >
+                {formatearFecha(comment.fechaCreacion)}
+              </Text>
+            </View>
+            
+            {puedeEliminar && (
+              <View style={styles.menuContainer}>
+                <Menu
+                  visible={menuVisible}
+                  onDismiss={() => setMenuVisible(false)}
+                  anchor={
+                    <IconButton
+                      icon="dots-horizontal"
+                      size={16}
+                      onPress={() => setMenuVisible(true)}
+                      style={styles.menuButton}
+                    />
+                  }
+                >
+                  <Menu.Item onPress={handleDelete} title="Eliminar" />
+                </Menu>
+              </View>
             )}
           </View>
 
@@ -231,13 +298,13 @@ export const CommentItem: React.FC<CommentItemProps> = ({
                 onSubmit={handleReplySubmit}
                 onCancel={() => setShowReplyInput(false)}
                 autoFocus
+                showCancelButton={true}
               />
             </View>
           )}
         </View>
       </View>
 
-      {/* Respuestas */}
       {comment.respuestas && comment.respuestas.length > 0 && (
         <View style={styles.repliesContainer}>
           {!showReplies && (
@@ -260,6 +327,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
                 onCommentAdded={onCommentAdded}
                 nivel={nivel + 1}
                 scrollToInput={scrollToInput}
+                autorPublicacionUid={autorPublicacionUid} // Pasar la prop a las respuestas
               />
             ))}
 
