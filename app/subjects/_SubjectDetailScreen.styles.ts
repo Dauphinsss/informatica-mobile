@@ -49,6 +49,7 @@ export const getStyles = (theme: MD3Theme) =>
       flexDirection: "row",
       gap: 8,
       flexWrap: "wrap",
+      justifyContent:"space-between"
     },
     statChip: {
       backgroundColor: "transparent",

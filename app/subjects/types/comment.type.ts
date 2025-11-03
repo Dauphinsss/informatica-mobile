@@ -9,8 +9,8 @@ export interface Comment {
   estado: "activo" | "eliminado";
   likes: number;
   respuestas?: Comment[];
-  comentarioPadreId?: string; // Para comentarios anidados
-  nivel: number; // 0: comentario principal, 1: respuesta, etc.
+  comentarioPadreId?: string | null; 
+  nivel: number; 
 }
 
 export interface Like {

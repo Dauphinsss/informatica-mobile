@@ -1,3 +1,4 @@
+import CommentsModalReadOnly from "@/app/components/comments/CommentsModalReadOnly";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth } from "@/firebase";
 import { obtenerArchivosConTipo } from "@/scripts/services/Publications";
@@ -12,7 +13,7 @@ import { ArchivoPublicacion } from "@/scripts/types/Publication.type";
 import { comentariosService } from "@/services/comments.service";
 import {
   notificarDecisionAdminAutor,
-  notificarDecisionAdminDenunciantes
+  notificarDecisionAdminDenunciantes,
 } from "@/services/notifications";
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -36,7 +37,7 @@ import {
   List,
   Modal,
   Portal,
-  Text
+  Text,
 } from "react-native-paper";
 import CustomAlert, {
   CustomAlertButton,
@@ -129,6 +130,7 @@ export default function ReportsScreen() {
   const [numeroComentarios, setNumeroComentarios] = useState(0);
   const [comentarios, setComentarios] = useState<any[]>([]);
   const [cargandoComentarios, setCargandoComentarios] = useState(false);
+  const [commentsModalVisible, setCommentsModalVisible] = useState(false);
   const MOTIVOS_POR_ACCION = {
     quitar: [
       "No infringe las normas",
@@ -481,14 +483,14 @@ export default function ReportsScreen() {
           publicacionTitulo: reporteSeleccionado.titulo,
           motivo,
           decision: "Reporte descartado",
-          tipoAccion: 'quitar',
+          tipoAccion: "quitar",
         });
         await notificarDecisionAdminDenunciantes({
           reportadores: reporteSeleccionado.reportadores,
           publicacionTitulo: reporteSeleccionado.titulo,
           motivo,
           decision: "Reporte descartado",
-          tipoAccion: 'quitar',
+          tipoAccion: "quitar",
         });
         cerrarModal();
         setAlertTitle("Éxito");
@@ -545,14 +547,14 @@ export default function ReportsScreen() {
           publicacionTitulo: reporteSeleccionado.titulo,
           motivo,
           decision: "Publicación eliminada + strike",
-          tipoAccion: 'strike',
+          tipoAccion: "strike",
         });
         await notificarDecisionAdminDenunciantes({
           reportadores: reporteSeleccionado.reportadores,
           publicacionTitulo: reporteSeleccionado.titulo,
           motivo,
           decision: "Publicación eliminada + strike",
-          tipoAccion: 'strike',
+          tipoAccion: "strike",
         });
         cerrarModal();
         setAlertTitle("Éxito");
@@ -608,14 +610,14 @@ export default function ReportsScreen() {
           publicacionTitulo: reporteSeleccionado.titulo,
           motivo,
           decision: "Usuario baneado",
-          tipoAccion: 'ban',
+          tipoAccion: "ban",
         });
         await notificarDecisionAdminDenunciantes({
           reportadores: reporteSeleccionado.reportadores,
           publicacionTitulo: reporteSeleccionado.titulo,
           motivo,
           decision: "Usuario baneado",
-          tipoAccion: 'ban',
+          tipoAccion: "ban",
         });
         cerrarModal();
         setAlertTitle("Éxito");
@@ -818,7 +820,6 @@ export default function ReportsScreen() {
                       )}
                     </Card.Content>
                   </Card>
-                  {/* NUEVA SECCIÓN: Comentarios de la Publicación */}
                   <Card style={styles.modalCard}>
                     <Card.Content>
                       <View style={styles.comentariosHeader}>
@@ -832,97 +833,31 @@ export default function ReportsScreen() {
                               : "chevron-down"
                           }
                           size={20}
-                          onPress={() => {
-                            setComentariosDesplegados(!comentariosDesplegados);
-                            if (
-                              !comentariosDesplegados &&
-                              comentarios.length === 0
-                            ) {
-                              cargarComentarios();
-                            }
-                          }}
+                          onPress={() => setCommentsModalVisible(true)}
                         />
                       </View>
                       <Divider style={styles.divider} />
 
-                      {!comentariosDesplegados ? (
-                        <View style={styles.comentariosCollapsed}>
-                          <Text
-                            variant="bodyMedium"
-                            style={styles.comentariosCount}
-                          >
-                            {numeroComentarios === 0
-                              ? "No hay comentarios"
-                              : `${numeroComentarios} comentario${
-                                  numeroComentarios !== 1 ? "s" : ""
-                                }`}
-                          </Text>
-                          <Text
-                            variant="bodySmall"
-                            style={styles.comentariosHint}
-                          >
-                            Toca para expandir y ver los comentarios
-                          </Text>
-                        </View>
-                      ) : (
-                        <>
-                          {cargandoComentarios ? (
-                            <View style={styles.comentariosLoading}>
-                              <ActivityIndicator size="small" />
-                              <Text
-                                variant="bodySmall"
-                                style={styles.comentariosLoadingText}
-                              >
-                                Cargando comentarios...
-                              </Text>
-                            </View>
-                          ) : comentarios.length === 0 ? (
-                            <View style={styles.comentariosEmpty}>
-                              <Text
-                                variant="bodyMedium"
-                                style={styles.comentariosEmptyText}
-                              >
-                                No hay comentarios en esta publicación
-                              </Text>
-                            </View>
-                          ) : (
-                            <View style={styles.comentariosExpanded}>
-                              {comentarios.map((item) => (
-                                <View
-                                  key={item.id}
-                                  style={styles.comentarioItem}
-                                >
-                                  <View style={styles.comentarioHeader}>
-                                    <Text
-                                      variant="bodyMedium"
-                                      style={styles.comentarioAutor}
-                                    >
-                                      {truncarNombreComentario(
-                                        item.autorNombre || "Usuario"
-                                      )}
-                                    </Text>
-                                    <Text
-                                      variant="bodySmall"
-                                      style={styles.comentarioFecha}
-                                    >
-                                      {formatearFechaComentario(
-                                        item.fechaCreacion
-                                      )}
-                                    </Text>
-                                  </View>
-                                  <Text
-                                    variant="bodyMedium"
-                                    style={styles.comentarioContenido}
-                                  >
-                                    {item.contenido}
-                                  </Text>
-                                  <Divider style={styles.comentarioDivider} />
-                                </View>
-                              ))}
-                            </View>
-                          )}
-                        </>
-                      )}
+                      <View style={styles.comentariosCollapsed}>
+                        <Text
+                          variant="bodyMedium"
+                          style={styles.comentariosCount}
+                        >
+                          {numeroComentarios === 0
+                            ? "No hay comentarios"
+                            : `${numeroComentarios} comentario${
+                                numeroComentarios !== 1 ? "s" : ""
+                              }`}
+                        </Text>
+                        <Text
+                          variant="bodySmall"
+                          style={styles.comentariosHint}
+                        >
+                          {numeroComentarios > 0
+                            ? "Presiona el botón para ver todos los comentarios"
+                            : "Esta publicación no tiene comentarios"}
+                        </Text>
+                      </View>
                     </Card.Content>
                   </Card>
 
@@ -1113,6 +1048,12 @@ export default function ReportsScreen() {
             />
           )}
         </Modal>
+        <CommentsModalReadOnly
+          visible={commentsModalVisible}
+          onDismiss={() => setCommentsModalVisible(false)}
+          publicacionId={reporteSeleccionado?.publicacionId || ""}
+          autorPublicacionUid={reporteSeleccionado?.autorUid}
+        />
         <CustomAlert
           visible={alertVisible}
           onDismiss={() => setAlertVisible(false)}

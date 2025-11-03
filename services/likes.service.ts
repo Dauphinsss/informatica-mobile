@@ -1,5 +1,4 @@
 import { db } from '@/firebase';
-import { getAuth } from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -14,36 +13,52 @@ import {
 } from 'firebase/firestore';
 
 export const likesService = {
-  // Dar like a publicación o comentario
   async darLike(autorUid: string, publicacionId?: string, comentarioId?: string): Promise<boolean> {
     try {
+      let field, value;
+      
+      if (publicacionId) {
+        field = 'publicacionId';
+        value = publicacionId;
+      } else if (comentarioId) {
+        field = 'comentarioId';
+        value = comentarioId;
+      } else {
+        throw new Error('Se debe proporcionar publicacionId o comentarioId');
+      }
+
       // Verificar si ya existe el like
       const q = query(
         collection(db, 'likes'),
         where('autorUid', '==', autorUid),
-        where(publicacionId ? 'publicacionId' : 'comentarioId', '==', publicacionId || comentarioId)
+        where(field, '==', value)
       );
       
       const existingLikes = await getDocs(q);
       
       if (!existingLikes.empty) {
-        // Ya existe el like, eliminarlo (toggle)
         await this.quitarLike(autorUid, publicacionId, comentarioId);
-        return false; // Like removido
+        return false;
       }
       
       // Crear nuevo like
-      await addDoc(collection(db, 'likes'), {
+      const likeData: any = {
         autorUid,
-        publicacionId: publicacionId || null,
-        comentarioId: comentarioId || null,
         fechaCreacion: Timestamp.now()
-      });
+      };
+      
+      if (publicacionId) {
+        likeData.publicacionId = publicacionId;
+      } else {
+        likeData.comentarioId = comentarioId;
+      }
+
+      await addDoc(collection(db, 'likes'), likeData);
       
       // Actualizar contador
       if (publicacionId) {
         await updateDoc(doc(db, 'publicaciones', publicacionId), {
-          totalCalificaciones: increment(1) // Usando totalCalificaciones en lugar de totalValoraciones
+          totalCalificaciones: increment(1)
         });
       } else if (comentarioId) {
         await updateDoc(doc(db, 'comentarios', comentarioId), {
@@ -51,37 +66,49 @@ export const likesService = {
         });
       }
       
-      return true; // Like agregado
+      return true;
     } catch (error) {
       console.error('Error dando like:', error);
       throw error;
     }
   },
 
-  // Quitar like
   async quitarLike(autorUid: string, publicacionId?: string, comentarioId?: string): Promise<void> {
     try {
+      let field, value;
+      
+      if (publicacionId) {
+        field = 'publicacionId';
+        value = publicacionId;
+      } else if (comentarioId) {
+        field = 'comentarioId';
+        value = comentarioId;
+      } else {
+        throw new Error('Se debe proporcionar publicacionId o comentarioId');
+      }
+
       const q = query(
         collection(db, 'likes'),
         where('autorUid', '==', autorUid),
-        where(publicacionId ? 'publicacionId' : 'comentarioId', '==', publicacionId || comentarioId)
+        where(field, '==', value)
       );
       
       const querySnapshot = await getDocs(q);
       
-      if (!querySnapshot.empty) {
-        await deleteDoc(doc(db, 'likes', querySnapshot.docs[0].id));
-        
-        // Actualizar contador
-        if (publicacionId) {
-          await updateDoc(doc(db, 'publicaciones', publicacionId), {
-            totalCalificaciones: increment(-1) // Usando totalCalificaciones
-          });
-        } else if (comentarioId) {
-          await updateDoc(doc(db, 'comentarios', comentarioId), {
-            likes: increment(-1)
-          });
-        }
+      const deletePromises = querySnapshot.docs.map(docSnapshot => 
+        deleteDoc(doc(db, 'likes', docSnapshot.id))
+      );
+      
+      await Promise.all(deletePromises);
+      
+      if (publicacionId) {
+        await updateDoc(doc(db, 'publicaciones', publicacionId), {
+          totalCalificaciones: increment(-1)
+        });
+      } else if (comentarioId) {
+        await updateDoc(doc(db, 'comentarios', comentarioId), {
+          likes: increment(-1)
+        });
       }
     } catch (error) {
       console.error('Error quitando like:', error);
@@ -89,48 +116,51 @@ export const likesService = {
     }
   },
 
-  // Verificar si el usuario actual dio like
   async verificarLikeUsuario(autorUid: string, publicacionId?: string, comentarioId?: string): Promise<boolean> {
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      let field, value;
       
-      if (!user) {
-        console.error('Usuario no autenticado');
-        return false;
-      }
-
-      
-      const field = publicacionId ? 'publicacionId' : 'comentarioId';
-      const value = publicacionId || comentarioId;
-
-      if (!value) {
-        console.error('No se proporcionó ID');
+      if (publicacionId) {
+        field = 'publicacionId';
+        value = publicacionId;
+      } else if (comentarioId) {
+        field = 'comentarioId';
+        value = comentarioId;
+      } else {
         return false;
       }
 
       const q = query(
         collection(db, 'likes'),
-        where('autorUid', '==', user.uid),
+        where('autorUid', '==', autorUid),
         where(field, '==', value)
       );
       
       const querySnapshot = await getDocs(q);
-      const exists = !querySnapshot.empty;
-      
-      return exists;
+      return !querySnapshot.empty;
     } catch (error) {
       console.error('Error verificando like:', error);
       return false;
     }
   },
 
-  // Obtener cantidad de likes
   async obtenerCantidadLikes(publicacionId?: string, comentarioId?: string): Promise<number> {
     try {
+      let field, value;
+      
+      if (publicacionId) {
+        field = 'publicacionId';
+        value = publicacionId;
+      } else if (comentarioId) {
+        field = 'comentarioId';
+        value = comentarioId;
+      } else {
+        return 0;
+      }
+
       const q = query(
         collection(db, 'likes'),
-        where(publicacionId ? 'publicacionId' : 'comentarioId', '==', publicacionId || comentarioId)
+        where(field, '==', value)
       );
       
       const querySnapshot = await getDocs(q);

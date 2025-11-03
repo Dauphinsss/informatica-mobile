@@ -1,82 +1,61 @@
 import { Comment } from "@/app/subjects/types/comment.type";
-import { useTheme } from "@/contexts/ThemeContext";
 import { comentariosService } from "@/services/comments.service";
 import { getAuth } from "firebase/auth";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Avatar, IconButton, Menu, Text } from "react-native-paper";
-import { CommentInput } from "./CommentInput";
-import { LikeButton } from "./LikeButton";
+import { Avatar, IconButton, Menu, Text, useTheme } from "react-native-paper";
 
 interface CommentItemProps {
   comment: Comment;
-  publicacionId: string;
-  onCommentAdded: () => void;
   nivel?: number;
-  scrollToInput?: () => void;
-  registerInputRef?: (commentId: string, ref: View | null) => void;
-  autorPublicacionUid?: string; // Nueva prop para el UID del autor de la publicación
+  onReply: (comment: Comment) => void;
+  onDelete: (commentId: string) => void;
+  onLikeToggle: (commentId: string) => void;
+  autorPublicacionUid?: string;
+  readOnly?: boolean;
 }
 
 export const CommentItem: React.FC<CommentItemProps> = ({
   comment,
-  publicacionId,
-  onCommentAdded,
   nivel = 0,
-  scrollToInput,
-  registerInputRef,
-  autorPublicacionUid, // Recibir el UID del autor de la publicación
+  onReply,
+  onDelete,
+  onLikeToggle,
+  autorPublicacionUid,
+  readOnly = false,
 }) => {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const auth = getAuth();
-  const [showReplyInput, setShowReplyInput] = useState(false);
-  const [showReplies, setShowReplies] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const replyInputRef = useRef<View>(null);
-  
-  React.useEffect(() => {
-    if (registerInputRef) {
-      if (showReplyInput) {
-        registerInputRef(comment.id, replyInputRef.current as any);
-      } else {
-        registerInputRef(comment.id, null);
-      }
-    }
-    return () => {
-      if (registerInputRef) registerInputRef(comment.id, null);
-    };
-  }, [showReplyInput]);
+  const [showReplies, setShowReplies] = useState(false);
+  const [userLiked, setUserLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(comment.likes || 0);
 
-  const truncarNombre = (nombreCompleto: string): string => {
-    if (!nombreCompleto) return "Usuario";
-    
-    if (nombreCompleto.length <= 20) return nombreCompleto;
-    
-    const partes = nombreCompleto.trim().split(/\s+/);
-    
-    if (partes.length === 1) {
-      return nombreCompleto.length > 20 
-        ? nombreCompleto.substring(0, 17) + '...' 
-        : nombreCompleto;
-    }
-    
-    const nombre = partes[0];
-    const primerApellido = partes[1];
-    
-    const nombreCorto = `${nombre} ${primerApellido}`;
-    if (nombreCorto.length <= 20) return nombreCorto;
-    
-    if (nombre.length <= 20) return nombre;
-    
-    return nombre.length > 20 
-      ? nombre.substring(0, 17) + '...' 
-      : nombre;
-  };
+  // Verificar permisos de eliminación
+  const puedeEliminar =
+    auth.currentUser &&
+    (auth.currentUser.uid === comment.autorUid ||
+      auth.currentUser.uid === autorPublicacionUid);
+
+  // SOLO suscribirse a likes, NO al comentario completo
+  useEffect(() => {
+    if (!comment.id || !auth.currentUser || readOnly) return;
+
+    const unsubscribe = comentariosService.suscribirseALikesComentario(
+      comment.id,
+      (likes, liked) => {
+        setLikeCount(likes);
+        setUserLiked(liked);
+      }
+    );
+
+    return unsubscribe;
+  }, [comment.id, auth.currentUser, readOnly]);
 
   const styles = StyleSheet.create({
     container: {
       marginLeft: nivel * 16,
-      marginVertical: 4,
+      marginVertical: 8,
     },
     commentContainer: {
       flexDirection: "row",
@@ -84,113 +63,113 @@ export const CommentItem: React.FC<CommentItemProps> = ({
     },
     contentContainer: {
       flex: 1,
-      marginLeft: 8,
+      marginLeft: 12,
     },
-    headerCompact: {
+    header: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "flex-start",
       marginBottom: 4,
     },
-    autorYFecha: {
+    autorInfo: {
       flexDirection: "row",
       alignItems: "center",
       flex: 1,
       flexWrap: "wrap",
-      marginRight: 8,
     },
     autorNombre: {
       fontWeight: "bold",
       color: theme.colors.onSurface,
-      maxWidth: "70%",
+      marginRight: 8,
+      fontSize: 14,
     },
     fecha: {
       color: theme.colors.onSurfaceVariant,
-      marginLeft: 8,
       fontSize: 12,
-      flexShrink: 0,
     },
-    menuContainer: {
-      marginLeft: "auto",
-      flexShrink: 0,
+    contenido: {
+      color: theme.colors.onSurface,
+      lineHeight: 20,
+      marginBottom: 8,
+      fontSize: 14,
     },
     actions: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      marginTop: 8,
     },
-    leftActions: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    rightActions: {
-      flexDirection: "row",
-      alignItems: "center",
+    likeButton: {
+      margin: 0,
+      marginRight: 4,
     },
     replyButton: {
-      marginLeft: -8,
+      margin: 0,
+      marginLeft: 8,
     },
     repliesContainer: {
-      marginTop: 8,
+      marginTop: 12,
       borderLeftWidth: 2,
       borderLeftColor: theme.colors.outline,
       paddingLeft: 12,
     },
-    menuButton: {
-      margin: 0,
-      width: 24,
-      height: 24,
+    viewRepliesText: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      marginTop: 8,
+    },
+    disabledAction: {
+      opacity: 0.4,
+    },
+    staticLikeContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginRight: 4,
+    },
+    staticLikeText: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 12,
+      marginLeft: 4,
     },
   });
 
-  const handleReply = () => {
-    setShowReplyInput(!showReplyInput);
-    if (!showReplyInput) {
-      setTimeout(() => {
-        scrollToInput?.();
-      }, 100);
+  // Función handleLikeToggle modificada para readOnly
+  const handleLikeToggle = async () => {
+    if (readOnly) {
+      // En modo readOnly, no hacer absolutamente nada
+      return;
     }
-  };
 
-  const handleReplySubmit = async (contenido: string) => {
     if (!auth.currentUser) return;
 
     try {
-      await comentariosService.crearComentario({
-        publicacionId,
-        autorUid: auth.currentUser.uid,
-        autorNombre: auth.currentUser.displayName || "Usuario",
-        autorFoto: auth.currentUser.photoURL || undefined,
-        contenido,
-        estado: "activo",
-        likes: 0,
-        comentarioPadreId: comment.id,
-        nivel: nivel + 1,
-      });
+      const newLikedState = !userLiked;
+      setUserLiked(newLikedState);
+      setLikeCount((prev) => (newLikedState ? prev + 1 : prev - 1));
 
-      setShowReplyInput(false);
-      onCommentAdded();
+      await onLikeToggle(comment.id);
     } catch (error) {
-      console.error("Error creando respuesta:", error);
+      console.error("Error al toggle like:", error);
+      setUserLiked(!userLiked);
+      setLikeCount((prev) => (userLiked ? prev + 1 : prev - 1));
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      await comentariosService.eliminarComentario(comment.id, publicacionId);
-      onCommentAdded();
-      setMenuVisible(false);
-    } catch (error) {
-      console.error("Error eliminando comentario:", error);
+  // Función para manejar el menú en modo readOnly
+  const handleMenuPress = () => {
+    if (readOnly) {
+      // En modo readOnly, no hacer nada
+      return;
     }
+    setMenuVisible(true);
   };
 
-  // Lógica mejorada: puede eliminar si es el autor del comentario O si es el autor de la publicación
-  const puedeEliminar = auth.currentUser && (
-    auth.currentUser.uid === comment.autorUid || 
-    auth.currentUser.uid === autorPublicacionUid
-  );
+  // Función para manejar reply en modo readOnly
+  const handleReplyPress = () => {
+    if (readOnly) {
+      // En modo readOnly, no hacer nada
+      return;
+    }
+    onReply(comment);
+  };
 
   const formatearFecha = (fecha: Date) => {
     const ahora = new Date();
@@ -206,139 +185,145 @@ export const CommentItem: React.FC<CommentItemProps> = ({
     return fecha.toLocaleDateString("es-BO");
   };
 
-  const nombreMostrado = truncarNombre(comment.autorNombre || "Usuario");
+  const truncarNombre = (nombre: string): string => {
+    if (!nombre) return "Usuario";
+    if (nombre.length <= 20) return nombre;
+
+    const partes = nombre.trim().split(/\s+/);
+    if (partes.length === 1) {
+      return nombre.substring(0, 17) + "...";
+    }
+
+    return `${partes[0]} ${partes[1]}`.substring(0, 20) + "...";
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.commentContainer}>
-        {comment.autorFoto ? (
-          <Avatar.Image
-            size={32}
-            source={{ uri: comment.autorFoto }}
-            style={{ backgroundColor: theme.colors.outline }}
-          />
-        ) : (
-          <Avatar.Text
-            size={32}
-            label={comment.autorNombre?.charAt(0).toUpperCase() || "U"}
-            style={{ backgroundColor: theme.colors.primary }}
-          />
-        )}
+        <Avatar.Image
+          size={36}
+          source={{ uri: comment.autorFoto || undefined }}
+          style={{ backgroundColor: theme.colors.outline }}
+        />
 
         <View style={styles.contentContainer}>
-          <View style={styles.headerCompact}>
-            <View style={styles.autorYFecha}>
-              <Text
-                variant="bodyMedium"
-                style={styles.autorNombre}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {nombreMostrado}
+          <View style={styles.header}>
+            <View style={styles.autorInfo}>
+              <Text style={styles.autorNombre} numberOfLines={1}>
+                {truncarNombre(comment.autorNombre || "Usuario")}
               </Text>
-              <Text
-                variant="bodySmall"
-                style={styles.fecha}
-                numberOfLines={1}
-              >
+              <Text style={styles.fecha}>
                 {formatearFecha(comment.fechaCreacion)}
               </Text>
             </View>
-            
-            {puedeEliminar && (
-              <View style={styles.menuContainer}>
-                <Menu
-                  visible={menuVisible}
-                  onDismiss={() => setMenuVisible(false)}
-                  anchor={
-                    <IconButton
-                      icon="dots-horizontal"
-                      size={16}
-                      onPress={() => setMenuVisible(true)}
-                      style={styles.menuButton}
-                    />
-                  }
-                >
-                  <Menu.Item onPress={handleDelete} title="Eliminar" />
-                </Menu>
-              </View>
+
+            {!readOnly && puedeEliminar && (
+              <Menu
+                visible={menuVisible}
+                onDismiss={() => setMenuVisible(false)}
+                anchor={
+                  <IconButton
+                    icon="dots-horizontal"
+                    size={16}
+                    onPress={handleMenuPress}
+                    style={{ margin: 0 }}
+                  />
+                }
+              >
+                <Menu.Item
+                  onPress={() => {
+                    setMenuVisible(false);
+                    onDelete(comment.id);
+                  }}
+                  title="Eliminar"
+                />
+              </Menu>
             )}
           </View>
 
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
-            {comment.contenido}
-          </Text>
+          <Text style={styles.contenido}>{comment.contenido}</Text>
 
           <View style={styles.actions}>
-            <View style={styles.leftActions}>
-              <LikeButton
-                comentarioId={comment.id}
-                size={16}
-                showCount={true}
-              />
-            </View>
-
-            <View style={styles.rightActions}>
-              {nivel < 2 && (
+            {readOnly ? (
+              // En modo readOnly, mostrar likes como texto estático
+              <View style={styles.staticLikeContainer}>
                 <IconButton
-                  icon="reply"
+                  icon={userLiked ? "heart" : "heart-outline"}
                   size={16}
-                  onPress={handleReply}
-                  style={styles.replyButton}
+                  iconColor={
+                    userLiked ? theme.colors.error : theme.colors.onSurfaceVariant
+                  }
+                  style={[styles.likeButton, styles.disabledAction]}
+                  onPress={() => {}} // Función vacía para evitar cualquier acción
                 />
-              )}
-            </View>
-          </View>
+                <Text style={styles.staticLikeText}>
+                  {likeCount <= 0 ? "0" : likeCount}
+                </Text>
+              </View>
+            ) : (
+              // Modo normal - botón de like funcional
+              <>
+                <IconButton
+                  icon={userLiked ? "heart" : "heart-outline"}
+                  size={16}
+                  iconColor={
+                    userLiked ? theme.colors.error : theme.colors.onSurfaceVariant
+                  }
+                  onPress={handleLikeToggle}
+                  style={styles.likeButton}
+                />
+                <Text
+                  style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}
+                >
+                  {likeCount}
+                </Text>
+              </>
+            )}
 
-          {showReplyInput && (
-            <View ref={replyInputRef}>
-              <CommentInput
-                publicacionId={publicacionId}
-                placeholder="Escribe una respuesta..."
-                onSubmit={handleReplySubmit}
-                onCancel={() => setShowReplyInput(false)}
-                autoFocus
-                showCancelButton={true}
+            {!readOnly && nivel < 2 && (
+              <IconButton
+                icon="reply"
+                size={16}
+                onPress={handleReplyPress}
+                style={styles.replyButton}
               />
-            </View>
-          )}
+            )}
+          </View>
         </View>
       </View>
 
+      {/* Respuestas */}
       {comment.respuestas && comment.respuestas.length > 0 && (
         <View style={styles.repliesContainer}>
-          {!showReplies && (
+          {!showReplies ? (
             <Text
-              variant="bodySmall"
-              style={{ color: theme.colors.primary, marginBottom: 8 }}
+              style={styles.viewRepliesText}
               onPress={() => setShowReplies(true)}
             >
               Ver {comment.respuestas.length} respuesta
               {comment.respuestas.length !== 1 ? "s" : ""}
             </Text>
-          )}
-
-          {showReplies &&
-            comment.respuestas.map((reply) => (
-              <CommentItem
-                key={reply.id}
-                comment={reply}
-                publicacionId={publicacionId}
-                onCommentAdded={onCommentAdded}
-                nivel={nivel + 1}
-                scrollToInput={scrollToInput}
-                autorPublicacionUid={autorPublicacionUid} // Pasar la prop a las respuestas
-              />
-            ))}
-
-          {showReplies && (
-            <Text
-              variant="bodySmall"
-              style={{ color: theme.colors.primary, marginTop: 8 }}
-              onPress={() => setShowReplies(false)}
-            >
-              Ocultar respuestas
-            </Text>
+          ) : (
+            <>
+              {comment.respuestas.map((reply) => (
+                <CommentItem
+                  key={reply.id}
+                  comment={reply}
+                  nivel={nivel + 1}
+                  onReply={onReply}
+                  onDelete={onDelete}
+                  onLikeToggle={onLikeToggle}
+                  autorPublicacionUid={autorPublicacionUid}
+                  readOnly={readOnly}
+                />
+              ))}
+              <Text
+                style={styles.viewRepliesText}
+                onPress={() => setShowReplies(false)}
+              >
+                Ocultar respuestas
+              </Text>
+            </>
           )}
         </View>
       )}

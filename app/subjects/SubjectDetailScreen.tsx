@@ -156,14 +156,9 @@ export default function SubjectDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <Appbar.Header>
+      <Appbar.Header style={{zIndex:100}}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={subjectName} />
-      </Appbar.Header>
-
-      {/* 🔧 SECCIÓN DE FILTROS */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchbarWrapper} />
         <PublicationFilters
           sortBy={sortBy}
           sortOrder={sortOrder}
@@ -172,7 +167,7 @@ export default function SubjectDetailScreen() {
           styles={styles}
           showSemestreFilter={false}
         />
-      </View>
+      </Appbar.Header>
 
       <ScrollView style={styles.content}>
         {cargando ? (
@@ -247,16 +242,6 @@ export default function SubjectDetailScreen() {
                       textStyle={styles.statText}
                     >
                       {publicacion.vistas}
-                    </Chip>
-                  )}
-                  {publicacion.totalComentarios > 0 && (
-                    <Chip
-                      icon="comment"
-                      compact
-                      style={styles.statChip}
-                      textStyle={styles.statText}
-                    >
-                      {publicacion.totalComentarios}
                     </Chip>
                   )}
                   {publicacion.totalCalificaciones > 0 && (
