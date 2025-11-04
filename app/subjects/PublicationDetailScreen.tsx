@@ -38,6 +38,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Platform,
+  ScrollView,
   View,
 } from "react-native";
 import {
@@ -49,7 +50,6 @@ import {
   Chip,
   Divider,
   IconButton,
-  Portal,
   Text,
   TextInput,
 } from "react-native-paper";
@@ -86,12 +86,9 @@ export default function PublicationDetailScreen() {
   const [editDescription, setEditDescription] = useState<string>("");
   const [tiposArchivo, setTiposArchivo] = useState<any[]>([]);
   const [fileProcessing, setFileProcessing] = useState(false);
-  const [confirmDeleteFileVisible, setConfirmDeleteFileVisible] =
-    useState(false);
+  const [confirmDeleteFileVisible, setConfirmDeleteFileVisible] = useState(false);
   const [fileToDeleteId, setFileToDeleteId] = useState<string | null>(null);
-  const [filesMarkedForDelete, setFilesMarkedForDelete] = useState<string[]>(
-    []
-  );
+  const [filesMarkedForDelete, setFilesMarkedForDelete] = useState<string[]>([]);
   const [stagedAdds, setStagedAdds] = useState<
     {
       id: string;
@@ -101,8 +98,6 @@ export default function PublicationDetailScreen() {
     }[]
   >([]);
   const [confirmDeletePubVisible, setConfirmDeletePubVisible] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentsUpdated, setCommentsUpdated] = useState(0);
   const [userLiked, setUserLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [likeLoading, setLikeLoading] = useState(false);
@@ -112,28 +107,12 @@ export default function PublicationDetailScreen() {
   const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<CustomAlertType>("info");
-  const [alertButtons, setAlertButtons] = useState<
-    CustomAlertButton[] | undefined
-  >(undefined);
+  const [alertButtons, setAlertButtons] = useState<CustomAlertButton[] | undefined>(undefined);
   const [motivoDialogVisible, setMotivoDialogVisible] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>("");
   const [motivoPersonalizado, setMotivoPersonalizado] = useState<string>("");
-  const [isReporting, setIsReporting] = useState(false);
-  const accionPendiente = React.useRef<
-    null | ((motivo: string) => Promise<void>)
-  >(null);
+  const accionPendiente = React.useRef<null | ((motivo: string) => Promise<void>)>(null);
   const [savedMotivo, setSavedMotivo] = useState<string>("");
-
-  const deviceWidth = Dimensions.get("window").width;
-  const modalWidth = Math.min(400, deviceWidth * 0.9);
-
-  const MOTIVOS = [
-    "Spam",
-    "Contenido inapropiado",
-    "Acoso o bullying",
-    "Información falsa",
-    "Otra razón...",
-  ];
 
   const pedirMotivoYContinuar = (accion: (motivo: string) => Promise<void>) => {
     accionPendiente.current = accion;
@@ -147,28 +126,11 @@ export default function PublicationDetailScreen() {
       try {
         const tipos = await obtenerTiposArchivo();
         setTiposArchivo(tipos);
-      } catch (err) {}
+      } catch (err) {
+        console.error("Error cargando tipos de archivo:", err);
+      }
     })();
   }, []);
-
-  const confirmarMotivoYAccion = async () => {
-    try {
-      setIsReporting(true);
-      if (accionPendiente.current) {
-        const motivo =
-          motivoSeleccionado === "Otra razón..."
-            ? motivoPersonalizado
-            : motivoSeleccionado;
-        await accionPendiente.current(motivo);
-        accionPendiente.current = null;
-      }
-      setMotivoDialogVisible(false);
-    } catch (err) {
-      setMotivoDialogVisible(false);
-    } finally {
-      setIsReporting(false);
-    }
-  };
 
   const showAlert = (
     title: string | undefined,
@@ -323,7 +285,6 @@ export default function PublicationDetailScreen() {
     try {
       setLikeLoading(true);
       await likesService.darLike(usuario.uid, publicacionId);
-      // El estado se actualizará automáticamente por el snapshot
     } catch (error) {
       console.error("Error al dar like:", error);
       showAlert("Error", "No se pudo actualizar el like", "error");
@@ -332,25 +293,6 @@ export default function PublicationDetailScreen() {
     }
   };
 
-  // Effect para cargar el estado inicial del like
-  useEffect(() => {
-    if (!publicacionId || !usuario) return;
-
-    // Snapshot en tiempo real para el estado del like del usuario
-    const likeQuery = query(
-      collection(db, "likes"),
-      where("publicacionId", "==", publicacionId),
-      where("autorUid", "==", usuario.uid)
-    );
-
-    const unsubscribe = onSnapshot(likeQuery, (snapshot) => {
-      setUserLiked(!snapshot.empty);
-    });
-
-    return () => unsubscribe();
-  }, [publicacionId, usuario]);
-
-  // Effect para cargar el contador de likes en tiempo real
   useEffect(() => {
     if (!publicacionId) return;
 
@@ -366,7 +308,6 @@ export default function PublicationDetailScreen() {
     return () => unsubscribe();
   }, [publicacionId]);
 
-  // Effect para establecer el contador inicial desde la publicación
   useEffect(() => {
     if (publicacion) {
       setLikeCount(publicacion.totalCalificaciones || 0);
@@ -735,7 +676,7 @@ export default function PublicationDetailScreen() {
     return (
       <View style={styles.fullPreviewContainer}>
         {!error ? (
-          <>
+          <View>
             <Image
               source={{ uri: screenshotUrl }}
               style={styles.fullPreviewImage}
@@ -749,7 +690,7 @@ export default function PublicationDetailScreen() {
                 <ActivityIndicator size="large" />
               </View>
             )}
-          </>
+          </View>
         ) : (
           <View style={styles.iconFallbackContainer}>
             <IconButton
@@ -830,16 +771,17 @@ export default function PublicationDetailScreen() {
   }
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={materiaNombre} />
+        
         {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
           <Appbar.Action icon="flag" onPress={mostrarDialogoReporte} />
         )}
 
         {publicacion && usuario && publicacion.autorUid === usuario.uid && (
-          <>
+          <View style={{ flexDirection: 'row' }}>
             {!editMode ? (
               <Appbar.Action
                 icon="pencil"
@@ -848,48 +790,45 @@ export default function PublicationDetailScreen() {
                   setEditTitle(publicacion.titulo);
                   setEditDescription(publicacion.descripcion || "");
                 }}
-                style={{ marginHorizontal: 4 }}
               />
             ) : (
-              <>
+              <View style={{ flexDirection: 'row' }}>
                 <Appbar.Action
                   icon="close"
                   onPress={handleCancelEdit}
-                  style={{ marginHorizontal: 4 }}
                 />
                 <Appbar.Action
                   icon="content-save"
                   onPress={handleSaveEdits}
-                  style={{ marginHorizontal: 4 }}
                 />
-              </>
+              </View>
             )}
 
             <Appbar.Action
               icon="trash-can"
               onPress={() => setConfirmDeletePubVisible(true)}
-              style={{ marginHorizontal: 4 }}
             />
-          </>
+          </View>
         )}
       </Appbar.Header>
+      
       <SafeAreaView
         style={styles.container}
         edges={["bottom", "left", "right"]}
       >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={
-            Platform.OS === "ios"
-              ? "padding"
-              : showComments
-              ? "height"
-              : undefined
-          }
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <>
-            {/* Contenido de la publicación */}
+          <ScrollView 
+            style={{ flex: 1 }}
+            contentContainerStyle={{ 
+              flexGrow: 1,
+              paddingBottom: 24 
+            }}
+            showsVerticalScrollIndicator={false}
+          >
             <Card style={styles.headerCard}>
               <Card.Content>
                 <View style={styles.autorContainer}>
@@ -919,7 +858,7 @@ export default function PublicationDetailScreen() {
                 <Divider style={styles.divider} />
 
                 {!editMode ? (
-                  <>
+                  <View>
                     <Text variant="headlineSmall" style={styles.titulo}>
                       {publicacion.titulo}
                     </Text>
@@ -927,9 +866,9 @@ export default function PublicationDetailScreen() {
                     <Text variant="bodyLarge" style={styles.descripcion}>
                       {publicacion.descripcion}
                     </Text>
-                  </>
+                  </View>
                 ) : (
-                  <>
+                  <View>
                     <TextInput
                       label="Título"
                       value={editTitle}
@@ -946,7 +885,7 @@ export default function PublicationDetailScreen() {
                       numberOfLines={6}
                       style={{ marginBottom: 12 }}
                     />
-                  </>
+                  </View>
                 )}
 
                 <View style={styles.statsContainer}>
@@ -968,18 +907,12 @@ export default function PublicationDetailScreen() {
                   >
                     {realTimeCommentCount}
                   </Chip>
+                  
                   <Chip
                     icon={userLiked ? "heart" : "heart-outline"}
                     compact
-                    style={[
-                      styles.statChip,
-                      //userLiked && styles.likedChip,
-                      //likeLoading && styles.disabledChip
-                    ]}
-                    textStyle={[
-                      styles.statText,
-                      //userLiked && styles.likedText
-                    ]}
+                    style={styles.statChip}
+                    textStyle={styles.statText}
                     onPress={toggleLike}
                     disabled={likeLoading}
                   >
@@ -989,7 +922,6 @@ export default function PublicationDetailScreen() {
               </Card.Content>
             </Card>
 
-            {/* Archivos adjuntos */}
             {archivos.length > 0 && (
               <View style={styles.archivosContainer}>
                 <Text variant="titleMedium" style={styles.archivosTitle}>
@@ -1011,15 +943,12 @@ export default function PublicationDetailScreen() {
                           onLongPress={() => descargarArchivo(archivo)}
                         >
                           {!editMode ? (
-                            <>
+                            <View>
                               {!archivo.esEnlaceExterno && (
                                 <IconButton
                                   icon="download"
                                   size={18}
-                                  onPress={(e) => {
-                                    e.stopPropagation();
-                                    descargarArchivo(archivo);
-                                  }}
+                                  onPress={() => descargarArchivo(archivo)}
                                   style={styles.downloadButton}
                                   iconColor={theme.colors.onSurface}
                                 />
@@ -1034,14 +963,12 @@ export default function PublicationDetailScreen() {
                                   onPress={() => {}}
                                 />
                               )}
-                            </>
+                            </View>
                           ) : (
                             <IconButton
                               icon={isMarked ? "check" : "close"}
                               size={16}
-                              onPress={() =>
-                                confirmarEliminarArchivo(archivo.id)
-                              }
+                              onPress={() => confirmarEliminarArchivo(archivo.id)}
                               style={{
                                 margin: 0,
                                 position: "absolute",
@@ -1066,9 +993,7 @@ export default function PublicationDetailScreen() {
                         <View style={styles.archivoInfoContainer}>
                           <View style={styles.archivoInfoRow}>
                             <IconButton
-                              icon={obtenerIconoPorTipo(
-                                archivo.tipoNombre || ""
-                              )}
+                              icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
                               size={20}
                               iconColor={theme.colors.primary}
                               style={{ margin: 0, marginRight: 4 }}
@@ -1099,16 +1024,12 @@ export default function PublicationDetailScreen() {
 
                   {stagedAdds.map((s) => (
                     <View key={s.id} style={styles.archivoCardWrapper}>
-                      <Card
-                        style={[styles.archivoCard, { position: "relative" }]}
-                      >
+                      <Card style={[styles.archivoCard, { position: "relative" }]}>
                         <IconButton
                           icon="close"
                           size={16}
                           onPress={() =>
-                            setStagedAdds((prev) =>
-                              prev.filter((x) => x.id !== s.id)
-                            )
+                            setStagedAdds((prev) => prev.filter((x) => x.id !== s.id))
                           }
                           style={{
                             margin: 0,
@@ -1188,18 +1109,16 @@ export default function PublicationDetailScreen() {
                 </View>
               </View>
             )}
-          </>
-
-          <CommentsModal
-            visible={commentsModalVisible}
-            onDismiss={() => setCommentsModalVisible(false)}
-            publicacionId={publicacionId}
-            autorPublicacionUid={publicacion.autorUid}
-          />
+          </ScrollView>
         </KeyboardAvoidingView>
-        <Portal>
-          <React.Suspense fallback={null}></React.Suspense>
-        </Portal>
+
+        <CommentsModal
+          visible={commentsModalVisible}
+          onDismiss={() => setCommentsModalVisible(false)}
+          publicacionId={publicacionId}
+          autorPublicacionUid={publicacion.autorUid}
+        />
+
         <ReportReasonModal
           visible={motivoDialogVisible}
           initialSelection={savedMotivo}
@@ -1224,6 +1143,7 @@ export default function PublicationDetailScreen() {
             }
           }}
         />
+
         <CustomAlert
           visible={alertVisible}
           onDismiss={() => setAlertVisible(false)}
@@ -1232,6 +1152,7 @@ export default function PublicationDetailScreen() {
           type={alertType}
           buttons={alertButtons}
         />
+
         <CustomAlert
           visible={confirmDeleteFileVisible}
           onDismiss={() => setConfirmDeleteFileVisible(false)}
@@ -1274,6 +1195,6 @@ export default function PublicationDetailScreen() {
           ]}
         />
       </SafeAreaView>
-    </>
+    </View>
   );
 }

@@ -93,7 +93,7 @@ export default function AllSubjectsScreen() {
           <Surface style={styles.listCard} elevation={1}>
             <List.Section>
               {subjects.map((subject, index) => (
-                <React.Fragment key={subject.id}>
+                <View key={subject.id}>
                   {index > 0 && <Divider />}
                   <List.Item
                     title={subject.nombre}
@@ -104,7 +104,7 @@ export default function AllSubjectsScreen() {
                     titleStyle={{ color: theme.colors.onSurface }}
                     descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
                   />
-                </React.Fragment>
+                </View>
               ))}
             </List.Section>
           </Surface>
