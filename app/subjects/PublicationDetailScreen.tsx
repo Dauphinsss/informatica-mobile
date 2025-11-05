@@ -790,21 +790,28 @@ export default function PublicationDetailScreen() {
     return (
       <View style={styles.fullPreviewContainer}>
         {!error ? (
-          <View>
+          <>
             <Image
               source={{ uri: screenshotUrl }}
               style={styles.fullPreviewImage}
               resizeMode="cover"
-              onLoadStart={() => setLoading(true)}
-              onLoadEnd={() => setLoading(false)}
-              onError={() => setError("Error")}
+              onLoadStart={() => {
+                setLoading(true);
+              }}
+              onLoadEnd={() => {
+                setLoading(false);
+              }}
+              onError={(e) => {
+                console.error("[PublicationDetail] LinkPreview image onError:", e);
+                setError("Error");
+              }}
             />
             {loading && (
               <View style={styles.previewLoadingOverlay}>
                 <ActivityIndicator size="large" />
               </View>
             )}
-          </View>
+          </>
         ) : (
           <View style={styles.iconFallbackContainer}>
             <IconButton
@@ -850,39 +857,6 @@ export default function PublicationDetailScreen() {
       </View>
     );
   };
-
-  if (cargando) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Appbar.Header>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title={materiaNombre} />
-        </Appbar.Header>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <Text variant="bodyLarge" style={styles.loadingText}>
-            Cargando publicación...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!publicacion) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Appbar.Header>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title={materiaNombre} />
-        </Appbar.Header>
-        <View style={styles.loadingContainer}>
-          <Text variant="headlineSmall" style={styles.loadingText}>
-            Publicación no encontrada
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -938,11 +912,25 @@ export default function PublicationDetailScreen() {
         style={styles.container}
         edges={["bottom", "left", "right"]}
       >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-        >
+        {cargando ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" />
+            <Text variant="bodyLarge" style={styles.loadingText}>
+              Cargando publicación...
+            </Text>
+          </View>
+        ) : !publicacion ? (
+          <View style={styles.loadingContainer}>
+            <Text variant="headlineSmall" style={styles.loadingText}>
+              Publicación no encontrada
+            </Text>
+          </View>
+        ) : (
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+          >
           <ScrollView 
             style={{ flex: 1 }}
             contentContainerStyle={{ 
@@ -1277,13 +1265,14 @@ export default function PublicationDetailScreen() {
               </View>
             )}
           </ScrollView>
-        </KeyboardAvoidingView>
+  </KeyboardAvoidingView>
+  )}
 
         <CommentsModal
           visible={commentsModalVisible}
           onDismiss={() => setCommentsModalVisible(false)}
           publicacionId={publicacionId}
-          autorPublicacionUid={publicacion.autorUid}
+          autorPublicacionUid={publicacion?.autorUid || ""}
         />
 
         <ReportReasonModal
