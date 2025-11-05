@@ -2,6 +2,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
   eliminarArchivo,
+  guardarEnlaceExterno,
   obtenerTiposArchivo,
   seleccionarArchivo,
   subirArchivo,
@@ -48,8 +49,10 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
   Divider,
   IconButton,
+  Portal,
   Text,
   TextInput,
 } from "react-native-paper";
@@ -61,6 +64,8 @@ import CustomAlert, {
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import CommentsModal from "../components/comments/CommentsModal";
 import { getStyles } from "./_PublicationDetailScreen.styles";
+
+const { width } = Dimensions.get("window");
 
 export default function PublicationDetailScreen() {
   const { theme } = useTheme();
@@ -92,11 +97,21 @@ export default function PublicationDetailScreen() {
   const [stagedAdds, setStagedAdds] = useState<
     {
       id: string;
-      file: any;
+      file?: any;
       tipoId: string;
-      name: string;
+      tipoArchivoId?: string;
+      name?: string;
+      nombreEnlace?: string;
+      esEnlaceExterno?: boolean;
+      url?: string;
+      subiendo?: boolean;
+      progreso?: number;
     }[]
   >([]);
+  const [dialogSeleccionVisible, setDialogSeleccionVisible] = useState(false);
+  const [dialogEnlaceVisible, setDialogEnlaceVisible] = useState(false);
+  const [urlEnlace, setUrlEnlace] = useState("");
+  const [nombreEnlace, setNombreEnlace] = useState("");
   const [confirmDeletePubVisible, setConfirmDeletePubVisible] = useState(false);
   const [userLiked, setUserLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -434,7 +449,12 @@ export default function PublicationDetailScreen() {
     return null;
   };
 
+  const mostrarDialogoSeleccion = () => {
+    setDialogSeleccionVisible(true);
+  };
+
   const agregarArchivo = async () => {
+    setDialogSeleccionVisible(false);
     try {
       setFileProcessing(true);
       const archivo = await seleccionarArchivo();
@@ -457,15 +477,76 @@ export default function PublicationDetailScreen() {
         id: `staged-${Date.now()}`,
         file: archivo,
         tipoId,
+        tipoArchivoId: tipoId,
         name: archivo.name,
+        esEnlaceExterno: false,
+        progreso: 0,
       };
-      setStagedAdds((prev) => [...prev, staged]);
+      setStagedAdds((prev) => {
+        const nuevo = [...prev, staged];
+        return nuevo;
+      });
     } catch (error) {
       console.error("Error al agregar archivo (staged):", error);
       showAlert("Error", "No se pudo preparar el archivo", "error");
     } finally {
       setFileProcessing(false);
     }
+  };
+
+  const mostrarDialogoEnlace = () => {
+    setDialogSeleccionVisible(false);
+    setDialogEnlaceVisible(true);
+  };
+
+  const agregarEnlace = () => {
+    if (!urlEnlace.trim()) {
+      showAlert("Error", "La URL es obligatoria", "error");
+      return;
+    }
+
+    if (!nombreEnlace.trim()) {
+      showAlert("Error", "El nombre del enlace es obligatorio", "error");
+      return;
+    }
+
+    try {
+      new URL(urlEnlace);
+    } catch {
+      showAlert(
+        "Error",
+        "La URL no es válida. Debe incluir http:// o https://",
+        "error"
+      );
+      return;
+    }
+
+    const tipoEnlace = tiposArchivo.find((t) => t.nombre.toLowerCase() === "enlace");
+    
+    if (!tipoEnlace) {
+      showAlert(
+        "Error",
+        "No se encontró el tipo de archivo 'Enlace' en la base de datos",
+        "error"
+      );
+      return;
+    }
+
+    const staged = {
+      id: `staged-${Date.now()}`,
+      tipoId: tipoEnlace.id,
+      tipoArchivoId: tipoEnlace.id,
+      name: nombreEnlace,
+      nombreEnlace: nombreEnlace,
+      esEnlaceExterno: true,
+      url: urlEnlace,
+      progreso: 0,
+    };
+
+    setStagedAdds((prev) => [...prev, staged]);
+    setDialogEnlaceVisible(false);
+    setUrlEnlace("");
+    setNombreEnlace("");
   };
 
   const confirmarEliminarArchivo = (archivoId: string) => {
@@ -511,18 +592,51 @@ export default function PublicationDetailScreen() {
       }
 
       if (stagedAdds.length > 0) {
-        await Promise.all(
-          stagedAdds.map((s) =>
-            subirArchivo(
-              publicacionId,
-              s.file,
-              s.tipoId,
-              s.name,
-              undefined,
-              (prog) => {}
+        for (let i = 0; i < stagedAdds.length; i++) {
+          const s = stagedAdds[i];
+
+          setStagedAdds((prev) =>
+            prev.map((item, idx) =>
+              idx === i ? { ...item, subiendo: true, progreso: 0 } : item
             )
-          )
-        );
+          );
+
+          try {
+            const nombreParaGuardar = s.name || s.nombreEnlace || "Archivo";
+            const tipoParaGuardar = s.tipoId || s.tipoArchivoId || "";
+            if (s.esEnlaceExterno && s.url) {
+              await guardarEnlaceExterno(
+                publicacionId,
+                tipoParaGuardar,
+                nombreParaGuardar,
+                s.url
+              );
+            } else if (s.file) {
+              await subirArchivo(
+                publicacionId,
+                s.file,
+                tipoParaGuardar || s.tipoId,
+                nombreParaGuardar,
+                undefined,
+                (prog) => {
+                  setStagedAdds((prev) =>
+                    prev.map((item, idx) =>
+                      idx === i ? { ...item, progreso: prog } : item
+                    )
+                  );
+                }
+              );
+            }
+          } catch (err) {
+            showAlert("Error", `No se pudo subir ${s.name || s.nombreEnlace || "archivo"}`, "error");
+          }
+
+          setStagedAdds((prev) =>
+            prev.map((item, idx) =>
+              idx === i ? { ...item, subiendo: false, progreso: 100 } : item
+            )
+          );
+        } 
         setStagedAdds([]);
       }
 
@@ -777,7 +891,11 @@ export default function PublicationDetailScreen() {
         <Appbar.Content title={materiaNombre} />
         
         {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
-          <Appbar.Action icon="flag" onPress={mostrarDialogoReporte} />
+          <Appbar.Action
+            icon="flag"
+            onPress={mostrarDialogoReporte}
+            style={{ marginHorizontal: 4 }}
+          />
         )}
 
         {publicacion && usuario && publicacion.autorUid === usuario.uid && (
@@ -790,16 +908,19 @@ export default function PublicationDetailScreen() {
                   setEditTitle(publicacion.titulo);
                   setEditDescription(publicacion.descripcion || "");
                 }}
+                style={{ marginHorizontal: 4 }}
               />
             ) : (
               <View style={{ flexDirection: 'row' }}>
                 <Appbar.Action
                   icon="close"
                   onPress={handleCancelEdit}
+                  style={{ marginHorizontal: 4 }}
                 />
                 <Appbar.Action
                   icon="content-save"
                   onPress={handleSaveEdits}
+                  style={{ marginHorizontal: 4 }}
                 />
               </View>
             )}
@@ -807,6 +928,7 @@ export default function PublicationDetailScreen() {
             <Appbar.Action
               icon="trash-can"
               onPress={() => setConfirmDeletePubVisible(true)}
+              style={{ marginHorizontal: 4 }}
             />
           </View>
         )}
@@ -881,8 +1003,6 @@ export default function PublicationDetailScreen() {
                       value={editDescription}
                       onChangeText={setEditDescription}
                       mode="outlined"
-                      multiline
-                      numberOfLines={6}
                       style={{ marginBottom: 12 }}
                     />
                   </View>
@@ -1022,7 +1142,8 @@ export default function PublicationDetailScreen() {
                     );
                   })}
 
-                  {stagedAdds.map((s) => (
+                  {stagedAdds.map((s, index) => {   
+                    return (
                     <View key={s.id} style={styles.archivoCardWrapper}>
                       <Card style={[styles.archivoCard, { position: "relative" }]}>
                         <IconButton
@@ -1050,60 +1171,106 @@ export default function PublicationDetailScreen() {
 
                         <View style={{ padding: 12, alignItems: "center" }}>
                           <IconButton
-                            icon="file-document"
-                            size={48}
+                            icon={s.esEnlaceExterno ? "link-variant" : "file-document"}
+                            size={24}
                             iconColor={theme.colors.primary}
                             style={{ margin: 0 }}
                           />
                           <Text
                             variant="bodyMedium"
-                            style={[
-                              styles.archivoTitulo,
-                              { textAlign: "center", marginTop: 4 },
-                            ]}
-                            numberOfLines={2}
-                          >
-                            {s.name}
-                          </Text>
-                          <Text
                             style={{
-                              color: theme.colors.primary,
-                              fontSize: 12,
+                              textAlign: "center",
                               marginTop: 4,
+                              color: theme.colors.onSurface,
+                              fontSize: 14,
+                              fontWeight: "500",
+                            }}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                            onLayout={(event) => {
+                              const { width, height } = event.nativeEvent.layout;
                             }}
                           >
-                            Nuevo — se subirá al guardar
+                            {(() => {
+                              const texto = s.name || s.nombreEnlace || s.file?.name || "Nuevo archivo";
+                              return texto;
+                            })()}
                           </Text>
+                          {s.esEnlaceExterno && s.url && (
+                            <Text
+                              style={{
+                                color: theme.colors.secondary,
+                                fontSize: 11,
+                                marginTop: 2,
+                              }}
+                              numberOfLines={1}
+                            >
+                              {s.url}
+                            </Text>
+                          )}
+                          {s.subiendo ? (
+                            <>
+                              <Text
+                                style={{
+                                  color: theme.colors.primary,
+                                  fontSize: 12,
+                                  marginTop: 4,
+                                }}
+                              >
+                                Subiendo... {s.progreso || 0}%
+                              </Text>
+                            </>
+                          ) : (
+                            <Text
+                              style={{
+                                color: theme.colors.primary,
+                                fontSize: 12,
+                                marginTop: 4,
+                              }}
+                            >
+                              {s.progreso === 100 ? "Subido ✓" : ""}
+                            </Text>
+                          )}
                         </View>
                       </Card>
 
                       <View style={styles.archivoInfoContainer} />
                     </View>
-                  ))}
+                    );
+                  })}
 
                   {editMode && (
                     <View style={styles.archivoCardWrapper}>
-                      <Card
+                      <View
                         style={[
                           styles.archivoCard,
                           {
                             alignItems: "center",
                             justifyContent: "center",
+                            backgroundColor: "transparent",
+                            elevation: 0,
+                            shadowColor: "transparent",
+                            borderWidth: 0,
                           },
                         ]}
-                        onPress={agregarArchivo}
                       >
-                        <Card.Content>
-                          <Button
-                            icon="plus"
-                            mode="contained"
-                            onPress={agregarArchivo}
-                            loading={fileProcessing}
-                          >
-                            Agregar
-                          </Button>
-                        </Card.Content>
-                      </Card>
+                        <IconButton
+                          icon="plus"
+                          size={28}
+                          onPress={mostrarDialogoSeleccion}
+                          disabled={fileProcessing}
+                          style={{
+                            backgroundColor: theme.colors.primary,
+                            width: width * 0.15,
+                            height: width * 0.15,
+                            borderRadius: 28,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 0,
+                          }}
+                          iconColor={theme.colors.onPrimary}
+                        />
+                      </View>
                     </View>
                   )}
                 </View>
@@ -1194,6 +1361,70 @@ export default function PublicationDetailScreen() {
             },
           ]}
         />
+        <Portal>
+          <Dialog
+            visible={dialogSeleccionVisible}
+            onDismiss={() => setDialogSeleccionVisible(false)}
+          >
+            <Dialog.Title>¿Qué deseas adjuntar?</Dialog.Title>
+            <Dialog.Content>
+              <Button
+                mode="contained"
+                icon="file-upload"
+                onPress={agregarArchivo}
+                style={{ marginBottom: 12 }}
+              >
+                Subir archivo
+              </Button>
+              <Button
+                mode="outlined"
+                icon="link-variant"
+                onPress={mostrarDialogoEnlace}
+              >
+                Agregar enlace
+              </Button>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setDialogSeleccionVisible(false)}>
+                Cancelar
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+
+        <Portal>
+          <Dialog
+            visible={dialogEnlaceVisible}
+            onDismiss={() => setDialogEnlaceVisible(false)}
+          >
+            <Dialog.Title>Agregar enlace</Dialog.Title>
+            <Dialog.Content>
+              <TextInput
+                label="Nombre del enlace *"
+                value={nombreEnlace}
+                onChangeText={setNombreEnlace}
+                mode="outlined"
+                style={{ marginBottom: 12 }}
+                placeholder="Ej: Video explicativo"
+              />
+              <TextInput
+                label="URL *"
+                value={urlEnlace}
+                onChangeText={setUrlEnlace}
+                mode="outlined"
+                placeholder="https://ejemplo.com"
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setDialogEnlaceVisible(false)}>
+                Cancelar
+              </Button>
+              <Button onPress={agregarEnlace}>Agregar</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
       </SafeAreaView>
     </View>
   );
