@@ -30,6 +30,14 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    setLiked(initialLiked);
+  }, [initialLiked]);
+
+  useEffect(() => {
+    setLikesCount(initialLikes);
+  }, [initialLikes]);
+
+  useEffect(() => {
     if (!publicacionId && !comentarioId) return;
 
     const field = publicacionId ? "publicacionId" : "comentarioId";
@@ -37,24 +45,38 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
 
     const q = query(collection(db, "likes"), where(field, "==", value));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setLikesCount(snapshot.size);
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const newCount = snapshot.size;
+        setLikesCount(newCount);
 
-      if (auth.currentUser) {
-        const userLiked = snapshot.docs.some(
-          (doc) => doc.data().autorUid === auth.currentUser?.uid
-        );
-        setLiked(userLiked);
+        if (auth.currentUser) {
+          const userLiked = snapshot.docs.some(
+            (doc) => doc.data().autorUid === auth.currentUser?.uid
+          );
+          setLiked(userLiked);
+        }
+      },
+      (error) => {
+        console.error("Error en listener de likes:", error);
       }
-    });
+    );
 
     return () => unsubscribe();
-  }, [publicacionId, comentarioId, auth.currentUser]);
+  }, [publicacionId, comentarioId, auth.currentUser?.uid]);
 
   const handleLike = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || loading) return;
 
+    // Optimistic update
+    const wasLiked = liked;
+    const previousCount = likesCount;
+
+    setLiked(!wasLiked);
+    setLikesCount(wasLiked ? previousCount - 1 : previousCount + 1);
     setLoading(true);
+
     try {
       await likesService.darLike(
         auth.currentUser.uid,
@@ -63,6 +85,9 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
       );
     } catch (error) {
       console.error("Error al dar like:", error);
+      // Revert optimistic update on error
+      setLiked(wasLiked);
+      setLikesCount(previousCount);
     } finally {
       setLoading(false);
     }
@@ -73,14 +98,19 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
       <IconButton
         icon={liked ? "heart" : "heart-outline"}
         size={size}
-        iconColor={liked ? theme.colors.error : theme.colors.onSurface}
+        iconColor={liked ? theme.colors.primary : theme.colors.onSurfaceVariant}
         onPress={handleLike}
         disabled={loading}
+        style={{ margin: 0 }}
       />
-      {showCount && likesCount > 0 && (
+      {showCount && (
         <Text
           variant="bodySmall"
-          style={{ color: theme.colors.onSurfaceVariant }}
+          style={{
+            color: theme.colors.onSurfaceVariant,
+            marginLeft: -4,
+            fontSize: 12
+          }}
         >
           {likesCount}
         </Text>

@@ -1,22 +1,23 @@
 import { CommentItem } from "@/app/components/comments/CommentItem";
 import { Comment } from "@/app/subjects/types/comment.type";
 import { comentariosService } from "@/services/comments.service";
-import { likesService } from "@/services/likes.service";
 import { getAuth } from "firebase/auth";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
+  PanResponder,
   StyleSheet,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+
 import {
   ActivityIndicator,
+  Avatar,
   IconButton,
   Text,
   TextInput,
@@ -32,7 +33,8 @@ interface CommentsModalProps {
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
+const MODAL_HEIGHT_SMALL = SCREEN_HEIGHT * 0.6; // Altura inicial (60%)
+const MODAL_HEIGHT_LARGE = SCREEN_HEIGHT * 0.95; // Altura expandida (95%)
 
 export const CommentsModal: React.FC<CommentsModalProps> = ({
   visible,
@@ -50,10 +52,13 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const slideAnim = useRef(new Animated.Value(MODAL_HEIGHT)).current;
+  const modalHeight = useRef(new Animated.Value(MODAL_HEIGHT_SMALL)).current;
+  const currentHeight = useRef(MODAL_HEIGHT_SMALL);
+  const slideAnim = useRef(new Animated.Value(MODAL_HEIGHT_SMALL)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const dragY = useRef(new Animated.Value(0)).current;
 
   const styles = StyleSheet.create({
     overlay: {
@@ -61,11 +66,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       backgroundColor: "rgba(0, 0, 0, 0.5)",
     },
     modalContainer: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: MODAL_HEIGHT,
       backgroundColor: theme.colors.background,
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
@@ -86,48 +86,41 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     },
     header: {
       flexDirection: "row",
-      justifyContent: "space-between",
+      justifyContent: "center",
       alignItems: "center",
       paddingHorizontal: 16,
       paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.outline,
     },
     commentsList: {
       flex: 1,
     },
     commentsContent: {
       paddingHorizontal: 16,
-      paddingBottom: 16,
     },
     inputContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
       backgroundColor: theme.colors.background,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.outline,
       paddingHorizontal: 16,
       paddingTop: 8,
-      paddingBottom: Platform.OS === "ios" ? 8 : 4,
     },
     replyingTo: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      backgroundColor: theme.colors.surfaceVariant,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
+      paddingHorizontal: 4,
+      paddingVertical: 4,
       marginBottom: 8,
-      borderLeftWidth: 3,
-      borderLeftColor: theme.colors.primary,
     },
     inputRow: {
       flexDirection: "row",
-      alignItems: "flex-end",
+      alignItems: "center",
       minHeight: 48,
     },
     textInput: {
       flex: 1,
-      marginRight: 8,
       maxHeight: 100,
       backgroundColor: theme.colors.surface,
       minHeight: 40,
@@ -149,7 +142,8 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     },
     sendButton: {
       margin: 0,
-      marginLeft: 8,
+      position: 'absolute',
+      right: 0,
     },
   });
 
@@ -169,6 +163,88 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     setReplyingTo(null);
     setCommentText("");
   };
+
+  const handleDismiss = useCallback(() => {
+    Keyboard.dismiss();
+
+    Animated.parallel([
+      Animated.timing(overlayAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: MODAL_HEIGHT_SMALL,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(modalHeight, {
+        toValue: MODAL_HEIGHT_SMALL,
+        duration: 250,
+        useNativeDriver: false,
+      }),
+    ]).start(() => {
+      setReplyingTo(null);
+      setCommentText("");
+      setKeyboardHeight(0);
+      onDismiss();
+    });
+  }, [overlayAnim, slideAnim, modalHeight, onDismiss]);
+
+  // PanResponder que sigue tu dedo fluidamente
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return Math.abs(gestureState.dy) > 5;
+        },
+        onPanResponderGrant: () => {
+          // Guardar la altura actual al empezar el gesto
+          currentHeight.current = currentHeight.current;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          // Calcular nueva altura basada en el movimiento
+          const newHeight = Math.max(
+            MODAL_HEIGHT_SMALL,
+            Math.min(MODAL_HEIGHT_LARGE, currentHeight.current - gestureState.dy)
+          );
+
+          modalHeight.setValue(newHeight);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const finalHeight = currentHeight.current - gestureState.dy;
+          const midPoint = (MODAL_HEIGHT_SMALL + MODAL_HEIGHT_LARGE) / 2;
+
+          let targetHeight;
+
+          if (gestureState.vy > 0.5) {
+            // Swipe rápido hacia abajo
+            if (finalHeight < midPoint) {
+              handleDismiss();
+              return;
+            } else {
+              targetHeight = MODAL_HEIGHT_SMALL;
+            }
+          } else if (gestureState.vy < -0.5) {
+            // Swipe rápido hacia arriba
+            targetHeight = MODAL_HEIGHT_LARGE;
+          } else {
+            // Snap al más cercano
+            targetHeight = finalHeight > midPoint ? MODAL_HEIGHT_LARGE : MODAL_HEIGHT_SMALL;
+          }
+
+          currentHeight.current = targetHeight;
+          Animated.spring(modalHeight, {
+            toValue: targetHeight,
+            useNativeDriver: false,
+            friction: 10,
+            tension: 50,
+          }).start();
+        },
+      }),
+    [modalHeight, currentHeight, handleDismiss]
+  );
 
   // Efectos y handlers (mantener igual que antes)
   useEffect(() => {
@@ -225,51 +301,38 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
   useEffect(() => {
     if (visible) {
+      dragY.setValue(0);
+      modalHeight.setValue(MODAL_HEIGHT_SMALL);
+      currentHeight.current = MODAL_HEIGHT_SMALL;
       iniciarSuscripcion();
       Animated.parallel([
         Animated.timing(overlayAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 350,
           useNativeDriver: true,
         }),
-        Animated.spring(slideAnim, {
+        Animated.timing(slideAnim, {
           toValue: 0,
+          duration: 350,
           useNativeDriver: true,
-          damping: 20,
-          stiffness: 300,
+          easing: (t) => {
+            // Ease out cubic para animación más suave
+            return 1 - Math.pow(1 - t, 3);
+          },
         }),
-      ]).start();
+      ]).start(() => {
+        currentHeight.current = MODAL_HEIGHT_SMALL;
+      });
     } else {
       detenerSuscripcion();
+      currentHeight.current = MODAL_HEIGHT_SMALL;
+      modalHeight.setValue(MODAL_HEIGHT_SMALL);
     }
 
     return () => {
       detenerSuscripcion();
     };
-  }, [visible, iniciarSuscripcion, detenerSuscripcion]);
-
-  const handleDismiss = () => {
-    Keyboard.dismiss();
-    detenerSuscripcion();
-
-    Animated.parallel([
-      Animated.timing(overlayAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: MODAL_HEIGHT,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setReplyingTo(null);
-      setCommentText("");
-      setKeyboardHeight(0);
-      onDismiss();
-    });
-  };
+  }, [visible, iniciarSuscripcion, detenerSuscripcion, dragY, overlayAnim, slideAnim, modalHeight, currentHeight]);
 
   const handleSubmit = async () => {
     if (!commentText.trim() || !auth.currentUser) return;
@@ -307,16 +370,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     }
   };
 
-  const handleLikeToggle = async (commentId: string) => {
-    if (!auth.currentUser) return;
-
-    try {
-      await likesService.darLike(auth.currentUser.uid, undefined, commentId);
-    } catch (error) {
-      console.error("Error al toggle like:", error);
-    }
-  };
-
   const handleReply = (comment: Comment) => {
     setReplyingTo(comment);
   };
@@ -326,7 +379,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       comment={item}
       onReply={handleReply}
       onDelete={handleDelete}
-      onLikeToggle={handleLikeToggle}
       autorPublicacionUid={autorPublicacionUid}
     />
   );
@@ -335,33 +387,38 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      <Animated.View style={[styles.overlay, { opacity: overlayAnim }]}>
-        <TouchableWithoutFeedback onPress={handleDismiss}>
-          <SafeAreaView edges={["top"]} style={{ flex: 1 }} />
-        </TouchableWithoutFeedback>
+      <TouchableWithoutFeedback onPress={handleDismiss}>
+        <Animated.View style={[styles.overlay, { opacity: overlayAnim }]} />
+      </TouchableWithoutFeedback>
 
+      <Animated.View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          transform: [
+            { translateY: Animated.add(slideAnim, dragY) }
+          ],
+        }}
+      >
         <Animated.View
           style={[
             styles.modalContainer,
             {
-              transform: [{ translateY: slideAnim }],
-              marginBottom:
-                keyboardHeight > 0
-                  ? keyboardHeight - (Platform.OS === "ios" ? 34 : 0)
-                  : 0,
+              height: modalHeight,
             },
           ]}
         >
-          <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
-            <TouchableWithoutFeedback onPress={() => {}}>
+          <View style={{ height: '100%', flexDirection: 'column' }}>
+            <View {...panResponder.panHandlers}>
               <View style={styles.handle} />
-            </TouchableWithoutFeedback>
 
-            <View style={styles.header}>
-              <Text variant="titleMedium" style={{ fontWeight: "bold" }}>
-                Comentarios ({comments.length})
-              </Text>
-              <IconButton icon="close" size={24} onPress={handleDismiss} />
+              <View style={styles.header}>
+                <Text variant="titleMedium" style={{ fontWeight: "bold", textAlign: "center", flex: 1 }}>
+                  Comentarios
+                </Text>
+              </View>
             </View>
 
             <View style={styles.commentsList}>
@@ -395,7 +452,10 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   data={comments}
                   keyExtractor={(item) => item.id}
                   renderItem={renderCommentItem}
-                  contentContainerStyle={styles.commentsContent}
+                  contentContainerStyle={[
+                    styles.commentsContent,
+                    { paddingBottom: 120 }
+                  ]}
                   showsVerticalScrollIndicator={true}
                   keyboardShouldPersistTaps="handled"
                   keyboardDismissMode="interactive"
@@ -403,56 +463,56 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   initialNumToRender={10}
                   maxToRenderPerBatch={15}
                   windowSize={10}
+                  scrollEventThrottle={16}
                 />
               )}
             </View>
 
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={[
-                styles.inputContainer,
-                Platform.OS === "android" && { paddingBottom: 8 },
-              ]}
-            >
-              {replyingTo && (
-                <View style={styles.replyingTo}>
-                  <View
+          <SafeAreaView edges={["bottom"]} style={[styles.inputContainer, { marginBottom: keyboardHeight }]}>
+            {replyingTo && (
+              <View style={styles.replyingTo}>
+                <Text
+                  variant="bodySmall"
+                  style={{
+                    color: theme.colors.onSurfaceVariant,
+                    fontSize: 12,
+                  }}
+                >
+                  Respondiendo a{" "}
+                  <Text
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      flex: 1,
+                      color: theme.colors.primary,
+                      fontWeight: "600",
                     }}
                   >
-                    <Text
-                      variant="bodySmall"
-                      style={{
-                        color: theme.colors.onSurfaceVariant,
-                        marginRight: 8,
-                      }}
-                    >
-                      Respondiendo a:
-                    </Text>
-                    <Text
-                      variant="bodySmall"
-                      style={{
-                        color: theme.colors.primary,
-                        fontWeight: "bold",
-                      }}
-                      numberOfLines={1}
-                    >
-                      {truncarNombre(replyingTo.autorNombre || "Usuario")}
-                    </Text>
-                  </View>
-                  <IconButton
-                    icon="close"
-                    size={16}
-                    onPress={cancelReply}
-                    iconColor={theme.colors.onSurfaceVariant}
-                  />
-                </View>
-              )}
+                    {truncarNombre(replyingTo.autorNombre || "Usuario")}
+                  </Text>
+                </Text>
+                <IconButton
+                  icon="close"
+                  size={16}
+                  onPress={cancelReply}
+                  iconColor={theme.colors.onSurfaceVariant}
+                  style={{ margin: 0 }}
+                />
+              </View>
+            )}
 
-              <View style={styles.inputRow}>
+            <View style={styles.inputRow}>
+              {auth.currentUser?.photoURL ? (
+                <Avatar.Image
+                  size={36}
+                  source={{ uri: auth.currentUser.photoURL }}
+                  style={{ marginRight: 8 }}
+                />
+              ) : (
+                <Avatar.Text
+                  size={36}
+                  label={auth.currentUser?.displayName?.charAt(0).toUpperCase() || "U"}
+                  style={{ marginRight: 8 }}
+                />
+              )}
+              <View style={{ flex: 1, position: 'relative' }}>
                 <TextInput
                   mode="outlined"
                   placeholder={
@@ -463,7 +523,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   value={commentText}
                   onChangeText={setCommentText}
                   multiline
-                  style={styles.textInput}
+                  style={[styles.textInput, commentText.trim() && { paddingRight: 48 }]}
                   outlineColor={theme.colors.outline}
                   activeOutlineColor={theme.colors.primary}
                   placeholderTextColor={theme.colors.onSurfaceVariant}
@@ -471,22 +531,30 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   autoFocus={false}
                   onSubmitEditing={handleSubmit}
                   returnKeyType="default"
+                  onFocus={() => {
+                    currentHeight.current = MODAL_HEIGHT_LARGE;
+                    Animated.spring(modalHeight, {
+                      toValue: MODAL_HEIGHT_LARGE,
+                      useNativeDriver: false,
+                      friction: 10,
+                      tension: 50,
+                    }).start();
+                  }}
                 />
-                <IconButton
-                  icon="send"
-                  size={24}
-                  onPress={handleSubmit}
-                  disabled={!commentText.trim() || submitting}
-                  iconColor={
-                    commentText.trim() && !submitting
-                      ? theme.colors.primary
-                      : theme.colors.onSurfaceDisabled
-                  }
-                  style={styles.sendButton}
-                />
+                {commentText.trim() && (
+                  <IconButton
+                    icon="send"
+                    size={20}
+                    onPress={handleSubmit}
+                    disabled={submitting}
+                    iconColor={theme.colors.primary}
+                    style={styles.sendButton}
+                  />
+                )}
               </View>
-            </KeyboardAvoidingView>
+            </View>
           </SafeAreaView>
+        </View>
         </Animated.View>
       </Animated.View>
     </View>

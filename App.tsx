@@ -8,7 +8,7 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, LogBox } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -17,6 +17,16 @@ import LoginScreen from './app/login';
 import { auth, db } from './firebase';
 import { useNotificationNavigation } from './scripts/hooks/useNotificationNavigation';
 import SuspendedModal from '@/components/ui/suspended-modal';
+
+// Suprimir warnings conocidos
+LogBox.ignoreLogs([
+  // React Native Paper 5.x - Bug conocido donde componentes usan Fragment internamente
+  'Invalid prop `index` supplied to `React.Fragment`',
+  'Invalid prop `%s` supplied to `React.Fragment`',
+  // Firestore BloomFilter - Warning benigno de optimización interna
+  'BloomFilter error',
+  '@firebase/firestore: Firestore',
+]);
 
 export const navigationRef = createNavigationContainerRef();
 

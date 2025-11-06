@@ -146,14 +146,17 @@ export const CommentsModalReadOnly: React.FC<CommentsModalReadOnlyProps> = ({
       Animated.parallel([
         Animated.timing(overlayAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 350,
           useNativeDriver: true,
         }),
-        Animated.spring(slideAnim, {
+        Animated.timing(slideAnim, {
           toValue: 0,
+          duration: 350,
           useNativeDriver: true,
-          damping: 20,
-          stiffness: 300,
+          easing: (t) => {
+            // Ease out cubic para animacion mas suave
+            return 1 - Math.pow(1 - t, 3);
+          },
         }),
       ]).start();
     } else {
@@ -190,7 +193,6 @@ export const CommentsModalReadOnly: React.FC<CommentsModalReadOnlyProps> = ({
       comment={item}
       onReply={handleDisabledAction}
       onDelete={handleDisabledAction}
-      onLikeToggle={handleDisabledAction}
       autorPublicacionUid={autorPublicacionUid}
       readOnly={true}
     />

@@ -446,14 +446,15 @@ export default function ManageSubjectsScreen() {
             contentContainerStyle={styles.scrollViewContent}
           >
             {filteredSubjects.map((subject, index) => (
-              <SubjectCard
-                key={subject.id}
-                subject={subject}
-                index={index}
-                onToggleStatus={toggleSubjectStatus}
-                onEdit={handleOpenEditModal}
-                isUpdating={updatingSubjectId === subject.id}
-              />
+              <View key={subject.id}>
+                <SubjectCard
+                  subject={subject}
+                  index={index}
+                  onToggleStatus={toggleSubjectStatus}
+                  onEdit={handleOpenEditModal}
+                  isUpdating={updatingSubjectId === subject.id}
+                />
+              </View>
             ))}
 
             {filteredSubjects.length === 0 && (

@@ -1,16 +1,20 @@
 import { Comment } from "@/app/subjects/types/comment.type";
-import { comentariosService } from "@/services/comments.service";
 import { getAuth } from "firebase/auth";
-import React, { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { LayoutAnimation, Platform, StyleSheet, UIManager, View } from "react-native";
 import { Avatar, IconButton, Menu, Text, useTheme } from "react-native-paper";
+import { LikeButton } from "./LikeButton";
+
+// Habilitar LayoutAnimation en Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface CommentItemProps {
   comment: Comment;
   nivel?: number;
   onReply: (comment: Comment) => void;
   onDelete: (commentId: string) => void;
-  onLikeToggle: (commentId: string) => void;
   autorPublicacionUid?: string;
   readOnly?: boolean;
 }
@@ -20,7 +24,6 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   nivel = 0,
   onReply,
   onDelete,
-  onLikeToggle,
   autorPublicacionUid,
   readOnly = false,
 }) => {
@@ -28,29 +31,12 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   const auth = getAuth();
   const [menuVisible, setMenuVisible] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
-  const [userLiked, setUserLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(comment.likes || 0);
 
   // Verificar permisos de eliminación
   const puedeEliminar =
     auth.currentUser &&
     (auth.currentUser.uid === comment.autorUid ||
       auth.currentUser.uid === autorPublicacionUid);
-
-  // SOLO suscribirse a likes, NO al comentario completo
-  useEffect(() => {
-    if (!comment.id || !auth.currentUser || readOnly) return;
-
-    const unsubscribe = comentariosService.suscribirseALikesComentario(
-      comment.id,
-      (likes, liked) => {
-        setLikeCount(likes);
-        setUserLiked(liked);
-      }
-    );
-
-    return unsubscribe;
-  }, [comment.id, auth.currentUser, readOnly]);
 
   const styles = StyleSheet.create({
     container: {
@@ -67,25 +53,25 @@ export const CommentItem: React.FC<CommentItemProps> = ({
     },
     header: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "flex-start",
       marginBottom: 4,
+      gap: 4,
     },
     autorInfo: {
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection: "column",
       flex: 1,
-      flexWrap: "wrap",
     },
     autorNombre: {
-      fontWeight: "bold",
+      fontWeight: "600",
       color: theme.colors.onSurface,
-      marginRight: 8,
       fontSize: 14,
+      lineHeight: 18,
     },
     fecha: {
       color: theme.colors.onSurfaceVariant,
-      fontSize: 12,
+      fontSize: 11,
+      lineHeight: 14,
+      marginTop: 2,
     },
     contenido: {
       color: theme.colors.onSurface,
@@ -97,61 +83,24 @@ export const CommentItem: React.FC<CommentItemProps> = ({
       flexDirection: "row",
       alignItems: "center",
     },
-    likeButton: {
-      margin: 0,
-      marginRight: 4,
-    },
-    replyButton: {
-      margin: 0,
-      marginLeft: 8,
-    },
     repliesContainer: {
-      marginTop: 12,
-      borderLeftWidth: 2,
-      borderLeftColor: theme.colors.outline,
-      paddingLeft: 12,
+      marginTop: 4,
     },
     viewRepliesText: {
-      color: theme.colors.primary,
-      fontSize: 14,
-      marginTop: 8,
-    },
-    disabledAction: {
-      opacity: 0.4,
-    },
-    staticLikeContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginRight: 4,
-    },
-    staticLikeText: {
       color: theme.colors.onSurfaceVariant,
       fontSize: 12,
-      marginLeft: 4,
+      fontWeight: "600",
+    },
+    repliesWrapper: {
+      marginTop: 4,
+    },
+    hideRepliesText: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 12,
+      fontWeight: "600",
+      marginTop: 4,
     },
   });
-
-  // Función handleLikeToggle modificada para readOnly
-  const handleLikeToggle = async () => {
-    if (readOnly) {
-      // En modo readOnly, no hacer absolutamente nada
-      return;
-    }
-
-    if (!auth.currentUser) return;
-
-    try {
-      const newLikedState = !userLiked;
-      setUserLiked(newLikedState);
-      setLikeCount((prev) => (newLikedState ? prev + 1 : prev - 1));
-
-      await onLikeToggle(comment.id);
-    } catch (error) {
-      console.error("Error al toggle like:", error);
-      setUserLiked(!userLiked);
-      setLikeCount((prev) => (userLiked ? prev + 1 : prev - 1));
-    }
-  };
 
   // Función para manejar el menú en modo readOnly
   const handleMenuPress = () => {
@@ -187,14 +136,26 @@ export const CommentItem: React.FC<CommentItemProps> = ({
 
   const truncarNombre = (nombre: string): string => {
     if (!nombre) return "Usuario";
-    if (nombre.length <= 20) return nombre;
+    return nombre;
+  };
 
-    const partes = nombre.trim().split(/\s+/);
-    if (partes.length === 1) {
-      return nombre.substring(0, 17) + "...";
-    }
-
-    return `${partes[0]} ${partes[1]}`.substring(0, 20) + "...";
+  const toggleReplies = () => {
+    // Configurar animación suave
+    LayoutAnimation.configureNext({
+      duration: 300,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+    setShowReplies(!showReplies);
   };
 
   return (
@@ -209,14 +170,13 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         <View style={styles.contentContainer}>
           <View style={styles.header}>
             <View style={styles.autorInfo}>
-              <Text style={styles.autorNombre} numberOfLines={1}>
+              <Text style={styles.autorNombre}>
                 {truncarNombre(comment.autorNombre || "Usuario")}
               </Text>
               <Text style={styles.fecha}>
                 {formatearFecha(comment.fechaCreacion)}
               </Text>
             </View>
-
             {!readOnly && puedeEliminar && (
               <Menu
                 visible={menuVisible}
@@ -244,49 +204,29 @@ export const CommentItem: React.FC<CommentItemProps> = ({
           <Text style={styles.contenido}>{comment.contenido}</Text>
 
           <View style={styles.actions}>
-            {readOnly ? (
-              // En modo readOnly, mostrar likes como texto estático
-              <View style={styles.staticLikeContainer}>
-                <IconButton
-                  icon={userLiked ? "heart" : "heart-outline"}
+            {!readOnly && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: -12 }}>
+                <LikeButton
+                  comentarioId={comment.id}
+                  initialLikes={comment.likes || 0}
                   size={16}
-                  iconColor={
-                    userLiked ? theme.colors.error : theme.colors.onSurfaceVariant
-                  }
-                  style={[styles.likeButton, styles.disabledAction]}
-                  onPress={() => {}} // Función vacía para evitar cualquier acción
+                  showCount={true}
                 />
-                <Text style={styles.staticLikeText}>
-                  {likeCount <= 0 ? "0" : likeCount}
-                </Text>
               </View>
-            ) : (
-              // Modo normal - botón de like funcional
-              <>
-                <IconButton
-                  icon={userLiked ? "heart" : "heart-outline"}
-                  size={16}
-                  iconColor={
-                    userLiked ? theme.colors.error : theme.colors.onSurfaceVariant
-                  }
-                  onPress={handleLikeToggle}
-                  style={styles.likeButton}
-                />
-                <Text
-                  style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}
-                >
-                  {likeCount}
-                </Text>
-              </>
             )}
 
             {!readOnly && nivel < 2 && (
-              <IconButton
-                icon="reply"
-                size={16}
+              <Text
                 onPress={handleReplyPress}
-                style={styles.replyButton}
-              />
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: "600",
+                  marginLeft: 8,
+                }}
+              >
+                Responder
+              </Text>
             )}
           </View>
         </View>
@@ -298,32 +238,32 @@ export const CommentItem: React.FC<CommentItemProps> = ({
           {!showReplies ? (
             <Text
               style={styles.viewRepliesText}
-              onPress={() => setShowReplies(true)}
+              onPress={toggleReplies}
             >
-              Ver {comment.respuestas.length} respuesta
-              {comment.respuestas.length !== 1 ? "s" : ""}
+              ──── Ver {comment.respuestas.length} respuesta{comment.respuestas.length !== 1 ? "s" : ""}
             </Text>
           ) : (
-            <>
-              {comment.respuestas.map((reply) => (
-                <CommentItem
-                  key={reply.id}
-                  comment={reply}
-                  nivel={nivel + 1}
-                  onReply={onReply}
-                  onDelete={onDelete}
-                  onLikeToggle={onLikeToggle}
-                  autorPublicacionUid={autorPublicacionUid}
-                  readOnly={readOnly}
-                />
-              ))}
+            <View>
+              <View style={styles.repliesWrapper}>
+                {comment.respuestas.map((reply) => (
+                  <CommentItem
+                    key={reply.id}
+                    comment={reply}
+                    nivel={nivel + 1}
+                    onReply={onReply}
+                    onDelete={onDelete}
+                    autorPublicacionUid={autorPublicacionUid}
+                    readOnly={readOnly}
+                  />
+                ))}
+              </View>
               <Text
-                style={styles.viewRepliesText}
-                onPress={() => setShowReplies(false)}
+                style={styles.hideRepliesText}
+                onPress={toggleReplies}
               >
                 Ocultar respuestas
               </Text>
-            </>
+            </View>
           )}
         </View>
       )}
