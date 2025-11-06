@@ -2,6 +2,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
   eliminarArchivo,
+  guardarEnlaceExterno,
   obtenerTiposArchivo,
   seleccionarArchivo,
   subirArchivo,
@@ -38,6 +39,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Platform,
+  ScrollView,
   View,
 } from "react-native";
 import {
@@ -47,6 +49,7 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
   Divider,
   IconButton,
   Portal,
@@ -61,6 +64,8 @@ import CustomAlert, {
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import CommentsModal from "../components/comments/CommentsModal";
 import { getStyles } from "./_PublicationDetailScreen.styles";
+
+const { width } = Dimensions.get("window");
 
 export default function PublicationDetailScreen() {
   const { theme } = useTheme();
@@ -86,23 +91,28 @@ export default function PublicationDetailScreen() {
   const [editDescription, setEditDescription] = useState<string>("");
   const [tiposArchivo, setTiposArchivo] = useState<any[]>([]);
   const [fileProcessing, setFileProcessing] = useState(false);
-  const [confirmDeleteFileVisible, setConfirmDeleteFileVisible] =
-    useState(false);
+  const [confirmDeleteFileVisible, setConfirmDeleteFileVisible] = useState(false);
   const [fileToDeleteId, setFileToDeleteId] = useState<string | null>(null);
-  const [filesMarkedForDelete, setFilesMarkedForDelete] = useState<string[]>(
-    []
-  );
+  const [filesMarkedForDelete, setFilesMarkedForDelete] = useState<string[]>([]);
   const [stagedAdds, setStagedAdds] = useState<
     {
       id: string;
-      file: any;
+      file?: any;
       tipoId: string;
-      name: string;
+      tipoArchivoId?: string;
+      name?: string;
+      nombreEnlace?: string;
+      esEnlaceExterno?: boolean;
+      url?: string;
+      subiendo?: boolean;
+      progreso?: number;
     }[]
   >([]);
+  const [dialogSeleccionVisible, setDialogSeleccionVisible] = useState(false);
+  const [dialogEnlaceVisible, setDialogEnlaceVisible] = useState(false);
+  const [urlEnlace, setUrlEnlace] = useState("");
+  const [nombreEnlace, setNombreEnlace] = useState("");
   const [confirmDeletePubVisible, setConfirmDeletePubVisible] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentsUpdated, setCommentsUpdated] = useState(0);
   const [userLiked, setUserLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [likeLoading, setLikeLoading] = useState(false);
@@ -112,28 +122,12 @@ export default function PublicationDetailScreen() {
   const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<CustomAlertType>("info");
-  const [alertButtons, setAlertButtons] = useState<
-    CustomAlertButton[] | undefined
-  >(undefined);
+  const [alertButtons, setAlertButtons] = useState<CustomAlertButton[] | undefined>(undefined);
   const [motivoDialogVisible, setMotivoDialogVisible] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>("");
   const [motivoPersonalizado, setMotivoPersonalizado] = useState<string>("");
-  const [isReporting, setIsReporting] = useState(false);
-  const accionPendiente = React.useRef<
-    null | ((motivo: string) => Promise<void>)
-  >(null);
+  const accionPendiente = React.useRef<null | ((motivo: string) => Promise<void>)>(null);
   const [savedMotivo, setSavedMotivo] = useState<string>("");
-
-  const deviceWidth = Dimensions.get("window").width;
-  const modalWidth = Math.min(400, deviceWidth * 0.9);
-
-  const MOTIVOS = [
-    "Spam",
-    "Contenido inapropiado",
-    "Acoso o bullying",
-    "Información falsa",
-    "Otra razón...",
-  ];
 
   const pedirMotivoYContinuar = (accion: (motivo: string) => Promise<void>) => {
     accionPendiente.current = accion;
@@ -147,28 +141,11 @@ export default function PublicationDetailScreen() {
       try {
         const tipos = await obtenerTiposArchivo();
         setTiposArchivo(tipos);
-      } catch (err) {}
+      } catch (err) {
+        console.error("Error cargando tipos de archivo:", err);
+      }
     })();
   }, []);
-
-  const confirmarMotivoYAccion = async () => {
-    try {
-      setIsReporting(true);
-      if (accionPendiente.current) {
-        const motivo =
-          motivoSeleccionado === "Otra razón..."
-            ? motivoPersonalizado
-            : motivoSeleccionado;
-        await accionPendiente.current(motivo);
-        accionPendiente.current = null;
-      }
-      setMotivoDialogVisible(false);
-    } catch (err) {
-      setMotivoDialogVisible(false);
-    } finally {
-      setIsReporting(false);
-    }
-  };
 
   const showAlert = (
     title: string | undefined,
@@ -323,7 +300,6 @@ export default function PublicationDetailScreen() {
     try {
       setLikeLoading(true);
       await likesService.darLike(usuario.uid, publicacionId);
-      // El estado se actualizará automáticamente por el snapshot
     } catch (error) {
       console.error("Error al dar like:", error);
       showAlert("Error", "No se pudo actualizar el like", "error");
@@ -332,25 +308,6 @@ export default function PublicationDetailScreen() {
     }
   };
 
-  // Effect para cargar el estado inicial del like
-  useEffect(() => {
-    if (!publicacionId || !usuario) return;
-
-    // Snapshot en tiempo real para el estado del like del usuario
-    const likeQuery = query(
-      collection(db, "likes"),
-      where("publicacionId", "==", publicacionId),
-      where("autorUid", "==", usuario.uid)
-    );
-
-    const unsubscribe = onSnapshot(likeQuery, (snapshot) => {
-      setUserLiked(!snapshot.empty);
-    });
-
-    return () => unsubscribe();
-  }, [publicacionId, usuario]);
-
-  // Effect para cargar el contador de likes en tiempo real
   useEffect(() => {
     if (!publicacionId) return;
 
@@ -366,7 +323,6 @@ export default function PublicationDetailScreen() {
     return () => unsubscribe();
   }, [publicacionId]);
 
-  // Effect para establecer el contador inicial desde la publicación
   useEffect(() => {
     if (publicacion) {
       setLikeCount(publicacion.totalCalificaciones || 0);
@@ -493,7 +449,12 @@ export default function PublicationDetailScreen() {
     return null;
   };
 
+  const mostrarDialogoSeleccion = () => {
+    setDialogSeleccionVisible(true);
+  };
+
   const agregarArchivo = async () => {
+    setDialogSeleccionVisible(false);
     try {
       setFileProcessing(true);
       const archivo = await seleccionarArchivo();
@@ -516,15 +477,76 @@ export default function PublicationDetailScreen() {
         id: `staged-${Date.now()}`,
         file: archivo,
         tipoId,
+        tipoArchivoId: tipoId,
         name: archivo.name,
+        esEnlaceExterno: false,
+        progreso: 0,
       };
-      setStagedAdds((prev) => [...prev, staged]);
+      setStagedAdds((prev) => {
+        const nuevo = [...prev, staged];
+        return nuevo;
+      });
     } catch (error) {
       console.error("Error al agregar archivo (staged):", error);
       showAlert("Error", "No se pudo preparar el archivo", "error");
     } finally {
       setFileProcessing(false);
     }
+  };
+
+  const mostrarDialogoEnlace = () => {
+    setDialogSeleccionVisible(false);
+    setDialogEnlaceVisible(true);
+  };
+
+  const agregarEnlace = () => {
+    if (!urlEnlace.trim()) {
+      showAlert("Error", "La URL es obligatoria", "error");
+      return;
+    }
+
+    if (!nombreEnlace.trim()) {
+      showAlert("Error", "El nombre del enlace es obligatorio", "error");
+      return;
+    }
+
+    try {
+      new URL(urlEnlace);
+    } catch {
+      showAlert(
+        "Error",
+        "La URL no es válida. Debe incluir http:// o https://",
+        "error"
+      );
+      return;
+    }
+
+    const tipoEnlace = tiposArchivo.find((t) => t.nombre.toLowerCase() === "enlace");
+    
+    if (!tipoEnlace) {
+      showAlert(
+        "Error",
+        "No se encontró el tipo de archivo 'Enlace' en la base de datos",
+        "error"
+      );
+      return;
+    }
+
+    const staged = {
+      id: `staged-${Date.now()}`,
+      tipoId: tipoEnlace.id,
+      tipoArchivoId: tipoEnlace.id,
+      name: nombreEnlace,
+      nombreEnlace: nombreEnlace,
+      esEnlaceExterno: true,
+      url: urlEnlace,
+      progreso: 0,
+    };
+
+    setStagedAdds((prev) => [...prev, staged]);
+    setDialogEnlaceVisible(false);
+    setUrlEnlace("");
+    setNombreEnlace("");
   };
 
   const confirmarEliminarArchivo = (archivoId: string) => {
@@ -570,18 +592,51 @@ export default function PublicationDetailScreen() {
       }
 
       if (stagedAdds.length > 0) {
-        await Promise.all(
-          stagedAdds.map((s) =>
-            subirArchivo(
-              publicacionId,
-              s.file,
-              s.tipoId,
-              s.name,
-              undefined,
-              (prog) => {}
+        for (let i = 0; i < stagedAdds.length; i++) {
+          const s = stagedAdds[i];
+
+          setStagedAdds((prev) =>
+            prev.map((item, idx) =>
+              idx === i ? { ...item, subiendo: true, progreso: 0 } : item
             )
-          )
-        );
+          );
+
+          try {
+            const nombreParaGuardar = s.name || s.nombreEnlace || "Archivo";
+            const tipoParaGuardar = s.tipoId || s.tipoArchivoId || "";
+            if (s.esEnlaceExterno && s.url) {
+              await guardarEnlaceExterno(
+                publicacionId,
+                tipoParaGuardar,
+                nombreParaGuardar,
+                s.url
+              );
+            } else if (s.file) {
+              await subirArchivo(
+                publicacionId,
+                s.file,
+                tipoParaGuardar || s.tipoId,
+                nombreParaGuardar,
+                undefined,
+                (prog) => {
+                  setStagedAdds((prev) =>
+                    prev.map((item, idx) =>
+                      idx === i ? { ...item, progreso: prog } : item
+                    )
+                  );
+                }
+              );
+            }
+          } catch (err) {
+            showAlert("Error", `No se pudo subir ${s.name || s.nombreEnlace || "archivo"}`, "error");
+          }
+
+          setStagedAdds((prev) =>
+            prev.map((item, idx) =>
+              idx === i ? { ...item, subiendo: false, progreso: 100 } : item
+            )
+          );
+        } 
         setStagedAdds([]);
       }
 
@@ -740,9 +795,16 @@ export default function PublicationDetailScreen() {
               source={{ uri: screenshotUrl }}
               style={styles.fullPreviewImage}
               resizeMode="cover"
-              onLoadStart={() => setLoading(true)}
-              onLoadEnd={() => setLoading(false)}
-              onError={() => setError("Error")}
+              onLoadStart={() => {
+                setLoading(true);
+              }}
+              onLoadEnd={() => {
+                setLoading(false);
+              }}
+              onError={(e) => {
+                console.error("[PublicationDetail] LinkPreview image onError:", e);
+                setError("Error");
+              }}
             />
             {loading && (
               <View style={styles.previewLoadingOverlay}>
@@ -796,50 +858,22 @@ export default function PublicationDetailScreen() {
     );
   };
 
-  if (cargando) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Appbar.Header>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title={materiaNombre} />
-        </Appbar.Header>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <Text variant="bodyLarge" style={styles.loadingText}>
-            Cargando publicación...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!publicacion) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Appbar.Header>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title={materiaNombre} />
-        </Appbar.Header>
-        <View style={styles.loadingContainer}>
-          <Text variant="headlineSmall" style={styles.loadingText}>
-            Publicación no encontrada
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={materiaNombre} />
+        
         {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
-          <Appbar.Action icon="flag" onPress={mostrarDialogoReporte} />
+          <Appbar.Action
+            icon="flag"
+            onPress={mostrarDialogoReporte}
+            style={{ marginHorizontal: 4 }}
+          />
         )}
 
         {publicacion && usuario && publicacion.autorUid === usuario.uid && (
-          <>
+          <View style={{ flexDirection: 'row' }}>
             {!editMode ? (
               <Appbar.Action
                 icon="pencil"
@@ -851,7 +885,7 @@ export default function PublicationDetailScreen() {
                 style={{ marginHorizontal: 4 }}
               />
             ) : (
-              <>
+              <View style={{ flexDirection: 'row' }}>
                 <Appbar.Action
                   icon="close"
                   onPress={handleCancelEdit}
@@ -862,7 +896,7 @@ export default function PublicationDetailScreen() {
                   onPress={handleSaveEdits}
                   style={{ marginHorizontal: 4 }}
                 />
-              </>
+              </View>
             )}
 
             <Appbar.Action
@@ -870,26 +904,41 @@ export default function PublicationDetailScreen() {
               onPress={() => setConfirmDeletePubVisible(true)}
               style={{ marginHorizontal: 4 }}
             />
-          </>
+          </View>
         )}
       </Appbar.Header>
+      
       <SafeAreaView
         style={styles.container}
         edges={["bottom", "left", "right"]}
       >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={
-            Platform.OS === "ios"
-              ? "padding"
-              : showComments
-              ? "height"
-              : undefined
-          }
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-        >
-          <>
-            {/* Contenido de la publicación */}
+        {cargando ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" />
+            <Text variant="bodyLarge" style={styles.loadingText}>
+              Cargando publicación...
+            </Text>
+          </View>
+        ) : !publicacion ? (
+          <View style={styles.loadingContainer}>
+            <Text variant="headlineSmall" style={styles.loadingText}>
+              Publicación no encontrada
+            </Text>
+          </View>
+        ) : (
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+          >
+          <ScrollView 
+            style={{ flex: 1 }}
+            contentContainerStyle={{ 
+              flexGrow: 1,
+              paddingBottom: 24 
+            }}
+            showsVerticalScrollIndicator={false}
+          >
             <Card style={styles.headerCard}>
               <Card.Content>
                 <View style={styles.autorContainer}>
@@ -919,7 +968,7 @@ export default function PublicationDetailScreen() {
                 <Divider style={styles.divider} />
 
                 {!editMode ? (
-                  <>
+                  <View>
                     <Text variant="headlineSmall" style={styles.titulo}>
                       {publicacion.titulo}
                     </Text>
@@ -927,9 +976,9 @@ export default function PublicationDetailScreen() {
                     <Text variant="bodyLarge" style={styles.descripcion}>
                       {publicacion.descripcion}
                     </Text>
-                  </>
+                  </View>
                 ) : (
-                  <>
+                  <View>
                     <TextInput
                       label="Título"
                       value={editTitle}
@@ -942,11 +991,9 @@ export default function PublicationDetailScreen() {
                       value={editDescription}
                       onChangeText={setEditDescription}
                       mode="outlined"
-                      multiline
-                      numberOfLines={6}
                       style={{ marginBottom: 12 }}
                     />
-                  </>
+                  </View>
                 )}
 
                 <View style={styles.statsContainer}>
@@ -968,18 +1015,12 @@ export default function PublicationDetailScreen() {
                   >
                     {realTimeCommentCount}
                   </Chip>
+                  
                   <Chip
                     icon={userLiked ? "heart" : "heart-outline"}
                     compact
-                    style={[
-                      styles.statChip,
-                      //userLiked && styles.likedChip,
-                      //likeLoading && styles.disabledChip
-                    ]}
-                    textStyle={[
-                      styles.statText,
-                      //userLiked && styles.likedText
-                    ]}
+                    style={styles.statChip}
+                    textStyle={styles.statText}
                     onPress={toggleLike}
                     disabled={likeLoading}
                   >
@@ -989,7 +1030,6 @@ export default function PublicationDetailScreen() {
               </Card.Content>
             </Card>
 
-            {/* Archivos adjuntos */}
             {archivos.length > 0 && (
               <View style={styles.archivosContainer}>
                 <Text variant="titleMedium" style={styles.archivosTitle}>
@@ -1011,15 +1051,12 @@ export default function PublicationDetailScreen() {
                           onLongPress={() => descargarArchivo(archivo)}
                         >
                           {!editMode ? (
-                            <>
+                            <View>
                               {!archivo.esEnlaceExterno && (
                                 <IconButton
                                   icon="download"
                                   size={18}
-                                  onPress={(e) => {
-                                    e.stopPropagation();
-                                    descargarArchivo(archivo);
-                                  }}
+                                  onPress={() => descargarArchivo(archivo)}
                                   style={styles.downloadButton}
                                   iconColor={theme.colors.onSurface}
                                 />
@@ -1034,14 +1071,12 @@ export default function PublicationDetailScreen() {
                                   onPress={() => {}}
                                 />
                               )}
-                            </>
+                            </View>
                           ) : (
                             <IconButton
                               icon={isMarked ? "check" : "close"}
                               size={16}
-                              onPress={() =>
-                                confirmarEliminarArchivo(archivo.id)
-                              }
+                              onPress={() => confirmarEliminarArchivo(archivo.id)}
                               style={{
                                 margin: 0,
                                 position: "absolute",
@@ -1066,9 +1101,7 @@ export default function PublicationDetailScreen() {
                         <View style={styles.archivoInfoContainer}>
                           <View style={styles.archivoInfoRow}>
                             <IconButton
-                              icon={obtenerIconoPorTipo(
-                                archivo.tipoNombre || ""
-                              )}
+                              icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
                               size={20}
                               iconColor={theme.colors.primary}
                               style={{ margin: 0, marginRight: 4 }}
@@ -1097,18 +1130,15 @@ export default function PublicationDetailScreen() {
                     );
                   })}
 
-                  {stagedAdds.map((s) => (
+                  {stagedAdds.map((s, index) => {   
+                    return (
                     <View key={s.id} style={styles.archivoCardWrapper}>
-                      <Card
-                        style={[styles.archivoCard, { position: "relative" }]}
-                      >
+                      <Card style={[styles.archivoCard, { position: "relative" }]}>
                         <IconButton
                           icon="close"
                           size={16}
                           onPress={() =>
-                            setStagedAdds((prev) =>
-                              prev.filter((x) => x.id !== s.id)
-                            )
+                            setStagedAdds((prev) => prev.filter((x) => x.id !== s.id))
                           }
                           style={{
                             margin: 0,
@@ -1129,77 +1159,122 @@ export default function PublicationDetailScreen() {
 
                         <View style={{ padding: 12, alignItems: "center" }}>
                           <IconButton
-                            icon="file-document"
-                            size={48}
+                            icon={s.esEnlaceExterno ? "link-variant" : "file-document"}
+                            size={24}
                             iconColor={theme.colors.primary}
                             style={{ margin: 0 }}
                           />
                           <Text
                             variant="bodyMedium"
-                            style={[
-                              styles.archivoTitulo,
-                              { textAlign: "center", marginTop: 4 },
-                            ]}
-                            numberOfLines={2}
-                          >
-                            {s.name}
-                          </Text>
-                          <Text
                             style={{
-                              color: theme.colors.primary,
-                              fontSize: 12,
+                              textAlign: "center",
                               marginTop: 4,
+                              color: theme.colors.onSurface,
+                              fontSize: 14,
+                              fontWeight: "500",
+                            }}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                            onLayout={(event) => {
+                              const { width, height } = event.nativeEvent.layout;
                             }}
                           >
-                            Nuevo — se subirá al guardar
+                            {(() => {
+                              const texto = s.name || s.nombreEnlace || s.file?.name || "Nuevo archivo";
+                              return texto;
+                            })()}
                           </Text>
+                          {s.esEnlaceExterno && s.url && (
+                            <Text
+                              style={{
+                                color: theme.colors.secondary,
+                                fontSize: 11,
+                                marginTop: 2,
+                              }}
+                              numberOfLines={1}
+                            >
+                              {s.url}
+                            </Text>
+                          )}
+                          {s.subiendo ? (
+                            <>
+                              <Text
+                                style={{
+                                  color: theme.colors.primary,
+                                  fontSize: 12,
+                                  marginTop: 4,
+                                }}
+                              >
+                                Subiendo... {s.progreso || 0}%
+                              </Text>
+                            </>
+                          ) : (
+                            <Text
+                              style={{
+                                color: theme.colors.primary,
+                                fontSize: 12,
+                                marginTop: 4,
+                              }}
+                            >
+                              {s.progreso === 100 ? "Subido ✓" : ""}
+                            </Text>
+                          )}
                         </View>
                       </Card>
 
                       <View style={styles.archivoInfoContainer} />
                     </View>
-                  ))}
+                    );
+                  })}
 
                   {editMode && (
                     <View style={styles.archivoCardWrapper}>
-                      <Card
+                      <View
                         style={[
                           styles.archivoCard,
                           {
                             alignItems: "center",
                             justifyContent: "center",
+                            backgroundColor: "transparent",
+                            elevation: 0,
+                            shadowColor: "transparent",
+                            borderWidth: 0,
                           },
                         ]}
-                        onPress={agregarArchivo}
                       >
-                        <Card.Content>
-                          <Button
-                            icon="plus"
-                            mode="contained"
-                            onPress={agregarArchivo}
-                            loading={fileProcessing}
-                          >
-                            Agregar
-                          </Button>
-                        </Card.Content>
-                      </Card>
+                        <IconButton
+                          icon="plus"
+                          size={28}
+                          onPress={mostrarDialogoSeleccion}
+                          disabled={fileProcessing}
+                          style={{
+                            backgroundColor: theme.colors.primary,
+                            width: width * 0.15,
+                            height: width * 0.15,
+                            borderRadius: 28,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 0,
+                          }}
+                          iconColor={theme.colors.onPrimary}
+                        />
+                      </View>
                     </View>
                   )}
                 </View>
               </View>
             )}
-          </>
+          </ScrollView>
+  </KeyboardAvoidingView>
+  )}
 
-          <CommentsModal
-            visible={commentsModalVisible}
-            onDismiss={() => setCommentsModalVisible(false)}
-            publicacionId={publicacionId}
-            autorPublicacionUid={publicacion.autorUid}
-          />
-        </KeyboardAvoidingView>
-        <Portal>
-          <React.Suspense fallback={null}></React.Suspense>
-        </Portal>
+        <CommentsModal
+          visible={commentsModalVisible}
+          onDismiss={() => setCommentsModalVisible(false)}
+          publicacionId={publicacionId}
+          autorPublicacionUid={publicacion?.autorUid || ""}
+        />
+
         <ReportReasonModal
           visible={motivoDialogVisible}
           initialSelection={savedMotivo}
@@ -1224,6 +1299,7 @@ export default function PublicationDetailScreen() {
             }
           }}
         />
+
         <CustomAlert
           visible={alertVisible}
           onDismiss={() => setAlertVisible(false)}
@@ -1232,6 +1308,7 @@ export default function PublicationDetailScreen() {
           type={alertType}
           buttons={alertButtons}
         />
+
         <CustomAlert
           visible={confirmDeleteFileVisible}
           onDismiss={() => setConfirmDeleteFileVisible(false)}
@@ -1273,7 +1350,71 @@ export default function PublicationDetailScreen() {
             },
           ]}
         />
+        <Portal>
+          <Dialog
+            visible={dialogSeleccionVisible}
+            onDismiss={() => setDialogSeleccionVisible(false)}
+          >
+            <Dialog.Title>¿Qué deseas adjuntar?</Dialog.Title>
+            <Dialog.Content>
+              <Button
+                mode="contained"
+                icon="file-upload"
+                onPress={agregarArchivo}
+                style={{ marginBottom: 12 }}
+              >
+                Subir archivo
+              </Button>
+              <Button
+                mode="outlined"
+                icon="link-variant"
+                onPress={mostrarDialogoEnlace}
+              >
+                Agregar enlace
+              </Button>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setDialogSeleccionVisible(false)}>
+                Cancelar
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+
+        <Portal>
+          <Dialog
+            visible={dialogEnlaceVisible}
+            onDismiss={() => setDialogEnlaceVisible(false)}
+          >
+            <Dialog.Title>Agregar enlace</Dialog.Title>
+            <Dialog.Content>
+              <TextInput
+                label="Nombre del enlace *"
+                value={nombreEnlace}
+                onChangeText={setNombreEnlace}
+                mode="outlined"
+                style={{ marginBottom: 12 }}
+                placeholder="Ej: Video explicativo"
+              />
+              <TextInput
+                label="URL *"
+                value={urlEnlace}
+                onChangeText={setUrlEnlace}
+                mode="outlined"
+                placeholder="https://ejemplo.com"
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setDialogEnlaceVisible(false)}>
+                Cancelar
+              </Button>
+              <Button onPress={agregarEnlace}>Agregar</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
       </SafeAreaView>
-    </>
+    </View>
   );
 }
