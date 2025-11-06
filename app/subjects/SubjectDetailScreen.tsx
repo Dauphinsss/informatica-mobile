@@ -156,20 +156,19 @@ export default function SubjectDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <Appbar.Header style={{zIndex:100}}>
+      <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={subjectName} />
+      </Appbar.Header>
+
+      <ScrollView style={styles.content}>
         <PublicationFilters
           sortBy={sortBy}
           sortOrder={sortOrder}
           onFilterChange={handleFilterChange}
           theme={theme}
-          styles={styles}
           showSemestreFilter={false}
         />
-      </Appbar.Header>
-
-      <ScrollView style={styles.content}>
         {cargando ? (
           <View style={styles.emptyContainer}>
             <ActivityIndicator size="large" />

@@ -1,8 +1,8 @@
 // app/components/filters/PublicationFilters.tsx
 import React from 'react';
-import { View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import type { MD3Theme } from 'react-native-paper';
-import { IconButton, Text, TouchableRipple } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 
 export type SortBy = 'fecha' | 'vistas' | 'likes' | 'comentarios'| 'semestre';
 export type SortOrder = 'asc' | 'desc';
@@ -12,7 +12,7 @@ interface PublicationFiltersProps {
   sortOrder: SortOrder;
   onFilterChange: (sortBy: SortBy, sortOrder: SortOrder) => void;
   theme: MD3Theme;
-  styles: any;
+  styles?: any;
   showSemestreFilter?: boolean;
 }
 
@@ -21,67 +21,102 @@ export const PublicationFilters: React.FC<PublicationFiltersProps> = ({
   sortOrder,
   onFilterChange,
   theme,
-  styles,
   showSemestreFilter = false,
 }) => {
-  const [visible, setVisible] = React.useState(false);
-
   const baseFilterOptions: { key: SortBy; label: string }[] = [
-    { key: 'fecha', label: 'Por fecha' },
-    { key: 'vistas', label: 'Por vistas' },
-    { key: 'likes', label: 'Por likes' },
-    { key: 'comentarios', label: 'Por comentarios' },
+    { key: 'fecha', label: 'Fecha' },
+    { key: 'vistas', label: 'Vistas' },
+    { key: 'likes', label: 'Likes' },
+    { key: 'comentarios', label: 'Comentarios' },
   ];
 
   let filterOptions = [...baseFilterOptions];
 
   if (showSemestreFilter) {
-    filterOptions.splice(2, 0, { key: 'semestre', label: 'Por semestre' });
+    filterOptions.splice(2, 0, { key: 'semestre', label: 'Semestre' });
   }
 
+  const getChipLabel = (key: SortBy) => {
+    const option = filterOptions.find(o => o.key === key);
+    if (!option) return '';
+
+    if (sortBy === key) {
+      return `${option.label} ${sortOrder === 'desc' ? '▼' : '▲'}`;
+    }
+    return option.label;
+  };
+
+  const internalStyles = StyleSheet.create({
+    container: {
+      paddingBottom: 12,
+      paddingHorizontal: 0,
+    },
+    scrollContent: {
+      paddingHorizontal: 12,
+      gap: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    chip: {
+      marginRight: 8,
+      height: 32,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      backgroundColor: theme.colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    chipSelected: {
+      marginRight: 8,
+      height: 32,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      backgroundColor: theme.colors.primaryContainer,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    chipText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: theme.colors.onSurfaceVariant,
+    },
+    chipTextSelected: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.onPrimaryContainer,
+    },
+  });
+
+  const handleChipPress = (key: SortBy) => {
+    if (sortBy === key) {
+      // Si ya está seleccionado, alternar el orden
+      onFilterChange(key, sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Si no está seleccionado, seleccionarlo con el orden actual
+      onFilterChange(key, sortOrder);
+    }
+  };
+
   return (
-    <View style={styles.filtroContainer}>
-      <IconButton
-        icon="tune"
-        size={28}
-        onPress={() => setVisible(v => !v)}
-        style={styles.filtroButton}
-        iconColor={theme.colors.onBackground}
-        accessibilityLabel="Abrir filtros"
-      />
-      {visible && (
-        <View style={styles.filtroMenu}>
-          {filterOptions.map((option) => (
-            <TouchableRipple 
-              key={option.key}
-              onPress={() => { 
-                onFilterChange(option.key, sortOrder); 
-                setVisible(false); 
-              }} 
-              style={styles.filtroRipple}
-            >
-              <View style={sortBy === option.key ? styles.filtroItemActive : styles.filtroItem}>
-                <Text style={sortBy === option.key ? styles.filtroTextActive : styles.filtroText}>
-                  {option.label}
-                </Text>
-              </View>
-            </TouchableRipple>
-          ))}
-          <TouchableRipple 
-            onPress={() => { 
-              onFilterChange(sortBy, sortOrder === 'asc' ? 'desc' : 'asc'); 
-              setVisible(false); 
-            }} 
-            style={styles.filtroRipple}
+    <View style={internalStyles.container}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={internalStyles.scrollContent}
+      >
+        {filterOptions.map((option) => (
+          <TouchableOpacity
+            key={option.key}
+            onPress={() => handleChipPress(option.key)}
+            style={sortBy === option.key ? internalStyles.chipSelected : internalStyles.chip}
+            activeOpacity={0.7}
           >
-            <View style={styles.filtroItem}>
-              <Text style={styles.filtroText}>
-                {sortOrder === 'asc' ? 'Ascendente ▲' : 'Descendente ▼'}
-              </Text>
-            </View>
-          </TouchableRipple>
-        </View>
-      )}
+            <Text style={sortBy === option.key ? internalStyles.chipTextSelected : internalStyles.chipText}>
+              {getChipLabel(option.key)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 };

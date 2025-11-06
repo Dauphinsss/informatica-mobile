@@ -386,10 +386,7 @@ export default function MisPublicacionesScreen() {
   }, [publicaciones, search, sortBy, sortOrder]);
 
   const styles = getStyles(theme);
-  
-  function formatearFecha(fecha: Date) {
-    return fecha.toLocaleDateString("es-BO", { year: "numeric", month: "short", day: "numeric" });
-  }
+
 
   return (
     <View style={styles.container}>
@@ -427,14 +424,6 @@ export default function MisPublicacionesScreen() {
               iconColor={theme.colors.onBackground}
             />
           </View>
-          <PublicationFilters
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onFilterChange={handleFilterChange}
-            theme={theme}
-            styles={styles}
-            showSemestreFilter={true}
-          />
         </View>
         {cargando ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -453,6 +442,15 @@ export default function MisPublicacionesScreen() {
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={true}
+            ListHeaderComponent={
+              <PublicationFilters
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onFilterChange={handleFilterChange}
+                theme={theme}
+                showSemestreFilter={true}
+              />
+            }
             renderItem={({ item: pub }) => (
               <PublicationCard
                 pub={pub}

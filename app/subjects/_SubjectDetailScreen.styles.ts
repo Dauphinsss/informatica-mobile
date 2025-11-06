@@ -10,7 +10,7 @@ export const getStyles = (theme: MD3Theme) =>
     content: {
       flex: 1,
       paddingHorizontal: "4%",
-      paddingVertical: 16,
+      paddingBottom: 16,
     },
     card: {
       marginBottom: 12,
