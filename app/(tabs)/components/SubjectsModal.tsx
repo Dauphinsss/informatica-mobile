@@ -20,6 +20,7 @@ import {
   Text,
   ActivityIndicator,
 } from "react-native-paper";
+import SubjectsModalSkeleton from "./SubjectsModalSkeleton";
 
 interface Subject {
   id: string;
@@ -210,12 +211,7 @@ export default function SubjectsModal({
 
         <ScrollView style={styles.modalContent}>
           {loadingSubjects ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" />
-              <Text style={{ marginTop: 16, color: theme.colors.onSurface }}>
-                Cargando materias...
-              </Text>
-            </View>
+            <SubjectsModalSkeleton />
           ) : subjects.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text
