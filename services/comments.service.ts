@@ -6,17 +6,41 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   increment,
   onSnapshot,
   orderBy,
   query,
+  setDoc,
   Timestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
 
 export const comentariosService = {
+  async actualizarEstadisticasUsuario(
+    usuarioUid: string,
+    cambios: Record<string, number>
+  ) {
+    try {
+      if (!usuarioUid) return;
+      const data: Record<string, any> = {};
+      Object.entries(cambios).forEach(([key, value]) => {
+        data[key] = increment(value);
+      });
+
+      await setDoc(doc(db, "estadisticasUsuario", usuarioUid), data, {
+        merge: true,
+      });
+    } catch (error) {
+      console.error(
+        "Error actualizando estadisticasUsuario (comentariosService):",
+        error
+      );
+    }
+  },
+
   async obtenerComentariosPorPublicacion(
     publicacionId: string
   ): Promise<Comment[]> {
@@ -31,10 +55,10 @@ export const comentariosService = {
       const querySnapshot = await getDocs(q);
       const comentarios: Comment[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
         comentarios.push({
-          id: doc.id,
+          id: docSnap.id,
           ...data,
           fechaCreacion: data.fechaCreacion.toDate(),
         } as Comment);
@@ -76,7 +100,6 @@ export const comentariosService = {
     comentario: Omit<Comment, "id" | "fechaCreacion">
   ): Promise<string> {
     try {
-      // Asegurarse de que no haya valores undefined
       const comentarioData = {
         ...comentario,
         autorFoto: comentario.autorFoto || null,
@@ -95,6 +118,18 @@ export const comentariosService = {
         totalComentarios: increment(1),
       });
 
+      if (comentario.autorUid) {
+        if (comentario.comentarioPadreId) {
+          await this.actualizarEstadisticasUsuario(comentario.autorUid, {
+            respuestasRealizadas: 1,
+          });
+        } else {
+          await this.actualizarEstadisticasUsuario(comentario.autorUid, {
+            comentariosRealizados: 1,
+          });
+        }
+      }
+
       return docRef.id;
     } catch (error) {
       console.error("Error creando comentario:", error);
@@ -107,6 +142,13 @@ export const comentariosService = {
     publicacionId: string
   ): Promise<void> {
     try {
+      const comentarioSnap = await getDoc(doc(db, "comentarios", comentarioId));
+      const comentarioData = comentarioSnap.exists()
+        ? (comentarioSnap.data() as any)
+        : null;
+      const autorUid: string | null = comentarioData?.autorUid ?? null;
+      const isRespuesta = !!comentarioData?.comentarioPadreId;
+
       await updateDoc(doc(db, "comentarios", comentarioId), {
         estado: "eliminado",
       });
@@ -114,13 +156,24 @@ export const comentariosService = {
       await updateDoc(doc(db, "publicaciones", publicacionId), {
         totalComentarios: increment(-1),
       });
+
+      if (autorUid) {
+        if (isRespuesta) {
+          await this.actualizarEstadisticasUsuario(autorUid, {
+            respuestasRealizadas: -1,
+          });
+        } else {
+          await this.actualizarEstadisticasUsuario(autorUid, {
+            comentariosRealizados: -1,
+          });
+        }
+      }
     } catch (error) {
       console.error("Error eliminando comentario:", error);
       throw error;
     }
   },
 
-  // SERVICIO DE LIKES PARA COMENTARIOS CORREGIDO
   async darLikeComentario(
     commentId: string,
     usuarioUid: string
@@ -145,8 +198,11 @@ export const comentariosService = {
         await updateDoc(doc(db, "comentarios", commentId), {
           likes: increment(1),
         });
+
+        await this.actualizarEstadisticasUsuario(usuarioUid, {
+          likesEnComentarios: 1,
+        });
       } else {
-        // Si ya existe, quitar like
         await this.quitarLikeComentario(commentId, usuarioUid);
       }
     } catch (error) {
@@ -169,12 +225,18 @@ export const comentariosService = {
 
       const snapshot = await getDocs(q);
 
-      const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
+      const deletePromises = snapshot.docs.map((docSnap) =>
+        deleteDoc(docSnap.ref)
+      );
 
       await Promise.all(deletePromises);
 
       await updateDoc(doc(db, "comentarios", commentId), {
         likes: increment(-1),
+      });
+
+      await this.actualizarEstadisticasUsuario(usuarioUid, {
+        likesEnComentarios: -1,
       });
     } catch (error) {
       console.error("Error quitando like de comentario:", error);
@@ -188,7 +250,6 @@ export const comentariosService = {
   ) {
     const usuarioUid = getAuth().currentUser?.uid;
 
-    // Suscripción a los likes de este comentario
     const likesQuery = query(
       collection(db, "likes"),
       where("comentarioId", "==", commentId)
@@ -203,7 +264,7 @@ export const comentariosService = {
       callback(likesCount, userLiked);
     });
   },
-  // Suscribirse a comentarios en tiempo real
+
   suscribirseAComentarios(
     publicacionId: string,
     callback: (comentarios: Comment[]) => void
@@ -216,7 +277,6 @@ export const comentariosService = {
         orderBy("fechaCreacion", "asc")
       );
 
-      // Retornar el unsubscribe function
       return onSnapshot(q, (querySnapshot) => {
         const comentarios: Comment[] = [];
 
@@ -234,12 +294,10 @@ export const comentariosService = {
       });
     } catch (error) {
       console.error("Error en suscripción a comentarios:", error);
-      // Retornar función vacía en caso de error
       return () => {};
     }
   },
 
-  // Suscribirse a cambios en un comentario específico
   suscribirseAComentario(
     comentarioId: string,
     callback: (comentario: Comment | null) => void
@@ -264,7 +322,6 @@ export const comentariosService = {
     }
   },
 
-  // Suscribirse a contador de comentarios en tiempo real
   suscribirseAContadorComentarios(
     publicacionId: string,
     callback: (count: number) => void
