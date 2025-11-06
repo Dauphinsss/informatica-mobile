@@ -1,5 +1,6 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
+import { useCalcularSemestre } from "@/hooks/useCalcularSemestre";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -113,6 +114,8 @@ export default function HomeScreen() {
   );
   const totalMaterialsLabel = totalMaterials === 1 ? "Material" : "Materiales";
   const user = auth.currentUser;
+
+  useCalcularSemestre(user?.uid, enrolledSubjectIds);
 
   useEffect(() => {
     if (user) {
