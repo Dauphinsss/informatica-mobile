@@ -12,7 +12,6 @@ import {
 } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -21,13 +20,16 @@ import {
 } from "react-native";
 import {
   Appbar,
+  Avatar,
   Card,
   FAB,
   IconButton,
   Surface,
   Text,
 } from "react-native-paper";
+import SubjectCardSkeleton from "./components/SubjectCardSkeleton";
 import SubjectsModal from "./components/SubjectsModal";
+import UserProfileModal from "./components/UserProfileModal";
 
 interface Subject {
   id: string;
@@ -60,6 +62,8 @@ export default function HomeScreen() {
     Record<string, number>
   >({});
   const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userMenuVisible, setUserMenuVisible] = useState(false);
 
   const formatSemestre = (sem: any) => {
     if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
@@ -132,6 +136,7 @@ export default function HomeScreen() {
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
+        setIsLoading(true);
         const subjectsCollection = collection(db, "materias");
         const subjectSnapshot = await getDocs(subjectsCollection);
         const subjectsList = subjectSnapshot.docs.map((doc) => ({
@@ -143,6 +148,8 @@ export default function HomeScreen() {
         setAllSubjects(activeSubjects);
       } catch (error) {
         console.error("Error al cargar materias:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -207,6 +214,7 @@ export default function HomeScreen() {
     setModalVisible(false);
   };
 
+
   if (!user) return null;
 
   return (
@@ -215,12 +223,19 @@ export default function HomeScreen() {
     >
       <Appbar.Header>
         <Appbar.Content title="Ing. Informática" />
-        <Appbar.Action
-          icon="plus"
-          onPress={() =>
-            Alert.alert("Próximamente", "Función para inscribirse a materias")
-          }
-        />
+        <TouchableOpacity
+          onPress={() => setUserMenuVisible(true)}
+          style={styles.avatarButton}
+        >
+          {user.photoURL ? (
+            <Avatar.Image size={32} source={{ uri: user.photoURL }} />
+          ) : (
+            <Avatar.Text
+              size={32}
+              label={user.displayName?.charAt(0).toUpperCase() || "?"}
+            />
+          )}
+        </TouchableOpacity>
       </Appbar.Header>
 
       <ScrollView
@@ -256,7 +271,13 @@ export default function HomeScreen() {
         </Surface>
 
         {/* Materias inscritas - Estilo Classroom */}
-        {enrolledSubjects.length > 0 ? (
+        {isLoading ? (
+          <View>
+            {[1, 2, 3].map((index) => (
+              <SubjectCardSkeleton key={index} />
+            ))}
+          </View>
+        ) : enrolledSubjects.length > 0 ? (
           <View>
             {enrolledSubjects.map((subject, index) => {
               const colorScheme = getSubjectColor(index);
@@ -407,6 +428,12 @@ export default function HomeScreen() {
         onDismiss={handleCloseModal}
         enrolledSubjectIds={enrolledSubjectIds}
         userId={user.uid}
+      />
+
+      {/* Modal de perfil de usuario */}
+      <UserProfileModal
+        visible={userMenuVisible}
+        onDismiss={() => setUserMenuVisible(false)}
       />
     </View>
   );
@@ -592,5 +619,10 @@ const styles = StyleSheet.create({
   emptyCard: {
     borderRadius: 12,
     padding: 32,
+  },
+  avatarButton: {
+    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
