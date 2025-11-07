@@ -31,6 +31,7 @@ import CustomAlert, {
   CustomAlertButton,
   CustomAlertType,
 } from "../../components/ui/CustomAlert";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface ArchivoTemp {
   id?: string;
@@ -50,6 +51,7 @@ export default function CreatePublicationScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const auth = getAuth();
+  const insets = useSafeAreaInsets();
 
   const params = route.params as {
     materiaId?: string;
@@ -444,14 +446,14 @@ export default function CreatePublicationScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Nueva publicación" />
         <Appbar.Action icon="check" onPress={publicar} disabled={publicando} />
       </Appbar.Header>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="labelMedium" style={styles.label}>

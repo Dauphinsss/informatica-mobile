@@ -7,6 +7,7 @@ import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Button, Text } from "react-native-paper";
 import { auth, db } from "../firebase";
 import { crearEstadisticasUsuario } from "../scripts/services/Users";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 GoogleSignin.configure({
   webClientId:
@@ -16,6 +17,7 @@ GoogleSignin.configure({
 export default function LoginScreen() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleGoogleSignIn = async () => {
     try {
@@ -95,7 +97,7 @@ export default function LoginScreen() {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[styles.container, { backgroundColor: theme.colors.background, paddingBottom: insets.bottom }]}
     >
       <View style={styles.content}>
         <Text variant="displaySmall" style={styles.title}>

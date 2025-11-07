@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -28,6 +29,7 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
   const translateY = useSharedValue(0);
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
+  const insets = useSafeAreaInsets();
 
   // Gesto de pinch (pellizcar para zoom)
   const pinchGesture = Gesture.Pinch()
@@ -142,7 +144,7 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {cargando && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
