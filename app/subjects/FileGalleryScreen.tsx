@@ -78,7 +78,7 @@ export default function FileGalleryScreen() {
   const [indiceActual, setIndiceActual] = useState(
     indiceInicialAjustado >= 0 ? indiceInicialAjustado : 0
   );
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(false);
   const pagerRef = useRef<PagerView>(null);
   const [pagerEnabled, setPagerEnabled] = useState(true);
 
@@ -225,23 +225,6 @@ export default function FileGalleryScreen() {
               icon={obtenerIconoPorTipo(archivoActual?.tipoNombre || "")}
               iconColor="rgba(255,255,255,0.7)"
               size={20}
-            />
-
-            <IconButton
-              icon="download"
-              iconColor="#fff"
-              size={22}
-              onPress={() => {
-                // Implementar descarga
-              }}
-            />
-            <IconButton
-              icon="dots-vertical"
-              iconColor="#fff"
-              size={22}
-              onPress={() => {
-                // Menú adicional
-              }}
             />
           </View>
         )}
@@ -589,6 +572,7 @@ function VideoViewerEnhanced({
   url,
   onToggleControls,
 }: Omit<ViewerProps, "onZoomChange">) {
+  const { theme } = useTheme();
   const [error, setError] = useState(false);
   const [cargando, setCargando] = useState(true);
 
@@ -647,8 +631,8 @@ function VideoViewerEnhanced({
             zIndex: 10,
           }}
         >
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={{ color: "#fff", marginTop: 16 }}>
+          <ActivityIndicator size="large" color={theme.dark ? "#FFFFFF" : theme.colors.surface} />
+          <Text style={{ color: theme.dark ? "#FFFFFF" : theme.colors.surface, marginTop: 16 }}>
             Cargando video...
           </Text>
         </View>
@@ -670,6 +654,7 @@ function AudioViewer({
   titulo,
   onToggleControls,
 }: { url: string; titulo: string; onToggleControls: () => void }) {
+  const { theme } = useTheme();
   const [error, setError] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -773,11 +758,11 @@ function AudioViewer({
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: "#1a1a1a",
+          backgroundColor: theme.colors.surfaceVariant,
         }}
       >
-        <ActivityIndicator size="large" color="#fff" />
-        <Text style={{ color: "#fff", marginTop: 16 }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
           Cargando audio...
         </Text>
       </View>
@@ -964,6 +949,7 @@ function PdfViewerWithGoogleDocs({
   onToggleControls,
   onPdfLoad,
 }: Omit<ViewerProps, "onZoomChange"> & { onPdfLoad?: () => void }) {
+  const { theme } = useTheme();
   const [error, setError] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [intentoAlternativo, setIntentoAlternativo] = useState(false);
@@ -1044,11 +1030,11 @@ function PdfViewerWithGoogleDocs({
             justifyContent: "center",
             alignItems: "center",
             zIndex: 10,
-            backgroundColor: "#1a1a1a",
+            backgroundColor: theme.colors.surfaceVariant,
           }}
         >
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={{ color: "#fff", marginTop: 16 }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
             {intentoAlternativo
               ? "Cargando con visor alternativo..."
               : "Cargando PDF..."}
@@ -1100,6 +1086,7 @@ function DocumentViewer({
   tipo: string;
   onToggleControls: () => void;
 }) {
+  const { theme } = useTheme();
   const [error, setError] = useState(false);
   const [cargando, setCargando] = useState(true);
 
@@ -1181,11 +1168,11 @@ function DocumentViewer({
             justifyContent: "center",
             alignItems: "center",
             zIndex: 10,
-            backgroundColor: "#1a1a1a",
+            backgroundColor: theme.colors.surfaceVariant,
           }}
         >
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={{ color: "#fff", marginTop: 16 }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
             Cargando documento...
           </Text>
         </View>
@@ -1221,6 +1208,7 @@ function TextViewer({
   url,
   onToggleControls,
 }: Omit<ViewerProps, "onZoomChange">) {
+  const { theme } = useTheme();
   const [contenido, setContenido] = useState<string>("");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
@@ -1350,11 +1338,11 @@ function TextViewer({
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: "#1a1a1a",
+          backgroundColor: theme.colors.surfaceVariant,
         }}
       >
-        <ActivityIndicator size="large" color="#fff" />
-        <Text style={{ color: "#fff", marginTop: 16 }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
           Cargando archivo...
         </Text>
       </View>

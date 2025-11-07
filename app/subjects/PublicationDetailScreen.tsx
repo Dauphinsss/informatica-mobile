@@ -1,65 +1,66 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
-  eliminarArchivo,
-  guardarEnlaceExterno,
-  obtenerTiposArchivo,
-  seleccionarArchivo,
-  subirArchivo,
+    eliminarArchivo,
+    guardarEnlaceExterno,
+    obtenerTiposArchivo,
+    seleccionarArchivo,
+    subirArchivo,
 } from "@/scripts/services/Files";
 import {
-  incrementarVistas,
-  obtenerArchivosConTipo,
-  obtenerPublicacionPorId,
+    incrementarVistas,
+    obtenerArchivosConTipo,
+    obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
 import { eliminarPublicacionYArchivos } from "@/scripts/services/Reports";
 import {
-  ArchivoPublicacion,
-  Publicacion,
+    ArchivoPublicacion,
+    Publicacion,
 } from "@/scripts/types/Publication.type";
 import { comentariosService } from "@/services/comments.service";
+import * as downloadsService from "@/services/downloads.service";
 import { likesService } from "@/services/likes.service";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getAuth } from "firebase/auth";
 import {
-  addDoc,
-  collection,
-  doc,
-  getDocs,
-  onSnapshot,
-  query,
-  Timestamp,
-  updateDoc,
-  where,
+    addDoc,
+    collection,
+    doc,
+    getDocs,
+    onSnapshot,
+    query,
+    Timestamp,
+    updateDoc,
+    where,
 } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Dimensions,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  ScrollView,
-  View,
+    Dimensions,
+    Image,
+    KeyboardAvoidingView,
+    Linking,
+    Platform,
+    ScrollView,
+    View,
 } from "react-native";
 import {
-  ActivityIndicator,
-  Appbar,
-  Avatar,
-  Button,
-  Card,
-  Chip,
-  Dialog,
-  Divider,
-  IconButton,
-  Portal,
-  Text,
-  TextInput,
+    ActivityIndicator,
+    Appbar,
+    Avatar,
+    Button,
+    Card,
+    Chip,
+    Dialog,
+    Divider,
+    IconButton,
+    Portal,
+    Text,
+    TextInput,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomAlert, {
-  CustomAlertButton,
-  CustomAlertType,
+    CustomAlertButton,
+    CustomAlertType,
 } from "../../components/ui/CustomAlert";
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import CommentsModal from "../components/comments/CommentsModal";
@@ -128,6 +129,14 @@ export default function PublicationDetailScreen() {
   const [motivoPersonalizado, setMotivoPersonalizado] = useState<string>("");
   const accionPendiente = React.useRef<null | ((motivo: string) => Promise<void>)>(null);
   const [savedMotivo, setSavedMotivo] = useState<string>("");
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [downloadingAll, setDownloadingAll] = useState(false);
+  const [downloadAllProgress, setDownloadAllProgress] = useState<{
+    current: number;
+    total: number;
+    fileName: string;
+  } | null>(null);
 
   const pedirMotivoYContinuar = (accion: (motivo: string) => Promise<void>) => {
     accionPendiente.current = accion;
@@ -681,26 +690,152 @@ export default function PublicationDetailScreen() {
     }
   };
 
-  const descargarArchivo = (archivo: ArchivoPublicacion) => {
+  const descargarArchivo = async (archivo: ArchivoPublicacion) => {
     if (archivo.esEnlaceExterno) {
       abrirArchivo(archivo);
       return;
     }
 
-    showAlert("Descargar", `¿Descargar ${archivo.titulo}?`, "confirm", [
-      { text: "Cancelar", onPress: () => {}, mode: "text" },
-      {
-        text: "Descargar",
-        onPress: () => {
-          showAlert(
-            "Info",
-            "La función de descarga estará disponible próximamente",
-            "info"
-          );
+    if (downloadingFileId) {
+      showAlert("Descargando", "Ya hay una descarga en progreso", "info");
+      return;
+    }
+
+    let mensaje = `¿Deseas descargar "${archivo.titulo}"?`;
+    
+    showAlert(
+      "Descargar archivo",
+      mensaje,
+      "confirm",
+      [
+        { text: "Cancelar", onPress: () => {}, mode: "text" },
+        {
+          text: "Descargar",
+          onPress: async () => {
+            setAlertVisible(false);
+            setDownloadingFileId(archivo.id);
+            setDownloadProgress(0);
+
+            const result = await downloadsService.descargarArchivo(
+              archivo,
+              (progress: any) => {
+                setDownloadProgress(Math.round(progress.progress * 100));
+              }
+            );
+
+            setDownloadingFileId(null);
+            setDownloadProgress(0);
+
+            if (result.success) {
+              if (result.requiresShare && result.shareUri) {
+                await downloadsService.compartirArchivo(result.shareUri);
+              }
+            } else {
+              showAlert(
+                "Error al descargar",
+                result.error || 'No se pudo descargar el archivo',
+                "error"
+              );
+            }
+          },
+          mode: "contained",
         },
-        mode: "contained",
-      },
-    ]);
+      ]
+    );
+  };
+
+  const descargarTodosLosArchivos = async () => {
+    if (downloadingAll || downloadingFileId) {
+      showAlert("Descargando", "Ya hay una descarga en progreso", "info");
+      return;
+    }
+
+    const archivosDescargables = archivos.filter((a) => !a.esEnlaceExterno);
+
+    if (archivosDescargables.length === 0) {
+      showAlert(
+        "Sin archivos",
+        "No hay archivos disponibles para descargar",
+        "info"
+      );
+      return;
+    }
+
+    showAlert(
+      "Descargar Todos",
+      `¿Deseas descargar ${archivosDescargables.length} archivo(s)?`,
+      "confirm",
+      [
+        { text: "Cancelar", onPress: () => {}, mode: "text" },
+        {
+          text: "Descargar",
+          onPress: async () => {
+            setAlertVisible(false);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            setDownloadingAll(true);
+            setDownloadAllProgress({
+              current: 0,
+              total: archivosDescargables.length,
+              fileName: "",
+            });
+
+            const result = await downloadsService.descargarMultiplesArchivos(
+              archivosDescargables,
+              publicacion?.titulo || 'esta publicación',
+              (current: number, total: number, fileName: string) => {
+                setDownloadAllProgress({
+                  current,
+                  total,
+                  fileName,
+                });
+              }
+            );
+
+            setDownloadingAll(false);
+            setDownloadAllProgress(null);
+
+            if (result.success) {
+              const documentosCount = result.pendingShare?.length || 0;
+              
+              let message = `Se descargaron ${result.downloadedCount} archivo(s) correctamente`;
+              
+              if (result.failedCount > 0) {
+                message += `\n\n ${result.failedCount} fallaron:\n${result.errors.join("\n")}`;
+              }
+
+              const buttons = documentosCount > 0 
+                ? [
+                    { text: "Cerrar", onPress: () => {}, mode: "text" as const },
+                    {
+                      text: "Guardar documentos",
+                      onPress: async () => {
+                        for (const doc of result.pendingShare!) {
+                          await downloadsService.compartirArchivo(doc.shareUri);
+                        }
+                      },
+                      mode: "contained" as const,
+                    },
+                  ]
+                : [{ text: "OK", onPress: () => {}, mode: "contained" as const }];
+
+              showAlert(
+                "Descarga completada",
+                message,
+                result.failedCount > 0 ? "error" : "success",
+                buttons
+              );
+            } else {
+              showAlert(
+                "Error",
+                "No se pudo descargar ningún archivo. Verifica los permisos y tu conexión.",
+                "error"
+              );
+            }
+          },
+          mode: "contained",
+        },
+      ]
+    );
   };
 
   const mostrarDialogoReporte = () => {
@@ -826,7 +961,7 @@ export default function PublicationDetailScreen() {
     );
   };
 
-  const renderArchivoPreview = (archivo: ArchivoPublicacion) => {
+  const renderArchivoPreview = (archivo: ArchivoPublicacion, isDownloading: boolean = false) => {
     const tipo = archivo.tipoNombre.toLowerCase();
     const icono = obtenerIconoPorTipo(archivo.tipoNombre || "");
 
@@ -843,6 +978,14 @@ export default function PublicationDetailScreen() {
             resizeMode="cover"
           />
           <View style={styles.imageOverlay} />
+          {isDownloading && (
+            <View style={styles.imageLoadingOverlay}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.imageLoadingText}>
+                {downloadProgress}%
+              </Text>
+            </View>
+          )}
         </View>
       );
     }
@@ -854,6 +997,14 @@ export default function PublicationDetailScreen() {
     return (
       <View style={styles.iconFallbackContainer}>
         <IconButton icon={icono} size={64} iconColor={theme.colors.primary} />
+        {isDownloading && (
+          <View style={styles.iconLoadingOverlay}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.imageLoadingText}>
+              {downloadProgress}%
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -1032,13 +1183,33 @@ export default function PublicationDetailScreen() {
 
             {archivos.length > 0 && (
               <View style={styles.archivosContainer}>
-                <Text variant="titleMedium" style={styles.archivosTitle}>
-                  Archivos adjuntos ({archivos.length})
-                </Text>
+                <View style={styles.archivosHeader}>
+                  <Text variant="titleMedium" style={styles.archivosTitle}>
+                    Archivos adjuntos ({archivos.length})
+                  </Text>
+                  {!editMode && (
+                    <Button
+                      mode="contained-tonal"
+                      icon="download-multiple"
+                      compact
+                      onPress={descargarTodosLosArchivos}
+                      disabled={
+                        downloadingAll ||
+                        downloadingFileId !== null ||
+                        archivos.filter((a) => !a.esEnlaceExterno).length === 0
+                      }
+                      loading={downloadingAll}
+                      style={styles.downloadAllButton}
+                    >
+                      Descargar todos
+                    </Button>
+                  )}
+                </View>
 
                 <View style={styles.archivosGrid}>
                   {archivos.map((archivo) => {
                     const isMarked = filesMarkedForDelete.includes(archivo.id);
+                    const isDownloading = downloadingFileId === archivo.id;
                     return (
                       <View key={archivo.id} style={styles.archivoCardWrapper}>
                         <Card
@@ -1059,6 +1230,7 @@ export default function PublicationDetailScreen() {
                                   onPress={() => descargarArchivo(archivo)}
                                   style={styles.downloadButton}
                                   iconColor={theme.colors.onSurface}
+                                  disabled={isDownloading}
                                 />
                               )}
 
@@ -1095,7 +1267,7 @@ export default function PublicationDetailScreen() {
                             />
                           )}
 
-                          {renderArchivoPreview(archivo)}
+                          {renderArchivoPreview(archivo, isDownloading)}
                         </Card>
 
                         <View style={styles.archivoInfoContainer}>
@@ -1412,6 +1584,30 @@ export default function PublicationDetailScreen() {
               </Button>
               <Button onPress={agregarEnlace}>Agregar</Button>
             </Dialog.Actions>
+          </Dialog>
+        </Portal>
+
+        <Portal>
+          <Dialog
+            visible={downloadingAll && downloadAllProgress !== null}
+            dismissable={false}
+          >
+            <Dialog.Title>Descargando archivos</Dialog.Title>
+            <Dialog.Content>
+              <View style={{ alignItems: "center", marginBottom: 16 }}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+              </View>
+              {downloadAllProgress && (
+                <View>
+                  <Text variant="bodyLarge" style={{ textAlign: "center", marginBottom: 8 }}>
+                    Descargando {downloadAllProgress.current} de {downloadAllProgress.total}
+                  </Text>
+                  <Text variant="bodyMedium" style={{ textAlign: "center", color: theme.colors.onSurfaceVariant }}>
+                    {downloadAllProgress.fileName}
+                  </Text>
+                </View>
+              )}
+            </Dialog.Content>
           </Dialog>
         </Portal>
       </SafeAreaView>
