@@ -225,10 +225,11 @@ export default function ManageSubjectsScreen() {
         await notificarCreacionMateria(
           docRef.id,
           nombreNormalizado,
-          (data.descripcion || "").trim()
+          (data.descripcion || "").trim(),
+          semestreNum
         );
       } catch (error) {
-        console.error("❌ Error al enviar notificación:", error);
+        console.error("Error al enviar notificación:", error);
       }
 
       showSnackbar("Materia creada satisfactoriamente", "success");

@@ -1,6 +1,8 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
 import { useCalcularSemestre } from "@/hooks/useCalcularSemestre";
+import { setModalVisible as setGlobalModalCallback } from "@/services/navigationService";
+import { escucharNotificaciones, NotificacionCompleta } from "@/services/notifications";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -65,6 +67,8 @@ export default function HomeScreen() {
   const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userMenuVisible, setUserMenuVisible] = useState(false);
+  const [newSubjectIds, setNewSubjectIds] = useState<string[]>([]);
+  const [newSubjectsNotifIds, setNewSubjectsNotifIds] = useState<Map<string, string>>(new Map());
 
   const formatSemestre = (sem: any) => {
     if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
@@ -118,6 +122,34 @@ export default function HomeScreen() {
   useCalcularSemestre(user?.uid, enrolledSubjectIds);
 
   useEffect(() => {
+    setGlobalModalCallback(setModalVisible);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const unsubscribe = escucharNotificaciones(
+      user.uid,
+      (notifs: NotificacionCompleta[]) => {
+        const nuevasMaterias = notifs
+          .filter((n) => !n.leida && n.metadata?.accion === "ver_materia")
+          .map((n) => ({ id: n.metadata?.materiaId!, notifId: n.id }))
+          .filter((item) => item.id);
+        
+        const idsMap = new Map<string, string>();
+        nuevasMaterias.forEach((item) => {
+          idsMap.set(item.id, item.notifId);
+        });
+        
+        setNewSubjectIds(nuevasMaterias.map((item) => item.id));
+        setNewSubjectsNotifIds(idsMap);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
     if (user) {
       const userRef = doc(db, "usuarios", user.uid);
       const unsubscribe = onSnapshot(userRef, (doc) => {
@@ -137,26 +169,28 @@ export default function HomeScreen() {
   }, [user]);
 
   useEffect(() => {
-    const fetchSubjects = async () => {
-      try {
-        setIsLoading(true);
-        const subjectsCollection = collection(db, "materias");
-        const subjectSnapshot = await getDocs(subjectsCollection);
-        const subjectsList = subjectSnapshot.docs.map((doc) => ({
+    setIsLoading(true);
+    const subjectsCollection = collection(db, "materias");
+    
+    const unsubscribe = onSnapshot(
+      subjectsCollection,
+      (snapshot) => {
+        const subjectsList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Subject[];
 
         const activeSubjects = subjectsList.filter((s) => s.estado === "active");
         setAllSubjects(activeSubjects);
-      } catch (error) {
+        setIsLoading(false);
+      },
+      (error) => {
         console.error("Error al cargar materias:", error);
-      } finally {
         setIsLoading(false);
       }
-    };
+    );
 
-    fetchSubjects();
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -431,6 +465,8 @@ export default function HomeScreen() {
         onDismiss={handleCloseModal}
         enrolledSubjectIds={enrolledSubjectIds}
         userId={user.uid}
+        newSubjectIds={newSubjectIds}
+        newSubjectsNotifIds={newSubjectsNotifIds}
       />
 
       {/* Modal de perfil de usuario */}

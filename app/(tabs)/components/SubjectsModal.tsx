@@ -1,5 +1,6 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
+import { marcarComoLeida } from "@/services/notifications";
 import {
   arrayRemove,
   arrayUnion,
@@ -11,6 +12,8 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import {
+  ActivityIndicator,
+  Badge,
   Checkbox,
   Divider,
   IconButton,
@@ -18,7 +21,6 @@ import {
   Modal,
   Portal,
   Text,
-  ActivityIndicator,
 } from "react-native-paper";
 import SubjectsModalSkeleton from "./SubjectsModalSkeleton";
 
@@ -37,6 +39,8 @@ interface SubjectsModalProps {
   enrolledSubjectIds: string[];
   userId: string;
   onEnrollmentChange?: () => void;
+  newSubjectIds?: string[];
+  newSubjectsNotifIds?: Map<string, string>;
 }
 
 export default function SubjectsModal({
@@ -45,6 +49,8 @@ export default function SubjectsModal({
   enrolledSubjectIds,
   userId,
   onEnrollmentChange,
+  newSubjectIds = [],
+  newSubjectsNotifIds = new Map(),
 }: SubjectsModalProps) {
   const { theme } = useTheme();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -244,15 +250,52 @@ export default function SubjectsModal({
                         subject.id
                       );
                       const isSaving = savingSubject === subject.id;
+                      const isNew = newSubjectIds.includes(subject.id);
+                      const notifId = newSubjectsNotifIds.get(subject.id);
+                      
+                      const handleSubjectPress = async () => {
+                        if (isSaving) return;
+                        
+                        if (isNew && notifId) {
+                          try {
+                            await marcarComoLeida(notifId);
+                          } catch (error) {
+                            console.error("Error al marcar notificación como leída:", error);
+                          }
+                          return;
+                        }
+                        
+                        await toggleSubjectEnrollment(subject.id);
+                      };
+                      
+                      const handleCheckboxPress = async () => {
+                        if (isSaving) return;
+                        await toggleSubjectEnrollment(subject.id);
+                      };
+                      
                       return (
                         <View key={subject.id}>
                           <List.Item
                             style={styles.listItemNoMargin}
-                            title={subject.nombre}
-                            titleStyle={{ color: theme.colors.onSurface }}
-                            onPress={() =>
-                              !isSaving && toggleSubjectEnrollment(subject.id)
+                            title={
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <Text style={{ color: theme.colors.onSurface }}>
+                                  {subject.nombre}
+                                </Text>
+                                {isNew && (
+                                  <Badge 
+                                    size={18} 
+                                    style={{ 
+                                      backgroundColor: theme.colors.primary,
+                                      color: theme.colors.onPrimary
+                                    }}
+                                  >
+                                    Nuevo
+                                  </Badge>
+                                )}
+                              </View>
                             }
+                            onPress={handleSubjectPress}
                             disabled={isSaving}
                             right={() =>
                               isSaving ? (
@@ -263,9 +306,7 @@ export default function SubjectsModal({
                               ) : (
                                 <Checkbox
                                   status={isEnrolled ? "checked" : "unchecked"}
-                                  onPress={() =>
-                                    toggleSubjectEnrollment(subject.id)
-                                  }
+                                  onPress={handleCheckboxPress}
                                 />
                               )
                             }
