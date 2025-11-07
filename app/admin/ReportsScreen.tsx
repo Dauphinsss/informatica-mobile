@@ -39,6 +39,7 @@ import {
   Portal,
   Text,
 } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomAlert, {
   CustomAlertButton,
   CustomAlertType,
@@ -115,6 +116,7 @@ export default function ReportsScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = getStyles(theme);
+  const insets = useSafeAreaInsets();
   const [filtroActivo, setFiltroActivo] = useState<FilterType>("pendientes");
   const [modalVisible, setModalVisible] = useState(false);
   const [reporteSeleccionado, setReporteSeleccionado] = useState<Report | null>(
@@ -637,40 +639,40 @@ export default function ReportsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Denuncias" />
       </Appbar.Header>
 
-      <View style={styles.filterContainer}>
-        <Button
-          mode={filtroActivo === "pendientes" ? "contained" : "outlined"}
-          onPress={() => setFiltroActivo("pendientes")}
-          style={styles.filterButton}
-          compact
-        >
-          Pendientes
-        </Button>
-        <Button
-          mode={filtroActivo === "completados" ? "contained" : "outlined"}
-          onPress={() => setFiltroActivo("completados")}
-          style={styles.filterButton}
-          compact
-        >
-          Completados
-        </Button>
-        <Button
-          mode={filtroActivo === "todos" ? "contained" : "outlined"}
-          onPress={() => setFiltroActivo("todos")}
-          style={styles.filterButton}
-          compact
-        >
-          Todos
-        </Button>
-      </View>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
+        <View style={styles.filterContainer}>
+          <Button
+            mode={filtroActivo === "pendientes" ? "contained" : "outlined"}
+            onPress={() => setFiltroActivo("pendientes")}
+            style={styles.filterButton}
+            compact
+          >
+            Pendientes
+          </Button>
+          <Button
+            mode={filtroActivo === "completados" ? "contained" : "outlined"}
+            onPress={() => setFiltroActivo("completados")}
+            style={styles.filterButton}
+            compact
+          >
+            Completados
+          </Button>
+          <Button
+            mode={filtroActivo === "todos" ? "contained" : "outlined"}
+            onPress={() => setFiltroActivo("todos")}
+            style={styles.filterButton}
+            compact
+          >
+            Todos
+          </Button>
+        </View>
 
-      <ScrollView style={styles.content}>
         {cargando ? (
           <View style={styles.emptyContainer}>
             <ActivityIndicator size="large" />

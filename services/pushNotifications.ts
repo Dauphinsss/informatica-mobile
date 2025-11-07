@@ -1,7 +1,8 @@
-import { Platform } from 'react-native';
-import { doc, updateDoc, arrayUnion, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { getExpoPushTokenAsync } from 'expo-notifications';
+import { arrayUnion, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Platform } from 'react-native';
+import { navigate, openSubjectsModal } from './navigationService';
 
 let Device: any;
 let Notifications: any;
@@ -202,4 +203,19 @@ export async function registrarTokensUsuario(uid: string) {
   if (expoToken && fcmToken) {
     await registrarTokens(uid, expoToken, fcmToken);
   }
+}
+
+export function configurarListenerNotificaciones() {
+  if (!Notifications) return;
+
+  Notifications.addNotificationResponseReceivedListener((response: any) => {
+    const data = response.notification.request.content.data;
+
+    if (data.accion === 'ver_materia' && data.materiaId) {
+      navigate('Home', { screen: 'HomeMain' });
+      setTimeout(() => {
+        openSubjectsModal();
+      }, 300);
+    }
+  });
 }

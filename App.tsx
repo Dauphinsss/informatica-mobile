@@ -1,22 +1,24 @@
+import SuspendedModal from '@/components/ui/suspended-modal';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { setNavigationRef } from '@/services/navigationService';
 import {
-    configurarCanalAndroid,
-    registrarTokens,
-    solicitarPermisosNotificaciones,
+  configurarCanalAndroid,
+  configurarListenerNotificaciones,
+  registrarTokens,
+  solicitarPermisosNotificaciones,
 } from '@/services/pushNotifications';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ActivityIndicator, View, LogBox } from 'react-native';
+import { doc, onSnapshot } from 'firebase/firestore';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, LogBox, View } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { doc, onSnapshot } from 'firebase/firestore';
 import TabsLayout from './app/(tabs)/_layout';
 import LoginScreen from './app/login';
 import { auth, db } from './firebase';
 import { useNotificationNavigation } from './scripts/hooks/useNotificationNavigation';
-import SuspendedModal from '@/components/ui/suspended-modal';
 
 // Suprimir warnings conocidos
 LogBox.ignoreLogs([
@@ -81,6 +83,8 @@ function AppContent() {
     const inicializarNotificaciones = async () => {
       await configurarCanalAndroid();
       await solicitarPermisosNotificaciones();
+      configurarListenerNotificaciones();
+      setNavigationRef(navigationRef);
     };
     inicializarNotificaciones();
   }, []);

@@ -24,11 +24,13 @@ import {
   Text,
 } from "react-native-paper";
 import { getStyles } from "./_SubjectDetailScreen.styles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SubjectDetailScreen() {
   const { theme } = useTheme();
   const styles = getStyles(theme);
-  
+  const insets = useSafeAreaInsets();
+
   type RootStackParamList = {
     CreatePublication: { materiaId: string; materiaNombre: string };
     PublicationDetail: { publicacionId: string; materiaNombre: string };
@@ -155,21 +157,20 @@ export default function SubjectDetailScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header style={{zIndex:100}}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={subjectName} />
+      </Appbar.Header>
+
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom }}>
         <PublicationFilters
           sortBy={sortBy}
           sortOrder={sortOrder}
           onFilterChange={handleFilterChange}
           theme={theme}
-          styles={styles}
           showSemestreFilter={false}
         />
-      </Appbar.Header>
-
-      <ScrollView style={styles.content}>
         {cargando ? (
           <View style={styles.emptyContainer}>
             <ActivityIndicator size="large" />
@@ -261,7 +262,7 @@ export default function SubjectDetailScreen() {
         )}
       </ScrollView>
 
-      <FAB icon="plus" style={styles.fab} onPress={abrirNuevaPublicacion} />
+      <FAB icon="plus" style={[styles.fab, { bottom: insets.bottom }]} onPress={abrirNuevaPublicacion} />
     </View>
   );
 }

@@ -26,6 +26,7 @@ import {
 } from "react-native-paper";
 import CustomAlert from "../../components/ui/CustomAlert";
 import getStyles from "./MisPublicacionesScreen.styles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type PublicationCardProps = {
   pub: PublicacionConMateria;
@@ -200,6 +201,7 @@ export default function MisPublicacionesScreen() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>('fecha');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const insets = useSafeAreaInsets();
 
   const handleFilterChange = useCallback((newSortBy: SortBy, newSortOrder: SortOrder) => {
     setSortBy(newSortBy);
@@ -386,13 +388,10 @@ export default function MisPublicacionesScreen() {
   }, [publicaciones, search, sortBy, sortOrder]);
 
   const styles = getStyles(theme);
-  
-  function formatearFecha(fecha: Date) {
-    return fecha.toLocaleDateString("es-BO", { year: "numeric", month: "short", day: "numeric" });
-  }
+
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         {!selectionMode ? (
@@ -427,14 +426,6 @@ export default function MisPublicacionesScreen() {
               iconColor={theme.colors.onBackground}
             />
           </View>
-          <PublicationFilters
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onFilterChange={handleFilterChange}
-            theme={theme}
-            styles={styles}
-            showSemestreFilter={true}
-          />
         </View>
         {cargando ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -453,6 +444,15 @@ export default function MisPublicacionesScreen() {
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={true}
+            ListHeaderComponent={
+              <PublicationFilters
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onFilterChange={handleFilterChange}
+                theme={theme}
+                showSemestreFilter={true}
+              />
+            }
             renderItem={({ item: pub }) => (
               <PublicationCard
                 pub={pub}

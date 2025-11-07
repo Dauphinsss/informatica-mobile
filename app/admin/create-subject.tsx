@@ -20,13 +20,13 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
-import ImageUploader from "./components/ImageUploader";
 import { auth, db, storage } from "../../firebase";
 import { AdminStackParamList } from "./_types";
 import {
   normalizeText,
   validateSubjectFields,
 } from "./_utils/subjectValidations";
+import ImageUploader from "./components/ImageUploader";
 
 type CreateSubjectNavigationProp = StackNavigationProp<
   AdminStackParamList,
@@ -153,7 +153,8 @@ export default function CreateSubjectScreen() {
         await notificarCreacionMateria(
           docRef.id,
           nombreNormalizado,
-          formData.descripcion.trim()
+          formData.descripcion.trim(),
+          semestreNum
         );
       } catch (error) {
         console.error("Error al enviar notificación:", error);

@@ -1,18 +1,19 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
+import { useCalcularSemestre } from "@/hooks/useCalcularSemestre";
+import { setModalVisible as setGlobalModalCallback } from "@/services/navigationService";
+import { escucharNotificaciones, NotificacionCompleta } from "@/services/notifications";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import {
   collection,
   doc,
-  getDocs,
   onSnapshot,
   query,
-  where,
+  where
 } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -21,13 +22,16 @@ import {
 } from "react-native";
 import {
   Appbar,
+  Avatar,
   Card,
   FAB,
   IconButton,
   Surface,
   Text,
 } from "react-native-paper";
+import SubjectCardSkeleton from "./components/SubjectCardSkeleton";
 import SubjectsModal from "./components/SubjectsModal";
+import UserProfileModal from "./components/UserProfileModal";
 
 interface Subject {
   id: string;
@@ -53,6 +57,7 @@ const SUBJECT_COLORS = [
 export default function HomeScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const [userData, setUserData] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [enrolledSubjectIds, setEnrolledSubjectIds] = useState<string[]>([]);
@@ -60,6 +65,10 @@ export default function HomeScreen() {
     Record<string, number>
   >({});
   const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userMenuVisible, setUserMenuVisible] = useState(false);
+  const [newSubjectIds, setNewSubjectIds] = useState<string[]>([]);
+  const [newSubjectsNotifIds, setNewSubjectsNotifIds] = useState<Map<string, string>>(new Map());
 
   const formatSemestre = (sem: any) => {
     if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
@@ -110,6 +119,36 @@ export default function HomeScreen() {
   const totalMaterialsLabel = totalMaterials === 1 ? "Material" : "Materiales";
   const user = auth.currentUser;
 
+  useCalcularSemestre(user?.uid, enrolledSubjectIds);
+
+  useEffect(() => {
+    setGlobalModalCallback(setModalVisible);
+  }, []);
+
+  useEffect(() => {
+    if (!user || !isFocused) return;
+    
+    const unsubscribe = escucharNotificaciones(
+      user.uid,
+      (notifs: NotificacionCompleta[]) => {
+        const nuevasMaterias = notifs
+          .filter((n) => !n.leida && n.metadata?.accion === "ver_materia")
+          .map((n) => ({ id: n.metadata?.materiaId!, notifId: n.id }))
+          .filter((item) => item.id);
+        
+        const idsMap = new Map<string, string>();
+        nuevasMaterias.forEach((item) => {
+          idsMap.set(item.id, item.notifId);
+        });
+        
+        setNewSubjectIds(nuevasMaterias.map((item) => item.id));
+        setNewSubjectsNotifIds(idsMap);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, [user, isFocused]);
+
   useEffect(() => {
     if (user) {
       const userRef = doc(db, "usuarios", user.uid);
@@ -130,68 +169,67 @@ export default function HomeScreen() {
   }, [user]);
 
   useEffect(() => {
-    const fetchSubjects = async () => {
-      try {
-        const subjectsCollection = collection(db, "materias");
-        const subjectSnapshot = await getDocs(subjectsCollection);
-        const subjectsList = subjectSnapshot.docs.map((doc) => ({
+    setIsLoading(true);
+    const subjectsCollection = collection(db, "materias");
+    
+    const unsubscribe = onSnapshot(
+      subjectsCollection,
+      (snapshot) => {
+        const subjectsList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Subject[];
 
         const activeSubjects = subjectsList.filter((s) => s.estado === "active");
         setAllSubjects(activeSubjects);
-      } catch (error) {
+        setIsLoading(false);
+      },
+      (error) => {
         console.error("Error al cargar materias:", error);
+        setIsLoading(false);
       }
-    };
+    );
 
-    fetchSubjects();
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    if (enrolledSubjectIds.length === 0) {
+      setSubjectMaterials({});
+      return;
+    }
 
-    const fetchMaterialsCount = async () => {
-      if (enrolledSubjectIds.length === 0) {
-        if (isMounted) {
-          setSubjectMaterials({});
+    const uniqueSubjectIds = Array.from(new Set(enrolledSubjectIds));
+    const publicacionesRef = collection(db, "publicaciones");
+    const unsubscribes: (() => void)[] = [];
+
+    // Crear un listener para cada materia inscrita
+    uniqueSubjectIds.forEach((subjectId) => {
+      const publicacionesQuery = query(
+        publicacionesRef,
+        where("materiaId", "==", subjectId),
+        where("estado", "==", "activo")
+      );
+
+      const unsubscribe = onSnapshot(
+        publicacionesQuery,
+        (snapshot) => {
+          setSubjectMaterials((prev) => ({
+            ...prev,
+            [subjectId]: snapshot.size,
+          }));
+        },
+        (error) => {
+          console.error(`Error al escuchar materiales de ${subjectId}:`, error);
         }
-        return;
-      }
+      );
 
-      try {
-        const uniqueSubjectIds = Array.from(new Set(enrolledSubjectIds));
-        const publicacionesRef = collection(db, "publicaciones");
-        const materialsBySubject: Record<string, number> = {};
+      unsubscribes.push(unsubscribe);
+    });
 
-        await Promise.all(
-          uniqueSubjectIds.map(async (subjectId) => {
-            const publicacionesQuery = query(
-              publicacionesRef,
-              where("materiaId", "==", subjectId),
-              where("estado", "==", "activo")
-            );
-            const snapshot = await getDocs(publicacionesQuery);
-            materialsBySubject[subjectId] = snapshot.size;
-          })
-        );
-
-        if (isMounted) {
-          setSubjectMaterials(materialsBySubject);
-        }
-      } catch (error) {
-        console.error("Error al obtener materiales:", error);
-        if (isMounted) {
-          setSubjectMaterials({});
-        }
-      }
-    };
-
-    fetchMaterialsCount();
-
+    // Cleanup: desuscribir todos los listeners
     return () => {
-      isMounted = false;
+      unsubscribes.forEach((unsub) => unsub());
     };
   }, [enrolledSubjectIds]);
 
@@ -207,6 +245,7 @@ export default function HomeScreen() {
     setModalVisible(false);
   };
 
+
   if (!user) return null;
 
   return (
@@ -215,12 +254,19 @@ export default function HomeScreen() {
     >
       <Appbar.Header>
         <Appbar.Content title="Ing. Informática" />
-        <Appbar.Action
-          icon="plus"
-          onPress={() =>
-            Alert.alert("Próximamente", "Función para inscribirse a materias")
-          }
-        />
+        <TouchableOpacity
+          onPress={() => setUserMenuVisible(true)}
+          style={styles.avatarButton}
+        >
+          {user.photoURL ? (
+            <Avatar.Image size={32} source={{ uri: user.photoURL }} />
+          ) : (
+            <Avatar.Text
+              size={32}
+              label={user.displayName?.charAt(0).toUpperCase() || "?"}
+            />
+          )}
+        </TouchableOpacity>
       </Appbar.Header>
 
       <ScrollView
@@ -256,7 +302,13 @@ export default function HomeScreen() {
         </Surface>
 
         {/* Materias inscritas - Estilo Classroom */}
-        {enrolledSubjects.length > 0 ? (
+        {isLoading ? (
+          <View>
+            {[1, 2, 3].map((index) => (
+              <SubjectCardSkeleton key={index} />
+            ))}
+          </View>
+        ) : enrolledSubjects.length > 0 ? (
           <View>
             {enrolledSubjects.map((subject, index) => {
               const colorScheme = getSubjectColor(index);
@@ -407,6 +459,14 @@ export default function HomeScreen() {
         onDismiss={handleCloseModal}
         enrolledSubjectIds={enrolledSubjectIds}
         userId={user.uid}
+        newSubjectIds={newSubjectIds}
+        newSubjectsNotifIds={newSubjectsNotifIds}
+      />
+
+      {/* Modal de perfil de usuario */}
+      <UserProfileModal
+        visible={userMenuVisible}
+        onDismiss={() => setUserMenuVisible(false)}
       />
     </View>
   );
@@ -592,5 +652,10 @@ const styles = StyleSheet.create({
   emptyCard: {
     borderRadius: 12,
     padding: 32,
+  },
+  avatarButton: {
+    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

@@ -1,5 +1,6 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useNavigation } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
@@ -7,19 +8,18 @@ import { doc, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import {
-  Appbar,
-  Avatar,
-  Button,
-  Card,
-  Dialog,
-  Divider,
-  List,
-  Portal,
-  RadioButton,
-  Surface,
-  Text,
+    Appbar,
+    Avatar,
+    Button,
+    Card,
+    Dialog,
+    Divider,
+    List,
+    Portal,
+    RadioButton,
+    Surface,
+    Text,
 } from "react-native-paper";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function ProfileScreen() {
   const navigation: any = useNavigation();
@@ -323,7 +323,7 @@ export default function ProfileScreen() {
                   color={theme.colors.onSurfaceVariant}
                 />
               )}
-              onPress={() => {}}
+              onPress={() => navigation.navigate("Notifications")}
             />
             <List.Item
               title="Privacidad"

@@ -1,16 +1,22 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
+import { marcarComoLeida } from "@/services/notifications";
 import {
   arrayRemove,
   arrayUnion,
   collection,
   doc,
   getDocs,
+  onSnapshot,
+  query,
   updateDoc,
+  where,
 } from "firebase/firestore";
-import React, { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Animated, Easing, ScrollView, StyleSheet, View } from "react-native";
 import {
+  ActivityIndicator,
+  Badge,
   Checkbox,
   Divider,
   IconButton,
@@ -18,8 +24,8 @@ import {
   Modal,
   Portal,
   Text,
-  ActivityIndicator,
 } from "react-native-paper";
+import SubjectsModalSkeleton from "./SubjectsModalSkeleton";
 
 interface Subject {
   id: string;
@@ -36,6 +42,8 @@ interface SubjectsModalProps {
   enrolledSubjectIds: string[];
   userId: string;
   onEnrollmentChange?: () => void;
+  newSubjectIds?: string[];
+  newSubjectsNotifIds?: Map<string, string>;
 }
 
 export default function SubjectsModal({
@@ -44,6 +52,8 @@ export default function SubjectsModal({
   enrolledSubjectIds,
   userId,
   onEnrollmentChange,
+  newSubjectIds = [],
+  newSubjectsNotifIds = new Map(),
 }: SubjectsModalProps) {
   const { theme } = useTheme();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -52,6 +62,19 @@ export default function SubjectsModal({
   const [expandedAccordions, setExpandedAccordions] = useState<Set<string>>(
     new Set()
   );
+  const [subjectMaterials, setSubjectMaterials] = useState<Record<string, number>>({});
+  const scrollViewRef = useRef<ScrollView>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const handleDismiss = () => {
+    onDismiss();
+    
+    for (const notifId of newSubjectsNotifIds.values()) {
+      marcarComoLeida(notifId).catch((error) => {
+        console.error("Error al marcar notificación como leída:", error);
+      });
+    }
+  };
 
   const formatSemestre = (sem: any) => {
     if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
@@ -108,11 +131,75 @@ export default function SubjectsModal({
   useEffect(() => {
     if (visible) {
       fetchSubjects();
-      setExpandedAccordions(
-        new Set([groupedSubjects[0]?.label].filter(Boolean))
-      );
+      setExpandedAccordions(new Set());
     }
   }, [visible]);
+
+  // Listener en tiempo real para contar materiales de cada materia
+  useEffect(() => {
+    if (!visible || subjects.length === 0) {
+      return;
+    }
+
+    const publicacionesRef = collection(db, "publicaciones");
+    const unsubscribes: (() => void)[] = [];
+
+    subjects.forEach((subject) => {
+      const publicacionesQuery = query(
+        publicacionesRef,
+        where("materiaId", "==", subject.id),
+        where("estado", "==", "activo")
+      );
+
+      const unsubscribe = onSnapshot(
+        publicacionesQuery,
+        (snapshot) => {
+          setSubjectMaterials((prev) => ({
+            ...prev,
+            [subject.id]: snapshot.size,
+          }));
+        },
+        (error) => {
+          console.error(`Error al escuchar materiales de ${subject.id}:`, error);
+        }
+      );
+
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, [visible, subjects]);
+
+  // Auto-abrir el acordeón del semestre con materias nuevas
+  useEffect(() => {
+    if (visible && subjects.length > 0 && newSubjectIds.length > 0) {
+      const newSubject = subjects.find(s => newSubjectIds.includes(s.id));
+      if (newSubject) {
+        const semestreLabel = formatSemestre(newSubject.semestre);
+        
+        setExpandedAccordions(new Set([semestreLabel]));
+        
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 300,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 300,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    } else if (visible && subjects.length > 0 && newSubjectIds.length === 0) {
+      setExpandedAccordions(new Set([groupedSubjects[0]?.label].filter(Boolean)));
+    }
+  }, [visible, subjects, newSubjectIds]);
 
   const fetchSubjects = async () => {
     setLoadingSubjects(true);
@@ -191,7 +278,7 @@ export default function SubjectsModal({
     <Portal>
       <Modal
         visible={visible}
-        onDismiss={onDismiss}
+        onDismiss={handleDismiss}
         contentContainerStyle={[
           styles.modalContainer,
           { backgroundColor: theme.colors.surface },
@@ -204,18 +291,13 @@ export default function SubjectsModal({
           >
             Todas las Materias
           </Text>
-          <IconButton icon="close" size={24} onPress={onDismiss} />
+          <IconButton icon="close" size={24} onPress={handleDismiss} />
         </View>
         <Divider />
 
         <ScrollView style={styles.modalContent}>
           {loadingSubjects ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" />
-              <Text style={{ marginTop: 16, color: theme.colors.onSurface }}>
-                Cargando materias...
-              </Text>
-            </View>
+            <SubjectsModalSkeleton />
           ) : subjects.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text
@@ -248,15 +330,56 @@ export default function SubjectsModal({
                         subject.id
                       );
                       const isSaving = savingSubject === subject.id;
+                      const isNew = newSubjectIds.includes(subject.id);
+                      const notifId = newSubjectsNotifIds.get(subject.id);
+                      const materialsCount = subjectMaterials[subject.id] ?? 0;
+                      const materialsLabel = materialsCount === 0
+                        ? "Sin materiales"
+                        : materialsCount === 1
+                        ? "1 material"
+                        : `${materialsCount} materiales`;
+                      
+                      const handleSubjectPress = async () => {
+                        if (isSaving) return;
+                        if (isNew) return;
+                        await toggleSubjectEnrollment(subject.id);
+                      };
+                      
+                      const handleCheckboxPress = async () => {
+                        if (isSaving) return;
+                        await toggleSubjectEnrollment(subject.id);
+                      };
+                      
                       return (
                         <View key={subject.id}>
                           <List.Item
                             style={styles.listItemNoMargin}
-                            title={subject.nombre}
-                            titleStyle={{ color: theme.colors.onSurface }}
-                            onPress={() =>
-                              !isSaving && toggleSubjectEnrollment(subject.id)
+                            title={
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <Text style={{ color: theme.colors.onSurface }}>
+                                  {subject.nombre}
+                                </Text>
+                                {isNew && (
+                                  <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                                    <Badge 
+                                      size={18} 
+                                      style={{ 
+                                        backgroundColor: theme.colors.primary,
+                                        color: theme.colors.onPrimary
+                                      }}
+                                    >
+                                      Nuevo
+                                    </Badge>
+                                  </Animated.View>
+                                )}
+                              </View>
                             }
+                            description={
+                              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
+                                {materialsLabel}
+                              </Text>
+                            }
+                            onPress={handleSubjectPress}
                             disabled={isSaving}
                             right={() =>
                               isSaving ? (
@@ -267,9 +390,7 @@ export default function SubjectsModal({
                               ) : (
                                 <Checkbox
                                   status={isEnrolled ? "checked" : "unchecked"}
-                                  onPress={() =>
-                                    toggleSubjectEnrollment(subject.id)
-                                  }
+                                  onPress={handleCheckboxPress}
                                 />
                               )
                             }

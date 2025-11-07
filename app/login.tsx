@@ -57,12 +57,15 @@ export default function LoginScreen() {
         await crearEstadisticasUsuario(user.uid);
       } else {
         console.log("Usuario ya existe, actualizando datos");
+        const datosActuales = usuarioDoc.data();
         await setDoc(
           usuarioRef,
           {
-            correo: user.email || usuarioDoc.data()?.correo || "",
-            nombre: user.displayName || usuarioDoc.data()?.nombre || "Usuario sin nombre",
-            foto: user.photoURL || usuarioDoc.data()?.foto || "",
+            correo: user.email || datosActuales?.correo || "",
+            nombre: user.displayName || datosActuales?.nombre || "Usuario sin nombre",
+            foto: user.photoURL || datosActuales?.foto || "",
+            rol: datosActuales?.rol || "usuario",
+            estado: datosActuales?.estado || "activo",
             ultimoAcceso: serverTimestamp(),
           },
           { merge: true }

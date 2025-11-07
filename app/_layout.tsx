@@ -1,12 +1,15 @@
 import SuspendedModal from "@/components/ui/suspended-modal";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import {
-  configurarCanalAndroid,
-  solicitarPermisosNotificaciones,
+    configurarCanalAndroid,
+    configurarListenerNotificaciones,
+    registrarTokens,
+    solicitarPermisosNotificaciones,
 } from "@/services/pushNotifications";
+import * as Notificacions from 'expo-notifications';
 import { StatusBar } from "expo-status-bar";
 import { doc, onSnapshot } from "firebase/firestore";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { PaperProvider } from "react-native-paper";
 import "react-native-reanimated";
@@ -14,8 +17,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { auth, db } from "../firebase";
 import TabsLayout from "./(tabs)/_layout";
 import LoginScreen from "./login";
-import { registrarTokens } from "@/services/pushNotifications";
-import * as Notificacions from 'expo-notifications'
 
 function AppContent() {
   const { isDark } = useTheme();
@@ -28,6 +29,7 @@ function AppContent() {
     const inicializarNotificaciones = async () => {
       await configurarCanalAndroid();
       await solicitarPermisosNotificaciones();
+      configurarListenerNotificaciones();
     };
     inicializarNotificaciones();
   }, []);
