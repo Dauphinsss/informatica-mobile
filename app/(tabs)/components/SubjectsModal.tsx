@@ -9,8 +9,8 @@ import {
   getDocs,
   updateDoc,
 } from "firebase/firestore";
-import React, { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Animated, Easing, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Badge,
@@ -59,6 +59,18 @@ export default function SubjectsModal({
   const [expandedAccordions, setExpandedAccordions] = useState<Set<string>>(
     new Set()
   );
+  const scrollViewRef = useRef<ScrollView>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const handleDismiss = () => {
+    onDismiss();
+    
+    for (const notifId of newSubjectsNotifIds.values()) {
+      marcarComoLeida(notifId).catch((error) => {
+        console.error("Error al marcar notificación como leída:", error);
+      });
+    }
+  };
 
   const formatSemestre = (sem: any) => {
     if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
@@ -115,11 +127,38 @@ export default function SubjectsModal({
   useEffect(() => {
     if (visible) {
       fetchSubjects();
-      setExpandedAccordions(
-        new Set([groupedSubjects[0]?.label].filter(Boolean))
-      );
+      setExpandedAccordions(new Set());
     }
   }, [visible]);
+
+  // Auto-abrir el acordeón del semestre con materias nuevas
+  useEffect(() => {
+    if (visible && subjects.length > 0 && newSubjectIds.length > 0) {
+      const newSubject = subjects.find(s => newSubjectIds.includes(s.id));
+      if (newSubject) {
+        const semestreLabel = formatSemestre(newSubject.semestre);
+        
+        setExpandedAccordions(new Set([semestreLabel]));
+        
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 300,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 300,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    } else if (visible && subjects.length > 0 && newSubjectIds.length === 0) {
+      setExpandedAccordions(new Set([groupedSubjects[0]?.label].filter(Boolean)));
+    }
+  }, [visible, subjects, newSubjectIds]);
 
   const fetchSubjects = async () => {
     setLoadingSubjects(true);
@@ -198,7 +237,7 @@ export default function SubjectsModal({
     <Portal>
       <Modal
         visible={visible}
-        onDismiss={onDismiss}
+        onDismiss={handleDismiss}
         contentContainerStyle={[
           styles.modalContainer,
           { backgroundColor: theme.colors.surface },
@@ -211,7 +250,7 @@ export default function SubjectsModal({
           >
             Todas las Materias
           </Text>
-          <IconButton icon="close" size={24} onPress={onDismiss} />
+          <IconButton icon="close" size={24} onPress={handleDismiss} />
         </View>
         <Divider />
 
@@ -255,16 +294,7 @@ export default function SubjectsModal({
                       
                       const handleSubjectPress = async () => {
                         if (isSaving) return;
-                        
-                        if (isNew && notifId) {
-                          try {
-                            await marcarComoLeida(notifId);
-                          } catch (error) {
-                            console.error("Error al marcar notificación como leída:", error);
-                          }
-                          return;
-                        }
-                        
+                        if (isNew) return;
                         await toggleSubjectEnrollment(subject.id);
                       };
                       
@@ -283,15 +313,17 @@ export default function SubjectsModal({
                                   {subject.nombre}
                                 </Text>
                                 {isNew && (
-                                  <Badge 
-                                    size={18} 
-                                    style={{ 
-                                      backgroundColor: theme.colors.primary,
-                                      color: theme.colors.onPrimary
-                                    }}
-                                  >
-                                    Nuevo
-                                  </Badge>
+                                  <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                                    <Badge 
+                                      size={18} 
+                                      style={{ 
+                                        backgroundColor: theme.colors.primary,
+                                        color: theme.colors.onPrimary
+                                      }}
+                                    >
+                                      Nuevo
+                                    </Badge>
+                                  </Animated.View>
                                 )}
                               </View>
                             }

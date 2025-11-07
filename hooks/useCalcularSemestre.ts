@@ -58,5 +58,5 @@ export const useCalcularSemestre = (
     };
 
     calcularYActualizarSemestre();
-  }, [userId, materiasInscritas.length]);
+  }, [userId, JSON.stringify(materiasInscritas)]);
 };

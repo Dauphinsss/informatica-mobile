@@ -210,25 +210,12 @@ export function configurarListenerNotificaciones() {
 
   Notifications.addNotificationResponseReceivedListener((response: any) => {
     const data = response.notification.request.content.data;
-    console.log('Notificación tocada:', data);
 
     if (data.accion === 'ver_materia' && data.materiaId) {
-      navigate('Home');
+      navigate('Home', { screen: 'HomeMain' });
       setTimeout(() => {
         openSubjectsModal();
       }, 300);
-    } else if (data.accion === 'ver_publicacion' && data.materiaId && data.publicacionId) {
-      navigate('SubjectDetail', {
-        id: data.materiaId,
-        nombre: data.materiaNombre || 'Materia',
-      });
-      
-      setTimeout(() => {
-        navigate('PublicationDetail', {
-          publicacionId: data.publicacionId,
-          materiaNombre: data.materiaNombre || 'Materia',
-        });
-      }, 500);
     }
   });
 }

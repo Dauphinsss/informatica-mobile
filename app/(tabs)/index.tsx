@@ -4,7 +4,7 @@ import { useCalcularSemestre } from "@/hooks/useCalcularSemestre";
 import { setModalVisible as setGlobalModalCallback } from "@/services/navigationService";
 import { escucharNotificaciones, NotificacionCompleta } from "@/services/notifications";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import {
   collection,
   doc,
@@ -58,6 +58,7 @@ const SUBJECT_COLORS = [
 export default function HomeScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const [userData, setUserData] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [enrolledSubjectIds, setEnrolledSubjectIds] = useState<string[]>([]);
@@ -126,7 +127,7 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isFocused) return;
     
     const unsubscribe = escucharNotificaciones(
       user.uid,
@@ -147,7 +148,7 @@ export default function HomeScreen() {
     );
     
     return () => unsubscribe();
-  }, [user]);
+  }, [user, isFocused]);
 
   useEffect(() => {
     if (user) {

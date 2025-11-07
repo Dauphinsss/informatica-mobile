@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
+import * as Notifications from 'expo-notifications';
+import { useEffect, useRef } from 'react';
 
 interface NotificationData {
   notificacionId?: string;
@@ -226,12 +226,7 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         
       case 'ver_materia':
       case 'notificacion_materia':
-        if (data.materiaId) {
-          goTo(`/materias/${data.materiaId}`, data);
-        } else {
-          console.warn('Falta materiaId para ver_materia:', data);
-          goTo('/notificaciones');
-        }
+        console.log('Ignorando ver_materia, manejado por configurarListenerNotificaciones');
         break;
         
       case 'admin_decision':
