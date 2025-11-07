@@ -12,6 +12,7 @@ import {
     Switch,
     Text,
 } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const NOTIFICATION_SETTINGS_KEY = "notificationSettings";
 
@@ -48,6 +49,7 @@ export default function NotificationsSettingsScreen() {
   const slideAnim1 = useRef(new Animated.Value(50)).current;
   const slideAnim2 = useRef(new Animated.Value(50)).current;
   const slideAnim3 = useRef(new Animated.Value(50)).current;
+  const insets = useSafeAreaInsets();
 
   useFocusEffect(
     useCallback(() => {
@@ -144,7 +146,7 @@ export default function NotificationsSettingsScreen() {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[styles.container, { backgroundColor: theme.colors.background, paddingBottom: insets.bottom }]}
     >
       <Appbar.Header>
         <Appbar.Content title="Notificaciones" />
@@ -177,7 +179,7 @@ export default function NotificationsSettingsScreen() {
               <View style={styles.settingItem}>
                 <View style={styles.settingContent}>
                   <Text variant="bodyMedium" style={styles.settingTitle}>
-                    Notificaciones FCM
+                    Notificaciones Globales
                   </Text>
                   <Text variant="bodySmall" style={styles.settingDesc}>
                     Alertas del sistema
@@ -375,7 +377,7 @@ export default function NotificationsSettingsScreen() {
               <View style={styles.settingItem}>
                 <View style={styles.settingContent}>
                   <Text variant="bodyMedium" style={styles.settingTitle}>
-                    Alertas del Admin
+                    Alertas de Administrador
                   </Text>
                   <Text variant="bodySmall" style={styles.settingDesc}>
                     Decisiones sobre tu cuenta
