@@ -7,7 +7,7 @@ export const getStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#000",
+      backgroundColor: theme.colors.background,
     },
     viewerContainer: {
       flex: 1,
@@ -15,7 +15,7 @@ export const getStyles = (theme: MD3Theme) =>
       height: SCREEN_HEIGHT,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "#000",
+      backgroundColor: theme.colors.background,
     },
     loadingContainer: {
       position: "absolute",
@@ -28,7 +28,7 @@ export const getStyles = (theme: MD3Theme) =>
       justifyContent: "center",
       alignItems: "center",
       padding: 32,
-      backgroundColor: "#000",
+      backgroundColor: theme.colors.background,
     },
   });
 
