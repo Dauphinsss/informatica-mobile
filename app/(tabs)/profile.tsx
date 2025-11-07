@@ -8,17 +8,17 @@ import { doc, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import {
-    Appbar,
-    Avatar,
-    Button,
-    Card,
-    Dialog,
-    Divider,
-    List,
-    Portal,
-    RadioButton,
-    Surface,
-    Text,
+  Appbar,
+  Avatar,
+  Button,
+  Card,
+  Dialog,
+  Divider,
+  List,
+  Portal,
+  RadioButton,
+  Surface,
+  Text,
 } from "react-native-paper";
 
 export default function ProfileScreen() {
@@ -323,7 +323,7 @@ export default function ProfileScreen() {
                   color={theme.colors.onSurfaceVariant}
                 />
               )}
-              onPress={() => navigation.navigate("Notifications")}
+              onPress={() => navigation.navigate("NotificationsSettings")}
             />
             <List.Item
               title="Privacidad"

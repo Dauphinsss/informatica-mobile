@@ -1,17 +1,18 @@
 import { db } from "@/firebase";
+import { getNotificationSettings } from "@/hooks/useNotificationSettings";
 import {
-  addDoc,
-  collection,
-  doc,
-  documentId,
-  getDocs,
-  limit,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-  writeBatch,
+    addDoc,
+    collection,
+    doc,
+    documentId,
+    getDocs,
+    limit,
+    onSnapshot,
+    query,
+    serverTimestamp,
+    updateDoc,
+    where,
+    writeBatch,
 } from "firebase/firestore";
 import { enviarNotificacionLocal } from "./pushNotifications";
 
@@ -292,12 +293,16 @@ export const notificarUsuariosMateria = async (
   publicacionId: string
 ) => {
   try {
-    // Buscar usuarios que tengan materiaId en su array materiasInscritas
+    const settings = await getNotificationSettings();
+    if (!settings.newPublicationsEnabled) {
+      return;
+    }
+
     const usuariosRef = collection(db, "usuarios");
     const q = query(
       usuariosRef,
       where("materiasInscritas", "array-contains", materiaId),
-      where("estado", "==", "activo") // Solo usuarios activos
+      where("estado", "==", "activo")
     );
     const snapshot = await getDocs(q);
 
@@ -309,7 +314,6 @@ export const notificarUsuariosMateria = async (
       currentUserId = auth.currentUser?.uid || null;
     } catch {}
 
-    // Filtrar el usuario actual si está en la lista
     if (currentUserId) {
       userIds = userIds.filter((id) => id !== currentUserId);
     }
@@ -353,6 +357,11 @@ export const notificarCreacionMateria = async (
   materiaSemestre?: number
 ) => {
   try {
+    const settings = await getNotificationSettings();
+    if (!settings.newSubjectsEnabled) {
+      return;
+    }
+
     console.log(`[NOTIF] Creando notificación para materia: ${materiaNombre} (Semestre ${materiaSemestre})`);
     
     const usuariosRef = collection(db, "usuarios");
@@ -458,6 +467,11 @@ export const notificarDecisionAdminAutor = async ({
   decision: string;
   tipoAccion: 'quitar' | 'strike' | 'ban';
 }) => {
+  const settings = await getNotificationSettings();
+  if (!settings.adminAlertsEnabled) {
+    return;
+  }
+
   let titulo = '';
   let descripcion = '';
   if (tipoAccion === 'quitar') {
@@ -500,6 +514,11 @@ export const notificarDecisionAdminDenunciantes = async ({
   decision: string;
   tipoAccion: 'quitar' | 'strike' | 'ban';
 }) => {
+  const settings = await getNotificationSettings();
+  if (!settings.adminAlertsEnabled) {
+    return;
+  }
+
   let titulo = '';
   let descripcion = '';
   if (tipoAccion === 'quitar') {

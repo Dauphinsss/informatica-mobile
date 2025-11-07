@@ -1,9 +1,10 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import MisPublicacionesScreen from "../profile/MisPublicacionesScreen";
-import ProfileScreen from "./profile";
-import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
 import FileGalleryScreen from "../subjects/FileGalleryScreen";
+import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
+import NotificationsSettingsScreen from "./NotificationsSettingsScreen";
+import ProfileScreen from "./profile";
 
 const Stack = createNativeStackNavigator();
 
@@ -26,6 +27,10 @@ export default function ProfileStack() {
         name="FileGallery"
         component={FileGalleryScreen}
         options={{ headerShown: false, animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="NotificationsSettings"
+        component={NotificationsSettingsScreen}
       />
     </Stack.Navigator>
   );

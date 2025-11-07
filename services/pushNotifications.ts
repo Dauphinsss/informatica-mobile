@@ -110,16 +110,23 @@ export async function enviarNotificacionLocal(
   }
 
   try {
+    const { getNotificationSettings } = await import('@/hooks/useNotificationSettings');
+    const settings = await getNotificationSettings();
+
+    if (!settings.localNotificationsEnabled) {
+      return;
+    }
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: titulo,
         body: descripcion,
-        sound: 'default',
+        sound: settings.sound ? 'default' : undefined,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: data || {},
         badge: 1,
       },
-      trigger: null, // null = inmediato
+      trigger: null,
     });
     console.log('Notificación local enviada:', titulo);
   } catch (error) {
