@@ -11,8 +11,10 @@ exports.enviarPushNuevaNotificacion = functions.firestore
   .onCreate(async (snap, context) => {
     const notifUsuario = snap.data();
     const { userId, notificacionId } = notifUsuario;
+    const notifUsuarioId = context.params?.notifUserId;
 
-    // Obtiene la notificación base para título y descripción
+    console.log(`[FCM] Nueva notificación para usuario: ${userId}, notifId: ${notificacionId}`);
+
     const notifDoc = await admin.firestore()
       .collection('notificaciones')
       .doc(notificacionId)
@@ -20,27 +22,37 @@ exports.enviarPushNuevaNotificacion = functions.firestore
     const notifData = notifDoc.data();
 
     if (!notifData) {
-      console.log('Notificación no encontrada');
+      console.log('[FCM] Notificación no encontrada');
       return null;
     }
+
+    console.log(`[FCM] Metadata: ${JSON.stringify(notifData.metadata)}`);
 
      if (notifData.metadata?.accion === 'ver_publicacion' || notifData.metadata?.publicacionId) {
+      console.log('[FCM] Es notificación de publicación, ignorando en esta función');
       return null;
     }
 
-    // Obtiene los tokens del usuario
     const usuarioDoc = await admin.firestore()
       .collection('usuarios')
       .doc(userId)
       .get();
-    const tokens = usuarioDoc.data()?.pushTokens || [];
-
-    if (tokens.length === 0) {
-      console.log('Usuario sin tokens registrados');
+    
+    if (!usuarioDoc.exists) {
+      console.log(`[FCM] Usuario ${userId} no existe`);
       return null;
     }
 
-    // Construye el mensaje
+    const userData = usuarioDoc.data();
+    const tokens = userData?.pushTokens || [];
+
+    console.log(`[FCM] Usuario: ${userData.nombre || 'Sin nombre'}, Tokens: ${tokens.length}`);
+
+    if (tokens.length === 0) {
+      console.log(`[FCM] Usuario ${userData.nombre || userId} sin tokens registrados`);
+      return null;
+    }
+
     const message = {
       notification: {
         title: notifData.titulo,
@@ -54,12 +66,21 @@ exports.enviarPushNuevaNotificacion = functions.firestore
       },
     };
 
+    console.log(`[FCM] Enviando a token: ${tokens[0].substring(0, 20)}...`);
+
     try {
-      // Envía la notificación a todos los dispositivos
       const response = await admin.messaging().sendEachForMulticast(message);
-      console.log('Notificaciones enviadas:', response.successCount);
+      console.log(`[FCM] Notificaciones enviadas: ${response.successCount}/${response.responses.length}`);
+      
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            console.log(`[FCM] Error en token ${idx}: ${resp.error?.message}`);
+          }
+        });
+      }
     } catch (error) {
-      console.log('Error enviando notificaciones push:', error);
+      console.log('[FCM] Error enviando notificaciones push:', error);
     }
 
     return null;
