@@ -1,7 +1,8 @@
-import { Platform } from 'react-native';
-import { doc, updateDoc, arrayUnion, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { getExpoPushTokenAsync } from 'expo-notifications';
+import { arrayUnion, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Platform } from 'react-native';
+import { navigate, openSubjectsModal } from './navigationService';
 
 let Device: any;
 let Notifications: any;
@@ -202,4 +203,32 @@ export async function registrarTokensUsuario(uid: string) {
   if (expoToken && fcmToken) {
     await registrarTokens(uid, expoToken, fcmToken);
   }
+}
+
+export function configurarListenerNotificaciones() {
+  if (!Notifications) return;
+
+  Notifications.addNotificationResponseReceivedListener((response: any) => {
+    const data = response.notification.request.content.data;
+    console.log('Notificación tocada:', data);
+
+    if (data.accion === 'ver_materia' && data.materiaId) {
+      navigate('Home');
+      setTimeout(() => {
+        openSubjectsModal();
+      }, 300);
+    } else if (data.accion === 'ver_publicacion' && data.materiaId && data.publicacionId) {
+      navigate('SubjectDetail', {
+        id: data.materiaId,
+        nombre: data.materiaNombre || 'Materia',
+      });
+      
+      setTimeout(() => {
+        navigate('PublicationDetail', {
+          publicacionId: data.publicacionId,
+          materiaNombre: data.materiaNombre || 'Materia',
+        });
+      }, 500);
+    }
+  });
 }

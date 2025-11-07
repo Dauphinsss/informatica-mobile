@@ -344,22 +344,52 @@ export const notificarUsuariosMateria = async (
 };
 
 /**
- * Notificar cuando se crea una nueva materia (para todos los usuarios)
+ * Notificar cuando se crea una nueva materia (solo a usuarios en ese semestre)
  */
 export const notificarCreacionMateria = async (
   materiaId: string,
   materiaNombre: string,
-  materiaDescripcion: string
+  materiaDescripcion: string,
+  materiaSemestre?: number
 ) => {
   try {
-    // Obtener todos los usuarios (sin filtrar por estado para debug)
+    console.log(`[NOTIF] Creando notificación para materia: ${materiaNombre} (Semestre ${materiaSemestre})`);
+    
     const usuariosRef = collection(db, "usuarios");
     const snapshot = await getDocs(usuariosRef);
+    
+    console.log(`[NOTIF] Total usuarios en BD: ${snapshot.docs.length}`);
 
-    // Filtrar usuarios activos en el cliente
     const usuariosActivos = snapshot.docs.filter((doc) => {
       const data = doc.data();
-      return data.estado === "activo";
+      const nombre = data.nombre || 'Sin nombre';
+      const uid = doc.id;
+      
+      if (data.estado !== "activo") {
+        console.log(`[NOTIF] ❌ ${nombre} (${uid}): Estado ${data.estado}`);
+        return false;
+      }
+      
+      if (!materiaSemestre && materiaSemestre !== 0) {
+        console.log(`[NOTIF] ✅ ${nombre} (${uid}): Sin filtro de semestre`);
+        return true;
+      }
+      
+      if (materiaSemestre === 10) {
+        console.log(`[NOTIF] ✅ ${nombre} (${uid}): Materia electiva`);
+        return true;
+      }
+      
+      const semestresUsuario = data.semestres || [];
+      if (semestresUsuario.length === 0) {
+        const resultado = materiaSemestre === 1;
+        console.log(`[NOTIF] ${resultado ? '✅' : '❌'} ${nombre} (${uid}): Sin semestres, materia es ${materiaSemestre}`);
+        return resultado;
+      }
+      
+      const resultado = semestresUsuario.includes(materiaSemestre);
+      console.log(`[NOTIF] ${resultado ? '✅' : '❌'} ${nombre} (${uid}): Semestres [${semestresUsuario}], materia ${materiaSemestre}`);
+      return resultado;
     });
 
     let userIds = usuariosActivos.map((doc) => doc.id);
@@ -370,16 +400,18 @@ export const notificarCreacionMateria = async (
       currentUserId = auth.currentUser?.uid || null;
     } catch {}
 
-    // Filtrar el usuario actual si está en la lista
     if (currentUserId) {
+      console.log(`[NOTIF] Excluyendo usuario actual: ${currentUserId}`);
       userIds = userIds.filter((id) => id !== currentUserId);
     }
 
+    console.log(`[NOTIF] Total usuarios a notificar: ${userIds.length}`);
+
     if (userIds.length === 0) {
+      console.log(`[NOTIF] No hay usuarios para notificar sobre materia de semestre ${materiaSemestre}`);
       return;
     }
 
-    // Crear notificación masiva
     await crearNotificacionMasiva(
       userIds,
       "Nueva materia disponible",
@@ -393,7 +425,6 @@ export const notificarCreacionMateria = async (
       }
     );
 
-    // Enviar notificación push local
     try {
       await enviarNotificacionLocal(
         "Nueva materia disponible",
@@ -406,7 +437,7 @@ export const notificarCreacionMateria = async (
         }
       );
     } catch {
-      console.log("Push notification no disponible (Expo Go)");
+      console.log("Push notification no disponible");
     }
   } catch (error) {
     console.error("Error al notificar creación de materia:", error);

@@ -14,7 +14,10 @@ export const useCalcularSemestre = (
         // Si no tiene materias inscritas, semestre = 0
         if (!materiasInscritas || materiasInscritas.length === 0) {
           const userRef = doc(db, 'usuarios', userId);
-          await updateDoc(userRef, { semestre: 0 });
+          await updateDoc(userRef, { 
+            semestre: 0,
+            semestres: []
+          });
           return;
         }
 
@@ -26,19 +29,28 @@ export const useCalcularSemestre = (
         
         const snapshot = await getDocs(q);
         
+        const semestresSet = new Set<number>();
         let semestreMaximo = 0;
+        
         snapshot.forEach((doc) => {
           const data = doc.data();
           const semestre = Number(data.semestre) || 0;
           
-          if (semestre > 0 && semestre < 10 && semestre > semestreMaximo) {
-            semestreMaximo = semestre;
+          if (semestre > 0 && semestre < 10) {
+            semestresSet.add(semestre);
+            if (semestre > semestreMaximo) {
+              semestreMaximo = semestre;
+            }
           }
         });
 
-        // Actualizar el semestre del usuario en Firestore
+        const semestresArray = Array.from(semestresSet).sort((a, b) => a - b);
+
         const userRef = doc(db, 'usuarios', userId);
-        await updateDoc(userRef, { semestre: semestreMaximo });
+        await updateDoc(userRef, { 
+          semestre: semestreMaximo,
+          semestres: semestresArray
+        });
         
       } catch (error) {
         console.error('Error al calcular semestre:', error);
