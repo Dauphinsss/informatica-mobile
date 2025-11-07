@@ -8,10 +8,9 @@ import { useIsFocused, useNavigation } from "@react-navigation/native";
 import {
   collection,
   doc,
-  getDocs,
   onSnapshot,
   query,
-  where,
+  where
 } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -195,48 +194,42 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    if (enrolledSubjectIds.length === 0) {
+      setSubjectMaterials({});
+      return;
+    }
 
-    const fetchMaterialsCount = async () => {
-      if (enrolledSubjectIds.length === 0) {
-        if (isMounted) {
-          setSubjectMaterials({});
+    const uniqueSubjectIds = Array.from(new Set(enrolledSubjectIds));
+    const publicacionesRef = collection(db, "publicaciones");
+    const unsubscribes: (() => void)[] = [];
+
+    // Crear un listener para cada materia inscrita
+    uniqueSubjectIds.forEach((subjectId) => {
+      const publicacionesQuery = query(
+        publicacionesRef,
+        where("materiaId", "==", subjectId),
+        where("estado", "==", "activo")
+      );
+
+      const unsubscribe = onSnapshot(
+        publicacionesQuery,
+        (snapshot) => {
+          setSubjectMaterials((prev) => ({
+            ...prev,
+            [subjectId]: snapshot.size,
+          }));
+        },
+        (error) => {
+          console.error(`Error al escuchar materiales de ${subjectId}:`, error);
         }
-        return;
-      }
+      );
 
-      try {
-        const uniqueSubjectIds = Array.from(new Set(enrolledSubjectIds));
-        const publicacionesRef = collection(db, "publicaciones");
-        const materialsBySubject: Record<string, number> = {};
+      unsubscribes.push(unsubscribe);
+    });
 
-        await Promise.all(
-          uniqueSubjectIds.map(async (subjectId) => {
-            const publicacionesQuery = query(
-              publicacionesRef,
-              where("materiaId", "==", subjectId),
-              where("estado", "==", "activo")
-            );
-            const snapshot = await getDocs(publicacionesQuery);
-            materialsBySubject[subjectId] = snapshot.size;
-          })
-        );
-
-        if (isMounted) {
-          setSubjectMaterials(materialsBySubject);
-        }
-      } catch (error) {
-        console.error("Error al obtener materiales:", error);
-        if (isMounted) {
-          setSubjectMaterials({});
-        }
-      }
-    };
-
-    fetchMaterialsCount();
-
+    // Cleanup: desuscribir todos los listeners
     return () => {
-      isMounted = false;
+      unsubscribes.forEach((unsub) => unsub());
     };
   }, [enrolledSubjectIds]);
 

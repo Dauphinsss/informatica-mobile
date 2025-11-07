@@ -181,7 +181,7 @@ const ManageUsers = () => {
 
         <ScrollView
           style={styles.content}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 160 }}
         >
           {/* Buscador dinámico */}
           {searchOpen && (

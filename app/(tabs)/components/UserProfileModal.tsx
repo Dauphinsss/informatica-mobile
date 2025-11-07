@@ -6,6 +6,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
 import { Avatar, Button, Surface, Text } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface UserProfileModalProps {
   visible: boolean;
@@ -22,6 +23,7 @@ export default function UserProfileModal({
 
   const slideAnim = useRef(new Animated.Value(500)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (visible) {
@@ -82,7 +84,7 @@ export default function UserProfileModal({
       statusBarTranslucent
       animationType="none"
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
         {/* Fondo (overlay) */}
         <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
           <Pressable style={styles.overlayPress} onPress={onDismiss} />

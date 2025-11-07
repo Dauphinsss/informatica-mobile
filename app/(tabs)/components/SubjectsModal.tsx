@@ -7,7 +7,10 @@ import {
   collection,
   doc,
   getDocs,
+  onSnapshot,
+  query,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, ScrollView, StyleSheet, View } from "react-native";
@@ -59,6 +62,7 @@ export default function SubjectsModal({
   const [expandedAccordions, setExpandedAccordions] = useState<Set<string>>(
     new Set()
   );
+  const [subjectMaterials, setSubjectMaterials] = useState<Record<string, number>>({});
   const scrollViewRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -130,6 +134,43 @@ export default function SubjectsModal({
       setExpandedAccordions(new Set());
     }
   }, [visible]);
+
+  // Listener en tiempo real para contar materiales de cada materia
+  useEffect(() => {
+    if (!visible || subjects.length === 0) {
+      return;
+    }
+
+    const publicacionesRef = collection(db, "publicaciones");
+    const unsubscribes: (() => void)[] = [];
+
+    subjects.forEach((subject) => {
+      const publicacionesQuery = query(
+        publicacionesRef,
+        where("materiaId", "==", subject.id),
+        where("estado", "==", "activo")
+      );
+
+      const unsubscribe = onSnapshot(
+        publicacionesQuery,
+        (snapshot) => {
+          setSubjectMaterials((prev) => ({
+            ...prev,
+            [subject.id]: snapshot.size,
+          }));
+        },
+        (error) => {
+          console.error(`Error al escuchar materiales de ${subject.id}:`, error);
+        }
+      );
+
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, [visible, subjects]);
 
   // Auto-abrir el acordeón del semestre con materias nuevas
   useEffect(() => {
@@ -291,6 +332,12 @@ export default function SubjectsModal({
                       const isSaving = savingSubject === subject.id;
                       const isNew = newSubjectIds.includes(subject.id);
                       const notifId = newSubjectsNotifIds.get(subject.id);
+                      const materialsCount = subjectMaterials[subject.id] ?? 0;
+                      const materialsLabel = materialsCount === 0
+                        ? "Sin materiales"
+                        : materialsCount === 1
+                        ? "1 material"
+                        : `${materialsCount} materiales`;
                       
                       const handleSubjectPress = async () => {
                         if (isSaving) return;
@@ -326,6 +373,11 @@ export default function SubjectsModal({
                                   </Animated.View>
                                 )}
                               </View>
+                            }
+                            description={
+                              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
+                                {materialsLabel}
+                              </Text>
                             }
                             onPress={handleSubjectPress}
                             disabled={isSaving}

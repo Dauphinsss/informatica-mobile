@@ -8,7 +8,7 @@ import {
   getDocs,
   updateDoc,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage"; // <-- funciones storage
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
@@ -21,7 +21,8 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
-import { auth, db, storage } from "../../firebase"; // <-- agregué storage
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { auth, db, storage } from "../../firebase";
 
 // Components
 import CreateSubjectModal from "./components/CreateSubjectModal";
@@ -43,6 +44,7 @@ type ManageSubjectsScreenNavigationProp = StackNavigationProp<
 export default function ManageSubjectsScreen() {
   const navigation = useNavigation<ManageSubjectsScreenNavigationProp>();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -413,7 +415,13 @@ export default function ManageSubjectsScreen() {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[
+        styles.container,
+        { 
+          backgroundColor: theme.colors.background,
+          paddingBottom: insets.bottom,
+        }
+      ]}
     >
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
@@ -424,7 +432,11 @@ export default function ManageSubjectsScreen() {
         />
       </Appbar.Header>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 80 }}
+      >
         {searchOpen && (
           <Searchbar
             placeholder="Buscar materia..."
@@ -441,11 +453,7 @@ export default function ManageSubjectsScreen() {
             <Text style={styles.loadingText}>Cargando materias...</Text>
           </View>
         ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollViewContent}
-          >
+          <>
             {filteredSubjects.map((subject, index) => (
               <View key={subject.id}>
                 <SubjectCard
@@ -471,9 +479,9 @@ export default function ManageSubjectsScreen() {
                 </Text>
               </View>
             )}
-          </ScrollView>
+          </>
         )}
-      </View>
+      </ScrollView>
 
       <Portal>
         <CreateSubjectModal
@@ -513,7 +521,12 @@ export default function ManageSubjectsScreen() {
 
       <FAB
         icon="plus"
-        style={styles.fab}
+        style={[
+          styles.fab,
+          { 
+            bottom: insets.bottom 
+          }
+        ]}
         onPress={() => navigation.navigate("CreateSubject")}
       />
 

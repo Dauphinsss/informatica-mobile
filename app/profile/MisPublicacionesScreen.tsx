@@ -26,6 +26,7 @@ import {
 } from "react-native-paper";
 import CustomAlert from "../../components/ui/CustomAlert";
 import getStyles from "./MisPublicacionesScreen.styles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type PublicationCardProps = {
   pub: PublicacionConMateria;
@@ -200,6 +201,7 @@ export default function MisPublicacionesScreen() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>('fecha');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const insets = useSafeAreaInsets();
 
   const handleFilterChange = useCallback((newSortBy: SortBy, newSortOrder: SortOrder) => {
     setSortBy(newSortBy);
@@ -389,7 +391,7 @@ export default function MisPublicacionesScreen() {
 
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         {!selectionMode ? (
