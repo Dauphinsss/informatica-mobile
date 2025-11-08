@@ -1,66 +1,67 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
-    eliminarArchivo,
-    guardarEnlaceExterno,
-    obtenerTiposArchivo,
-    seleccionarArchivo,
-    subirArchivo,
+  eliminarArchivo,
+  guardarEnlaceExterno,
+  obtenerTiposArchivo,
+  seleccionarArchivo,
+  subirArchivo,
 } from "@/scripts/services/Files";
 import {
-    incrementarVistas,
-    obtenerArchivosConTipo,
-    obtenerPublicacionPorId,
+  incrementarVistas,
+  obtenerArchivosConTipo,
+  obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
 import { eliminarPublicacionYArchivos } from "@/scripts/services/Reports";
 import {
-    ArchivoPublicacion,
-    Publicacion,
+  ArchivoPublicacion,
+  Publicacion,
 } from "@/scripts/types/Publication.type";
 import { comentariosService } from "@/services/comments.service";
 import * as downloadsService from "@/services/downloads.service";
 import { likesService } from "@/services/likes.service";
+import { compartirPublicacionMejorado } from "@/services/shareService";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getAuth } from "firebase/auth";
 import {
-    addDoc,
-    collection,
-    doc,
-    getDocs,
-    onSnapshot,
-    query,
-    Timestamp,
-    updateDoc,
-    where,
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  Timestamp,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Dimensions,
-    Image,
-    KeyboardAvoidingView,
-    Linking,
-    Platform,
-    ScrollView,
-    View,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  ScrollView,
+  View,
 } from "react-native";
 import {
-    ActivityIndicator,
-    Appbar,
-    Avatar,
-    Button,
-    Card,
-    Chip,
-    Dialog,
-    Divider,
-    IconButton,
-    Portal,
-    Text,
-    TextInput,
+  ActivityIndicator,
+  Appbar,
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Dialog,
+  Divider,
+  IconButton,
+  Portal,
+  Text,
+  TextInput,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomAlert, {
-    CustomAlertButton,
-    CustomAlertType,
+  CustomAlertButton,
+  CustomAlertType,
 } from "../../components/ui/CustomAlert";
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import CommentsModal from "../components/comments/CommentsModal";
@@ -137,6 +138,7 @@ export default function PublicationDetailScreen() {
     total: number;
     fileName: string;
   } | null>(null);
+  const [sharingPublication, setSharingPublication] = useState(false);
 
   const pedirMotivoYContinuar = (accion: (motivo: string) => Promise<void>) => {
     accionPendiente.current = accion;
@@ -863,6 +865,29 @@ export default function PublicationDetailScreen() {
     }
   };
 
+  const handleCompartirPublicacion = async () => {
+    if (!publicacion) return;
+
+    setSharingPublication(true);
+    try {
+      await compartirPublicacionMejorado({
+        publicacionId: publicacion.id,
+        titulo: publicacion.titulo,
+        descripcion: publicacion.descripcion,
+        autorNombre: publicacion.autorNombre,
+      });
+    } catch (error) {
+      console.error("Error al compartir publicación:", error);
+      showAlert(
+        "Error",
+        "No se pudo compartir la publicación",
+        "error"
+      );
+    } finally {
+      setSharingPublication(false);
+    }
+  };
+
   const TextPreview = ({ content }: { content: string }) => {
     return (
       <View style={styles.fullPreviewContainer}>
@@ -1014,6 +1039,15 @@ export default function PublicationDetailScreen() {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={materiaNombre} />
+        
+        {publicacion && (
+          <Appbar.Action
+            icon="share-variant"
+            onPress={handleCompartirPublicacion}
+            style={{ marginHorizontal: 4 }}
+            disabled={sharingPublication}
+          />
+        )}
         
         {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
           <Appbar.Action
