@@ -1,4 +1,3 @@
-import * as Linking from 'expo-linking';
 import { Alert, Platform, Share } from 'react-native';
 
 interface SharePublicationParams {
@@ -10,63 +9,33 @@ interface SharePublicationParams {
 
 /**
  * Obtiene el enlace profundo (deep link) para una publicación
- * Formato: informatica://publicacion/{publicacionId}
+ * Usa TinyURL para acortar y que se vea azul en WhatsApp
  */
-export const obtenerDeepLinkPublicacion = (publicacionId: string): string => {
-  return `informatica://publicacion/${publicacionId}`;
-};
-
-/**
- * Obtiene el enlace web para una publicación
- * Se puede usar como fallback si no existe deep link
- */
-export const obtenerEnlaceWebPublicacion = (publicacionId: string): string => {
-  // Ajusta la URL según tu dominio
-  return `https://informatica.app/publicacion/${publicacionId}`;
-};
-
-/**
- * Comprueba si la app está instalada usando el esquema personalizado
- */
-export const verificarSiAppEstaInstalada = async (): Promise<boolean> => {
+export const obtenerDeepLinkPublicacion = async (publicacionId: string): Promise<string> => {
+  const deepLink = `informatica://publicacion/${publicacionId}`;
+  
   try {
-    // Intentar abrir con el esquema informatica
-    const canOpen = await Linking.canOpenURL('informatica://');
-    return canOpen;
-  } catch (error) {
-    console.error('Error al verificar si la app está instalada:', error);
-    return false;
-  }
-};
-
-/**
- * Abre la Play Store para descargar la app
- */
-export const abrirPlayStore = async (): Promise<void> => {
-  try {
-    const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.informatica.app';
-    const appStoreUrl = 'https://apps.apple.com/app/informatica/id123456789'; // Ajusta el ID
-
-    const url = Platform.OS === 'ios' ? appStoreUrl : playStoreUrl;
-
-    const canOpen = await Linking.canOpenURL(url);
-    if (canOpen) {
-      await Linking.openURL(url);
-    } else {
-      console.error('No se puede abrir la tienda de aplicaciones');
+    // Usar TinyURL API (gratis, sin cuenta)
+    const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(deepLink)}`);
+    const shortUrl = await response.text();
+    
+    if (shortUrl && shortUrl.startsWith('http')) {
+      return shortUrl; // Retorna link acortado (azul en WhatsApp)
     }
   } catch (error) {
-    console.error('Error al abrir la tienda:', error);
+    console.log('Error acortando link, usando deep link directo:', error);
   }
+  
+  // Fallback al deep link normal
+  return deepLink;
 };
 
 /**
- * Crea un mensaje para compartir la publicación
+ * Crea el mensaje amigable para compartir con estudiantes
  */
 const crearMensajeCompartir = (
   params: SharePublicationParams,
-  deepLink: string,
-  enlaceWeb: string
+  deepLink: string
 ): string => {
   const truncatedDesc = params.descripcion.substring(0, 100).trim();
   const desc = truncatedDesc.length < params.descripcion.length 
@@ -74,59 +43,38 @@ const crearMensajeCompartir = (
     : truncatedDesc;
 
   if (Platform.OS === 'android') {
-    // Android soporta mejor el markdown de WhatsApp
-    return `📚 *${params.titulo}*\n\n${desc}\n\nDe: ${params.autorNombre}\n\n📱 Abre en la app:\n${deepLink}\n\n🌐 O en el navegador:\n${enlaceWeb}`;
+    return `━━━━━━━━━━━━━━━━━━━\n*${params.titulo}*\n━━━━━━━━━━━━━━━━━━━\n\n${desc}\n\n📚 Por: ${params.autorNombre}\n\n¡Abre este contenido en la app!\n${deepLink}`;
   } else {
-    // iOS
-    return `📚 ${params.titulo}\n\n${desc}\n\nDe: ${params.autorNombre}\n\n${enlaceWeb}`;
+    return `━━━━━━━━━━━━━━━━━━━\n${params.titulo}\n━━━━━━━━━━━━━━━━━━━\n\n${desc}\n\n📚 Por: ${params.autorNombre}\n\n¡Abre este contenido en la app!\n${deepLink}`;
   }
 };
 
 /**
- * Función mejorada para compartir publicaciones
- * Usa React Native Share API para mostrar el diálogo nativo
- * Intenta abrir en la app si está instalada, sino muestra opciones
+ * Función principal para compartir publicaciones
+ * Usa TinyURL para acortar el link y que sea clickeable en WhatsApp
+ * Sin dependencias externas, sin servidores propios
  */
 export const compartirPublicacionMejorado = async (
   params: SharePublicationParams
 ): Promise<void> => {
   try {
-    const deepLink = obtenerDeepLinkPublicacion(params.publicacionId);
-    const enlaceWeb = obtenerEnlaceWebPublicacion(params.publicacionId);
-    const mensaje = crearMensajeCompartir(params, deepLink, enlaceWeb);
+    const deepLink = await obtenerDeepLinkPublicacion(params.publicacionId);
+    const mensaje = crearMensajeCompartir(params, deepLink);
 
-    // Llamar al Share nativo
+    // Abrir el diálogo nativo de compartir
     const result = await Share.share({
       message: mensaje,
       title: `${params.titulo} - ${params.autorNombre}`,
-      url: Platform.OS === 'ios' ? enlaceWeb : undefined, // iOS requiere URL
+      url: Platform.OS === 'ios' ? deepLink : undefined,
     });
 
     if (result.action === Share.dismissedAction) {
-      // Usuario canceló
-      console.log('Share cancelado');
+      console.log('Compartir cancelado');
     }
   } catch (error) {
     if ((error as any).code !== 'E_SHARE_CANCELLED') {
       console.error('Error al compartir:', error);
       Alert.alert('Error', 'No se pudo compartir la publicación');
     }
-  }
-};
-
-/**
- * Abre el diálogo para compartir solo el enlace web
- */
-export const compartirEnlaceWeb = async (params: SharePublicationParams): Promise<void> => {
-  try {
-    const enlaceWeb = obtenerEnlaceWebPublicacion(params.publicacionId);
-
-    await Share.share({
-      message: `Mira esta publicación: ${params.titulo}`,
-      title: params.titulo,
-      url: Platform.OS === 'ios' ? enlaceWeb : undefined,
-    });
-  } catch (error) {
-    console.error('Error al compartir enlace web:', error);
   }
 };

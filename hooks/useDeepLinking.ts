@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { navigationRef } from '@/App';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 import { Linking } from 'react-native';
@@ -9,13 +9,8 @@ import { Linking } from 'react-native';
  * y navega a la pantalla correspondiente
  */
 export const useDeepLinking = () => {
-  const navigation = useNavigation();
-
   useEffect(() => {
-    // Manejar enlaces abiertos mientras la app está en foreground
     const handleDeepLink = ({ url }: { url: string }) => {
-      let route: any = null;
-      
       const path = url.substring(url.indexOf('://') + 3);
       const segments = path.split('/');
 
@@ -24,28 +19,36 @@ export const useDeepLinking = () => {
 
       if (segments[0] === 'publicacion' && segments[1]) {
         const publicacionId = segments[1];
-        console.log('Navegando a publicación:', publicacionId);
+        console.log('Navegando a publicacion:', publicacionId);
 
-        // Navegar a la pantalla de detalle de publicación
-        (navigation as any).navigate('PublicationDetail', {
-          publicacionId,
-          materiaNombre: 'Publicación compartida',
-        });
+        if (navigationRef.isReady()) {
+          try {
+            (navigationRef as any).navigate('Home', {
+              screen: 'PublicationDetail',
+              params: {
+                publicacionId,
+                materiaNombre: 'Publicación compartida',
+              },
+            });
+            console.log('Navegacion completada');
+          } catch (error) {
+            console.error('Error navegando:', error);
+          }
+        }
       }
     };
 
-    // Listener para cuando el app está abierto y recibe un deep link
     const subscription = Linking.addEventListener('url', handleDeepLink);
 
-    // Verificar si la app fue abierta desde un deep link
     Linking.getInitialURL().then((url) => {
       if (url != null) {
+        console.log('App abierta desde deep link:', url);
         handleDeepLink({ url });
       }
     });
 
     return () => subscription.remove();
-  }, [navigation]);
+  }, []);
 };
 
 /**
@@ -53,8 +56,6 @@ export const useDeepLinking = () => {
  * Se ejecuta cuando el usuario toca una notificación
  */
 export const useNotificationDeepLinking = () => {
-  const navigation = useNavigation();
-
   useEffect(() => {
     // Listener para respuestas de notificaciones
     const notificationResponseSubscription =
@@ -68,10 +69,16 @@ export const useNotificationDeepLinking = () => {
 
           if (segments[0] === 'publicacion' && segments[1]) {
             const publicacionId = segments[1];
-            (navigation as any).navigate('PublicationDetail', {
-              publicacionId,
-              materiaNombre: 'Publicación compartida',
-            });
+            if (navigationRef.isReady()) {
+              // Primero navega al tab de Home, luego a PublicationDetail
+              (navigationRef as any).navigate('Home', {
+                screen: 'PublicationDetail',
+                params: {
+                  publicacionId,
+                  materiaNombre: 'Publicación compartida',
+                },
+              });
+            }
           }
         }
       });
@@ -79,5 +86,5 @@ export const useNotificationDeepLinking = () => {
     return () => {
       notificationResponseSubscription.remove();
     };
-  }, [navigation]);
+  }, []);
 };
