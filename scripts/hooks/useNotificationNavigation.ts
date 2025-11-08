@@ -38,6 +38,23 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
     const tabNavigation = navigation.getParent?.() || navigation;
     
     try {
+      // CASO 1: Deep link de publicación compartida (formato: informatica://publicacion/{id})
+      if (segments[0] === 'publicacion' && segments[1]) {
+        const publicacionId = segments[1];
+        console.log('[Deep Link Compartir] Navegando a publicación compartida:', publicacionId);
+        
+        tabNavigation.navigate('Home', {
+          screen: 'PublicationDetail',
+          params: {
+            publicacionId,
+            materiaNombre: notificationData?.materiaNombre || 'Publicación compartida',
+          },
+          initial: false,
+        });
+        return;
+      }
+      
+      // CASO 2: Notificación de nueva publicación (formato: /materias/{id}/publicaciones/{id})
       if (segments[0] === 'materias' && segments[2] === 'publicaciones') {
         const materiaId = segments[1];
         const publicacionId = segments[3];
@@ -168,18 +185,6 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
       }
     );
 
-    const handleDeepLink = (event: { url: string }) => {
-      setTimeout(() => handleDeepLinkNavigation(event.url), 300);
-    };
-    
-    const linkingSubscription = Linking.addEventListener('url', handleDeepLink);
-
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        setTimeout(() => handleDeepLinkNavigation(url), 800);
-      }
-    });
-
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) {
         const data = response.notification?.request?.content?.data as NotificationData | undefined;
@@ -199,11 +204,17 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
     return () => {
       notificationListener.current?.remove();
       responseListener.current?.remove();
-      linkingSubscription.remove();
+      // linkingSubscription.remove(); // Ya no existe
     };
   }, [navigation]);
 
   const handleNotificationNavigation = (data: NotificationData) => {
+    // Esto previene que el sistema de notificaciones interfiera con deep links compartidos
+    if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+      console.log('[Notificaciones] Data vacía, ignorando navegación');
+      return;
+    }
+
     if (data?.publicacionId && data?.materiaId) {
       goTo(`/materias/${data.materiaId}/publicaciones/${data.publicacionId}`, data);
       return;
@@ -235,8 +246,14 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         break;
         
       default:
-        console.log('Acción no reconocida, yendo a notificaciones:', data.accion);
-        goTo('/notificaciones');
+        // ⚠️ Solo navegar a notificaciones si hay acción reconocida
+        // Si no hay acción, probablemente es un deep link y no debemos interferir
+        if (data.accion) {
+          console.log('Acción no reconocida, yendo a notificaciones:', data.accion);
+          goTo('/notificaciones');
+        } else {
+          console.log('[Notificaciones] Sin acción definida, no navegando');
+        }
     }
   };
 

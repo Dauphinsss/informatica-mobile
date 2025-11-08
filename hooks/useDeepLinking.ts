@@ -1,90 +1,94 @@
 import { navigationRef } from '@/App';
-import * as Notifications from 'expo-notifications';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Linking } from 'react-native';
 
-/**
- * Hook para manejar deep linking en la app
- * Detecta cuando se abre una URL con el esquema "informatica://"
- * y navega a la pantalla correspondiente
- */
 export const useDeepLinking = () => {
+  const processedUrls = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    const handleDeepLink = ({ url }: { url: string }) => {
-      const path = url.substring(url.indexOf('://') + 3);
-      const segments = path.split('/');
+    const esDeepLinkPublicacion = (url: string): boolean => {
+      if (!url) return false;
+      
+      // SOLO acepta URLs con el formato exacto de compartir
+      const regex = /^informatica:\/\/publicacion\/[a-zA-Z0-9_-]+$/;
+      return regex.test(url);
+    };
 
-      console.log('Deep link recibido:', url);
-      console.log('Segmentos:', segments);
+    const navegarAPublicacion = (publicacionId: string) => {
+      if (!navigationRef.isReady()) {
+        // Si no está listo, esperar un momento y reintentar
+        setTimeout(() => navegarAPublicacion(publicacionId), 300);
+        return;
+      }
 
-      if (segments[0] === 'publicacion' && segments[1]) {
-        const publicacionId = segments[1];
-        console.log('Navegando a publicacion:', publicacionId);
-
-        if (navigationRef.isReady()) {
-          try {
-            (navigationRef as any).navigate('Home', {
-              screen: 'PublicationDetail',
-              params: {
-                publicacionId,
-                materiaNombre: 'Publicación compartida',
-              },
-            });
-            console.log('Navegacion completada');
-          } catch (error) {
-            console.error('Error navegando:', error);
-          }
-        }
+      try {
+        console.log('Deep Link: Navegando a publicación compartida:', publicacionId);
+        
+        (navigationRef as any).navigate('Home', {
+          screen: 'PublicationDetail',
+          params: {
+            publicacionId,
+            materiaNombre: 'Publicación compartida',
+          },
+        });
+      } catch (error) {
+        console.error('Deep Link: Error navegando a publicación:', error);
       }
     };
 
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-
-    Linking.getInitialURL().then((url) => {
-      if (url != null) {
-        console.log('App abierta desde deep link:', url);
-        handleDeepLink({ url });
+    /**
+     * Procesa el deep link solo si es válido y no ha sido procesado antes
+     */
+    const procesarDeepLink = (url: string) => {
+      // Verificar que sea un deep link de publicación compartida
+      if (!esDeepLinkPublicacion(url)) {
+        console.log('Deep Link: URL ignorada (no es publicación compartida):', url);
+        return;
       }
+
+      // Evitar procesar el mismo link dos veces
+      if (processedUrls.current.has(url)) {
+        console.log('Deep Link: Ya procesado anteriormente:', url);
+        return;
+      }
+
+      processedUrls.current.add(url);
+
+      // Extraer el ID de la publicación
+      const segments = url.split('/');
+      const publicacionId = segments[segments.length - 1];
+
+      if (!publicacionId) {
+        console.warn('Deep Link: ID de publicación no encontrado en:', url);
+        return;
+      }
+
+      console.log('Deep Link: Procesando publicación compartida:', publicacionId);
+      navegarAPublicacion(publicacionId);
+    };
+
+    // Listener para cuando la app ya está abierta y se hace clic en un link
+    const linkingSubscription = Linking.addEventListener('url', (event) => {
+      procesarDeepLink(event.url);
     });
 
-    return () => subscription.remove();
+    // Verificar si la app se abrió desde un deep link (app cerrada)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log('Deep Link: App iniciada desde URL:', url);
+        procesarDeepLink(url);
+      }
+    }).catch((error) => {
+      console.error('Deep Link: Error obteniendo URL inicial:', error);
+    });
+
+    return () => {
+      linkingSubscription.remove();
+    };
   }, []);
 };
 
-/**
- * Hook para manejar notificaciones que contienen deep links
- * Se ejecuta cuando el usuario toca una notificación
- */
+
 export const useNotificationDeepLinking = () => {
-  useEffect(() => {
-    // Listener para respuestas de notificaciones
-    const notificationResponseSubscription =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data as any;
-
-        if (data?.deepLink && typeof data.deepLink === 'string') {
-          console.log('Deep link desde notificación:', data.deepLink);
-          const path = data.deepLink.substring(data.deepLink.indexOf('://') + 3);
-          const segments = path.split('/');
-
-          if (segments[0] === 'publicacion' && segments[1]) {
-            const publicacionId = segments[1];
-            if (navigationRef.isReady()) {
-              // Primero navega al tab de Home, luego a PublicationDetail
-              (navigationRef as any).navigate('Home', {
-                screen: 'PublicationDetail',
-                params: {
-                  publicacionId,
-                  materiaNombre: 'Publicación compartida',
-                },
-              });
-            }
-          }
-        }
-      });
-
-    return () => {
-      notificationResponseSubscription.remove();
-    };
-  }, []);
+  // Hook vacío - las notificaciones se manejan en useNotificationNavigation
 };
