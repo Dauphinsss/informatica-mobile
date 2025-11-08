@@ -53,7 +53,8 @@ const calculatePercentageChange = (current: number, previous: number): number =>
   if (previous === 0) {
     return current > 0 ? 100 : 0;
   }
-  return Math.round(((current - previous) / previous) * 100);
+  const percentage = ((current - previous) / previous) * 100;
+  return Math.round(percentage);
 };
 
 export const getTotalUsers = async (): Promise<number> => {
@@ -70,44 +71,28 @@ export const getTotalUsers = async (): Promise<number> => {
 export const getTotalUsersWithComparison = async (): Promise<PeriodComparison> => {
   try {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(now.getDate() - 30);
+    const startCurrent = new Date(now);
+    startCurrent.setDate(now.getDate() - 30);
 
-    const totalCurrent = await getTotalUsers();
+    const startPrevious = new Date(now);
+    startPrevious.setDate(now.getDate() - 60);
+    const endPrevious = new Date(now);
+    endPrevious.setDate(now.getDate() - 30);
+
     const usuariosRef = collection(db, "usuarios");
-    const q = query(
+    const snapshotTotal = await getCountFromServer(usuariosRef);
+    const total = snapshotTotal.data().count;
+    const qCurrent = query(
       usuariosRef,
-      where("creadoEn", "<=", Timestamp.fromDate(thirtyDaysAgo))
+      where("creadoEn", ">=", Timestamp.fromDate(startCurrent)),
+      where("creadoEn", "<=", Timestamp.fromDate(now))
     );
-    const snapshot = await getCountFromServer(q);
-    const totalPrevious = snapshot.data().count;
-
-    return {
-      current: totalCurrent,
-      previous: totalPrevious,
-      percentageChange: calculatePercentageChange(totalCurrent, totalPrevious),
-    };
-  } catch (error) {
-    console.error("Error en getTotalUsersWithComparison:", error);
-    return { current: 0, previous: 0, percentageChange: 0 };
-  }
-};
-
-export const getActivePostsWithComparison = async (): Promise<PeriodComparison> => {
-  try {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(now.getDate() - 30);
-
-    const publicacionesRef = collection(db, "publicaciones");
-    const qCurrent = query(publicacionesRef, where("estado", "==", "activo"));
     const snapshotCurrent = await getCountFromServer(qCurrent);
     const current = snapshotCurrent.data().count;
-
     const qPrevious = query(
-      publicacionesRef,
-      where("estado", "==", "activo"),
-      where("fechaCreacion", "<=", Timestamp.fromDate(thirtyDaysAgo))
+      usuariosRef,
+      where("creadoEn", ">=", Timestamp.fromDate(startPrevious)),
+      where("creadoEn", "<", Timestamp.fromDate(endPrevious))
     );
     const snapshotPrevious = await getCountFromServer(qPrevious);
     const previous = snapshotPrevious.data().count;
@@ -116,10 +101,58 @@ export const getActivePostsWithComparison = async (): Promise<PeriodComparison> 
       current,
       previous,
       percentageChange: calculatePercentageChange(current, previous),
+      total,
+    };
+  } catch (error) {
+    console.error("Error en getTotalUsersWithComparison:", error);
+    return { current: 0, previous: 0, percentageChange: 0, total: 0 };
+  }
+};
+
+export const getActivePostsWithComparison = async (): Promise<PeriodComparison> => {
+  try {
+    const now = new Date();
+    
+    const startCurrent = new Date(now);
+    startCurrent.setDate(now.getDate() - 30);
+    
+    const startPrevious = new Date(now);
+    startPrevious.setDate(now.getDate() - 60);
+    const endPrevious = new Date(now);
+    endPrevious.setDate(now.getDate() - 30);
+
+    const publicacionesRef = collection(db, "publicaciones");
+    const qTotal = query(publicacionesRef, where("estado", "==", "activo"));
+    const snapshotTotal = await getCountFromServer(qTotal);
+    const total = snapshotTotal.data().count;
+    
+    const qCurrent = query(
+      publicacionesRef,
+      where("fechaPublicacion", ">=", Timestamp.fromDate(startCurrent)),
+      where("fechaPublicacion", "<=", Timestamp.fromDate(now)),
+      where("estado", "==", "activo")
+    );
+    const snapshotCurrent = await getCountFromServer(qCurrent);
+    const current = snapshotCurrent.data().count;
+
+    const qPrevious = query(
+      publicacionesRef,
+      where("fechaPublicacion", ">=", Timestamp.fromDate(startPrevious)),
+      where("fechaPublicacion", "<", Timestamp.fromDate(endPrevious)),
+      where("estado", "==", "activo")
+    );
+    const snapshotPrevious = await getCountFromServer(qPrevious);
+    const previous = snapshotPrevious.data().count;
+
+    return {
+      current,
+      previous,
+      percentageChange: calculatePercentageChange(current, previous),
+      total,
     };
   } catch (error) {
     console.error("Error en getActivePostsWithComparison:", error);
-    return { current: 0, previous: 0, percentageChange: 0 };
+    return { current: 0, previous: 0, percentageChange: 0, total: 0 };
   }
 };
 
@@ -133,6 +166,7 @@ export const getPendingReportsWithComparison = async (): Promise<PeriodCompariso
     const qCurrent = query(reportesRef, where("estado", "==", "pendiente"));
     const snapshotCurrent = await getCountFromServer(qCurrent);
     const current = snapshotCurrent.data().count;
+    const total = current;
 
     const qPrevious = query(
       reportesRef,
@@ -146,26 +180,43 @@ export const getPendingReportsWithComparison = async (): Promise<PeriodCompariso
       current,
       previous,
       percentageChange: calculatePercentageChange(current, previous),
+      total,
     };
   } catch (error) {
     console.error("Error en getPendingReportsWithComparison:", error);
-    return { current: 0, previous: 0, percentageChange: 0 };
+    return { current: 0, previous: 0, percentageChange: 0, total: 0 };
   }
 };
 
 export const getTotalReportsWithComparison = async (): Promise<PeriodComparison> => {
   try {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(now.getDate() - 30);
+    
+    const startCurrent = new Date(now);
+    startCurrent.setDate(now.getDate() - 30);
+    
+    const startPrevious = new Date(now);
+    startPrevious.setDate(now.getDate() - 60);
+    const endPrevious = new Date(now);
+    endPrevious.setDate(now.getDate() - 30);
 
     const reportesRef = collection(db, "reportes");
-    const snapshotCurrent = await getCountFromServer(reportesRef);
+    
+    const snapshotTotal = await getCountFromServer(reportesRef);
+    const total = snapshotTotal.data().count;
+
+    const qCurrent = query(
+      reportesRef,
+      where("fechaCreacion", ">=", Timestamp.fromDate(startCurrent)),
+      where("fechaCreacion", "<=", Timestamp.fromDate(now))
+    );
+    const snapshotCurrent = await getCountFromServer(qCurrent);
     const current = snapshotCurrent.data().count;
 
     const qPrevious = query(
       reportesRef,
-      where("fechaCreacion", "<=", Timestamp.fromDate(thirtyDaysAgo))
+      where("fechaCreacion", ">=", Timestamp.fromDate(startPrevious)),
+      where("fechaCreacion", "<", Timestamp.fromDate(endPrevious))
     );
     const snapshotPrevious = await getCountFromServer(qPrevious);
     const previous = snapshotPrevious.data().count;
@@ -174,10 +225,11 @@ export const getTotalReportsWithComparison = async (): Promise<PeriodComparison>
       current,
       previous,
       percentageChange: calculatePercentageChange(current, previous),
+      total,
     };
   } catch (error) {
     console.error("Error en getTotalReportsWithComparison:", error);
-    return { current: 0, previous: 0, percentageChange: 0 };
+    return { current: 0, previous: 0, percentageChange: 0, total: 0 };
   }
 };
 
@@ -193,24 +245,46 @@ export const getGeneralStats = async (): Promise<GeneralStats> => {
     return {
       totalUsers: users.current,
       totalUsersChange: users.percentageChange,
+      totalUsersInSystem: users.total || 0,
+      totalUsersPrevious: users.previous,
+      
       activePosts: posts.current,
       activePostsChange: posts.percentageChange,
+      activePostsInSystem: posts.total || 0,
+      activePostsPrevious: posts.previous,
+      
       pendingReports: pendingReports.current,
       pendingReportsChange: pendingReports.percentageChange,
+      pendingReportsInSystem: pendingReports.total || 0,
+      pendingReportsPrevious: pendingReports.previous,
+      
       totalReports: totalReports.current,
       totalReportsChange: totalReports.percentageChange,
+      totalReportsInSystem: totalReports.total || 0,
+      totalReportsPrevious: totalReports.previous,
     };
   } catch (error) {
     console.error("Error obteniendo estadísticas generales:", error);
     return {
       totalUsers: 0,
       totalUsersChange: 0,
+      totalUsersInSystem: 0,
+      totalUsersPrevious: 0,
+      
       activePosts: 0,
       activePostsChange: 0,
+      activePostsInSystem: 0,
+      activePostsPrevious: 0,
+      
       pendingReports: 0,
       pendingReportsChange: 0,
+      pendingReportsInSystem: 0,
+      pendingReportsPrevious: 0,
+      
       totalReports: 0,
       totalReportsChange: 0,
+      totalReportsInSystem: 0,
+      totalReportsPrevious: 0,
     };
   }
 };
@@ -223,7 +297,7 @@ export const getMostActiveUser = async (): Promise<UserRanking | null> => {
     const publicacionesRef = collection(db, "publicaciones");
     const q = query(
       publicacionesRef,
-      where("fechaCreacion", ">=", Timestamp.fromDate(thirtyDaysAgo)),
+      where("fechaPublicacion", ">=", Timestamp.fromDate(thirtyDaysAgo)),
       where("estado", "==", "activo")
     );
     
@@ -271,14 +345,15 @@ export const getHottestSubject = async (): Promise<SubjectRanking | null> => {
     const publicacionesRef = collection(db, "publicaciones");
     const q = query(
       publicacionesRef,
-      where("fechaCreacion", ">=", Timestamp.fromDate(thirtyDaysAgo)),
+      where("fechaPublicacion", ">=", Timestamp.fromDate(thirtyDaysAgo)),
       where("estado", "==", "activo")
     );
     
     const snapshot = await getDocs(q);
     const subjectPublicationCount = new Map<string, number>();
     snapshot.docs.forEach(doc => {
-      const subjectUid = doc.data().subjectUid;
+      const data = doc.data() as any;
+      const subjectUid = data.materiaId || data.subjectUid || data.materiaUid || data.subjectId;
       if (subjectUid) {
         subjectPublicationCount.set(subjectUid, (subjectPublicationCount.get(subjectUid) || 0) + 1);
       }
@@ -388,7 +463,7 @@ export const getMostPopularPost = async (sortBy: PostSortType = 'views'): Promis
     const publicacionesRef = collection(db, "publicaciones");
     const q = query(
       publicacionesRef,
-      where("fechaCreacion", ">=", Timestamp.fromDate(thirtyDaysAgo)),
+      where("fechaPublicacion", ">=", Timestamp.fromDate(thirtyDaysAgo)),
       where("estado", "==", "activo")
     );
     
@@ -420,8 +495,9 @@ export const getMostPopularPost = async (sortBy: PostSortType = 'views'): Promis
     }
 
     let materiaNombre = undefined;
-    if (topPost.subjectUid) {
-      const materiaDoc = await getDoc(doc(db, "materias", topPost.subjectUid));
+    const materiaId = topPost.materiaId || topPost.subjectUid || topPost.materiaUid || topPost.subjectId;
+    if (materiaId) {
+      const materiaDoc = await getDoc(doc(db, "materias", materiaId));
       if (materiaDoc.exists()) {
         materiaNombre = materiaDoc.data().nombre;
       }
@@ -435,7 +511,7 @@ export const getMostPopularPost = async (sortBy: PostSortType = 'views'): Promis
       materiaNombre,
       views: topPost.vistas || 0,
       likes: topPost.totalValoraciones || 0,
-      fechaCreacion: topPost.fechaCreacion?.toDate() || new Date(),
+      fechaCreacion: topPost.fechaPublicacion?.toDate() || new Date(),
       descripcion: topPost.descripcion,
     };
   } catch (error) {
@@ -476,7 +552,7 @@ export const getTopActiveUsers = async (timeFilter: TimeFilter): Promise<UserRan
     const publicacionesRef = collection(db, "publicaciones");
     const q = query(
       publicacionesRef,
-      where("fechaCreacion", ">=", Timestamp.fromDate(startDate)),
+      where("fechaPublicacion", ">=", Timestamp.fromDate(startDate)),
       where("estado", "==", "activo")
     );
     
@@ -517,14 +593,15 @@ export const getTopPopularSubjects = async (timeFilter: TimeFilter): Promise<Sub
     const publicacionesRef = collection(db, "publicaciones");
     const q = query(
       publicacionesRef,
-      where("fechaCreacion", ">=", Timestamp.fromDate(startDate)),
+      where("fechaPublicacion", ">=", Timestamp.fromDate(startDate)),
       where("estado", "==", "activo")
     );
     
     const snapshot = await getDocs(q);
     const subjectPublicationCount = new Map<string, number>();
     snapshot.docs.forEach(doc => {
-      const subjectUid = doc.data().subjectUid;
+      const data = doc.data() as any;
+      const subjectUid = data.materiaId || data.subjectUid || data.materiaUid || data.subjectId;
       if (subjectUid) {
         subjectPublicationCount.set(subjectUid, (subjectPublicationCount.get(subjectUid) || 0) + 1);
       }
@@ -621,7 +698,7 @@ export const getTopPopularPosts = async (
     const publicacionesRef = collection(db, "publicaciones");
     const q = query(
       publicacionesRef,
-      where("fechaCreacion", ">=", Timestamp.fromDate(startDate)),
+      where("fechaPublicacion", ">=", Timestamp.fromDate(startDate)),
       where("estado", "==", "activo")
     );
     
@@ -640,8 +717,9 @@ export const getTopPopularPosts = async (
       }
 
       let materiaNombre = undefined;
-      if (data.subjectUid) {
-        const materiaDoc = await getDoc(doc(db, "materias", data.subjectUid));
+      const materiaId = data.materiaId || data.subjectUid || data.materiaUid || data.subjectId;
+      if (materiaId) {
+        const materiaDoc = await getDoc(doc(db, "materias", materiaId));
         if (materiaDoc.exists()) {
           materiaNombre = materiaDoc.data().nombre;
         }
@@ -654,8 +732,8 @@ export const getTopPopularPosts = async (
         autorUid: data.autorUid,
         materiaNombre,
         views: data.vistas || 0,
-        likes: data.totalValoraciones || 0,
-        fechaCreacion: data.fechaCreacion?.toDate() || new Date(),
+        likes: data.totalValoraciones || data.totalCalificaciones || 0,
+        fechaCreacion: data.fechaPublicacion?.toDate() || new Date(),
         descripcion: data.descripcion,
       });
     }
@@ -701,8 +779,8 @@ export const generateChartData = async (
         const publicacionesRef = collection(db, "publicaciones");
         const q = query(
           publicacionesRef,
-          where("fechaCreacion", ">=", Timestamp.fromDate(currentDate)),
-          where("fechaCreacion", "<", Timestamp.fromDate(nextDate)),
+          where("fechaPublicacion", ">=", Timestamp.fromDate(currentDate)),
+          where("fechaPublicacion", "<", Timestamp.fromDate(nextDate)),
           where("estado", "==", "activo")
         );
         const snapshot = await getDocs(q);
@@ -720,8 +798,8 @@ export const generateChartData = async (
         const publicacionesRef = collection(db, "publicaciones");
         const q = query(
           publicacionesRef,
-          where("fechaCreacion", ">=", Timestamp.fromDate(currentDate)),
-          where("fechaCreacion", "<", Timestamp.fromDate(nextDate)),
+          where("fechaPublicacion", ">=", Timestamp.fromDate(currentDate)),
+          where("fechaPublicacion", "<", Timestamp.fromDate(nextDate)),
           where("estado", "==", "activo")
         );
         const snapshot = await getDocs(q);

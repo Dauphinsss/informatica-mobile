@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { View, ScrollView, RefreshControl } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, ScrollView } from "react-native";
 import { Appbar, Text, ActivityIndicator, Button, Divider } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ import { getStyles } from "./statistics.styles";
 import StatCardGeneral from "./components/StatCardGeneral";
 import StatCardRanking from "./components/StatCardRanking";
 import RankingDetailModal from "./components/RankingDetailModal";
+import GeneralStatDetailModal from "./components/GeneralStatDetailModal";
 import {
   getGeneralStats,
   getRankingStats,
@@ -16,6 +17,7 @@ import {
 import { GeneralStats, RankingStats } from "@/scripts/types/Statistics.type";
 
 type RankingModalType = "activeUsers" | "popularSubjects" | "reportedUsers" | "popularPosts" | null;
+type GeneralStatType = "users" | "posts" | "pendingReports" | "totalReports" | null;
 
 export default function StatisticsScreen() {
   const navigation = useNavigation();
@@ -23,12 +25,13 @@ export default function StatisticsScreen() {
   const styles = getStyles(theme);
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
   const [rankingStats, setRankingStats] = useState<RankingStats | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedRanking, setSelectedRanking] = useState<RankingModalType>(null);
+  const [generalModalVisible, setGeneralModalVisible] = useState(false);
+  const [selectedGeneralStat, setSelectedGeneralStat] = useState<GeneralStatType>(null);
 
   useEffect(() => {
     loadAllStats();
@@ -48,14 +51,8 @@ export default function StatisticsScreen() {
       setError("No se pudieron cargar las estadísticas. Por favor, intenta de nuevo.");
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadAllStats();
-  }, []);
 
   const openRankingModal = (type: RankingModalType) => {
     setSelectedRanking(type);
@@ -65,6 +62,59 @@ export default function StatisticsScreen() {
   const closeRankingModal = () => {
     setModalVisible(false);
     setSelectedRanking(null);
+  };
+
+  const openGeneralStatModal = (type: GeneralStatType) => {
+    setSelectedGeneralStat(type);
+    setGeneralModalVisible(true);
+  };
+
+  const closeGeneralStatModal = () => {
+    setGeneralModalVisible(false);
+    setSelectedGeneralStat(null);
+  };
+
+  const getGeneralStatData = () => {
+    if (!generalStats || !selectedGeneralStat) {
+      return { title: "", total: 0, current: 0, previous: 0, percentageChange: 0 };
+    }
+
+    switch (selectedGeneralStat) {
+      case "users":
+        return {
+          title: "Usuarios Totales",
+          total: generalStats.totalUsersInSystem,
+          current: generalStats.totalUsers,
+          previous: generalStats.totalUsersPrevious,
+          percentageChange: generalStats.totalUsersChange,
+        };
+      case "posts":
+        return {
+          title: "Publicaciones Activas",
+          total: generalStats.activePostsInSystem,
+          current: generalStats.activePosts,
+          previous: generalStats.activePostsPrevious,
+          percentageChange: generalStats.activePostsChange,
+        };
+      case "pendingReports":
+        return {
+          title: "Reportes Pendientes",
+          total: generalStats.pendingReportsInSystem,
+          current: generalStats.pendingReports,
+          previous: generalStats.pendingReportsPrevious,
+          percentageChange: generalStats.pendingReportsChange,
+        };
+      case "totalReports":
+        return {
+          title: "Total de Reportes",
+          total: generalStats.totalReportsInSystem,
+          current: generalStats.totalReports,
+          previous: generalStats.totalReportsPrevious,
+          percentageChange: generalStats.totalReportsChange,
+        };
+      default:
+        return { title: "", total: 0, current: 0, previous: 0, percentageChange: 0 };
+    }
   };
 
   const getModalConfig = () => {
@@ -132,10 +182,8 @@ export default function StatisticsScreen() {
 
       <ScrollView
         style={styles.content}
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
       >
         <Text variant="titleLarge" style={styles.sectionTitle}>
           General
@@ -151,6 +199,7 @@ export default function StatisticsScreen() {
                   percentageChange={generalStats.totalUsersChange}
                   description="Usuarios registrados en la plataforma"
                   icon="account-group"
+                  onPress={() => openGeneralStatModal("users")}
                 />
               </View>
               <View style={styles.cardHalf}>
@@ -160,6 +209,7 @@ export default function StatisticsScreen() {
                   percentageChange={generalStats.activePostsChange}
                   description="Publicaciones disponibles actualmente"
                   icon="file-document-multiple"
+                  onPress={() => openGeneralStatModal("posts")}
                 />
               </View>
             </View>
@@ -172,6 +222,7 @@ export default function StatisticsScreen() {
                   percentageChange={generalStats.pendingReportsChange}
                   description="Reportes esperando revisión"
                   icon="alert-circle"
+                  onPress={() => openGeneralStatModal("pendingReports")}
                 />
               </View>
               <View style={styles.cardHalf}>
@@ -181,6 +232,7 @@ export default function StatisticsScreen() {
                   percentageChange={generalStats.totalReportsChange}
                   description="Reportes totales recibidos"
                   icon="alert-octagon"
+                  onPress={() => openGeneralStatModal("totalReports")}
                 />
               </View>
             </View>
@@ -268,8 +320,6 @@ export default function StatisticsScreen() {
             </View>
           </>
         )}
-
-        <View style={{ height: 32 }} />
       </ScrollView>
 
       {selectedRanking && (
@@ -279,6 +329,14 @@ export default function StatisticsScreen() {
           title={getModalConfig().title}
           rankingType={selectedRanking}
           icon={getModalConfig().icon}
+        />
+      )}
+
+      {selectedGeneralStat && (
+        <GeneralStatDetailModal
+          visible={generalModalVisible}
+          onDismiss={closeGeneralStatModal}
+          {...getGeneralStatData()}
         />
       )}
     </View>

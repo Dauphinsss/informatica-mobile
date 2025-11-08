@@ -10,18 +10,18 @@ export const getStyles = (theme: MD3Theme) =>
     content: {
       flex: 1,
       paddingHorizontal: "4%",
-      paddingVertical: 16,
+      paddingTop: 8,
     },
     sectionTitle: {
       fontWeight: "bold",
-      marginBottom: 16,
-      marginTop: 8,
+      marginBottom: 12,
+      marginTop: 4,
       color: theme.colors.onBackground,
     },
     cardsGrid: {
       flexDirection: "row",
       gap: 12,
-      marginBottom: 24,
+      marginBottom: 12,
     },
     cardHalf: {
       flex: 1,
@@ -65,6 +65,6 @@ export const getStyles = (theme: MD3Theme) =>
       color: theme.colors.error,
     },
     dividerSection: {
-      marginVertical: 24,
+      marginVertical: 16,
     },
   });

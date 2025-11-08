@@ -58,20 +58,21 @@ export default function LoginScreen() {
         });
         await crearEstadisticasUsuario(user.uid);
       } else {
-        console.log("Usuario ya existe, actualizando datos");
         const datosActuales = usuarioDoc.data();
-        await setDoc(
-          usuarioRef,
-          {
-            correo: user.email || datosActuales?.correo || "",
-            nombre: user.displayName || datosActuales?.nombre || "Usuario sin nombre",
-            foto: user.photoURL || datosActuales?.foto || "",
-            rol: datosActuales?.rol || "usuario",
-            estado: datosActuales?.estado || "activo",
-            ultimoAcceso: serverTimestamp(),
-          },
-          { merge: true }
-        );
+        const updateData: any = {
+          correo: user.email || datosActuales?.correo || "",
+          nombre: user.displayName || datosActuales?.nombre || "Usuario sin nombre",
+          foto: user.photoURL || datosActuales?.foto || "",
+          rol: datosActuales?.rol || "usuario",
+          estado: datosActuales?.estado || "activo",
+          ultimoAcceso: serverTimestamp(),
+        };
+        
+        if (!datosActuales?.creadoEn) {
+          updateData.creadoEn = serverTimestamp();
+        }
+        
+        await setDoc(usuarioRef, updateData, { merge: true });
       }
     } catch (error: any) {
       console.error("Error:", error);

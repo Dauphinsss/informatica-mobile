@@ -5,15 +5,23 @@ export type PostSortType = 'views' | 'likes';
 export interface GeneralStats {
   totalUsers: number;
   totalUsersChange: number;
+  totalUsersInSystem: number;
+  totalUsersPrevious: number;
   
   activePosts: number;
   activePostsChange: number;
+  activePostsInSystem: number;
+  activePostsPrevious: number;
   
   pendingReports: number;
   pendingReportsChange: number;
+  pendingReportsInSystem: number;
+  pendingReportsPrevious: number;
   
   totalReports: number;
   totalReportsChange: number;
+  totalReportsInSystem: number;
+  totalReportsPrevious: number;
 }
 
 export interface UserRanking {
@@ -69,5 +77,13 @@ export type RankingType = 'activeUsers' | 'popularSubjects' | 'reportedUsers' | 
 export interface PeriodComparison {
   current: number;
   previous: number;
+  percentageChange: number;
+  total?: number;
+}
+export interface GeneralStatDetail {
+  label: string;
+  current: number;
+  previous: number;
+  total: number;
   percentageChange: number;
 }

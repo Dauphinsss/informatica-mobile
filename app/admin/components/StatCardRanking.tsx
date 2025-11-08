@@ -1,14 +1,13 @@
 import React from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Card, Text } from "react-native-paper";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/ThemeContext";
 
 interface StatCardRankingProps {
   title: string;
   topItemName: string;
   value: number;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  icon?: string;
   valueLabel: string;
   onPress: () => void;
 }
@@ -31,29 +30,17 @@ export default function StatCardRanking({
     <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
       <Card elevation={2} style={styles.card}>
         <Card.Content style={styles.cardContent}>
-          <View
-            style={[
-              styles.iconContainer,
-              { backgroundColor: theme.colors.surfaceVariant },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name={icon}
-              size={32}
-              color={theme.colors.primary}
-            />
-          </View>
-
           <View style={styles.contentContainer}>
             <Text
               variant="bodyLarge"
               style={[styles.title, { color: theme.colors.onSurface }]}
+              numberOfLines={2}
             >
               {title}
             </Text>
 
             <Text
-              variant="titleLarge"
+              variant="titleMedium"
               style={[styles.topItemName, { color: theme.colors.primary }]}
               numberOfLines={2}
               ellipsizeMode="tail"
@@ -76,19 +63,6 @@ export default function StatCardRanking({
               </Text>
             </View>
 
-            <View style={styles.viewMoreContainer}>
-              <Text
-                variant="bodySmall"
-                style={[styles.viewMoreText, { color: theme.colors.primary }]}
-              >
-                Ver detalles
-              </Text>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={20}
-                color={theme.colors.primary}
-              />
-            </View>
           </View>
         </Card.Content>
       </Card>
@@ -100,18 +74,13 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
     borderRadius: 16,
+    flex: 1,
+    minHeight: 160,
   },
   cardContent: {
     paddingVertical: 20,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    alignSelf: "center",
+    flex: 1,
+    justifyContent: 'center',
   },
   contentContainer: {
     alignItems: "center",
@@ -120,31 +89,25 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 8,
     textAlign: "center",
+    minHeight: 44,
+    lineHeight: 22,
   },
   topItemName: {
     fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: "center",
     paddingHorizontal: 8,
   },
   valueContainer: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 6,
-    marginBottom: 12,
+    flexDirection: "column",
+    alignItems: "center",
+    marginBottom: 8,
   },
   value: {
     fontWeight: "bold",
   },
   valueLabel: {
     opacity: 0.8,
-  },
-  viewMoreContainer: {
-    flexDirection: "row",
-    alignItems: "center",
     marginTop: 4,
-  },
-  viewMoreText: {
-    fontWeight: "600",
   },
 });

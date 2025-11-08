@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Card, Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -10,6 +10,7 @@ interface StatCardGeneralProps {
   percentageChange: number;
   description: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  onPress?: () => void;
 }
 
 export default function StatCardGeneral({
@@ -17,7 +18,7 @@ export default function StatCardGeneral({
   value,
   percentageChange,
   description,
-  icon,
+  onPress,
 }: StatCardGeneralProps) {
   const { theme } = useTheme();
 
@@ -29,66 +30,51 @@ export default function StatCardGeneral({
   };
 
   return (
-    <Card elevation={2} style={styles.card}>
-      <Card.Content style={styles.cardContent}>
-        <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: theme.colors.surfaceVariant },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name={icon}
-            size={32}
-            color={theme.colors.primary}
-          />
-        </View>
-
-        <View style={styles.contentContainer}>
-          <Text
-            variant="bodyLarge"
-            style={[styles.title, { color: theme.colors.onSurface }]}
-          >
-            {title}
-          </Text>
-
-          <Text
-            variant="displaySmall"
-            style={[styles.value, { color: theme.colors.onSurface }]}
-          >
-            {formatNumber(value)}
-          </Text>
-
-          <View style={styles.changeContainer}>
-            <MaterialCommunityIcons
-              name={isPositive ? "arrow-up" : "arrow-down"}
-              size={20}
-              color={changeColor}
-            />
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+      <Card elevation={2} style={styles.card}>
+        <Card.Content style={styles.cardContent}>
+          <View style={styles.contentContainer}>
             <Text
-              variant="bodyMedium"
-              style={[styles.changeText, { color: changeColor }]}
+              variant="bodyLarge"
+              style={[styles.title, { color: theme.colors.onSurface }]}
+              numberOfLines={2}
             >
-              {isPositive ? "+" : ""}
-              {percentageChange}%
+              {title}
             </Text>
+
             <Text
-              variant="bodySmall"
-              style={[styles.changeLabel, { color: theme.colors.onSurfaceVariant }]}
+              variant="displaySmall"
+              style={[styles.value, { color: theme.colors.onSurface }]}
             >
-              vs últimos 30 días
+              {formatNumber(value)}
             </Text>
+
+            <View style={styles.changeContainer}>
+              <View style={styles.percentageRow}>
+                <MaterialCommunityIcons
+                  name={isPositive ? "arrow-up" : "arrow-down"}
+                  size={16}
+                  color={changeColor}
+                />
+                <Text
+                  variant="bodyMedium"
+                  style={[styles.changeText, { color: changeColor }]}
+                >
+                  {isPositive ? "+" : ""}
+                  {percentageChange}%
+                </Text>
+              </View>
+              <Text
+                variant="bodySmall"
+                style={[styles.changeLabel, { color: theme.colors.onSurfaceVariant }]}
+              >
+                vs últimos 30 días
+              </Text>
+            </View>
           </View>
-
-          <Text
-            variant="bodySmall"
-            style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
-          >
-            {description}
-          </Text>
-        </View>
-      </Card.Content>
-    </Card>
+        </Card.Content>
+      </Card>
+    </TouchableOpacity>
   );
 }
 
@@ -96,45 +82,44 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
     borderRadius: 16,
+    flex: 1,
+    minHeight: 160,
   },
   cardContent: {
     paddingVertical: 20,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+    flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    alignSelf: "center",
   },
   contentContainer: {
     alignItems: "center",
+    flex: 1,
   },
   title: {
     fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: "center",
+    minHeight: 44,
+    lineHeight: 22,
   },
   value: {
     fontWeight: "bold",
     marginBottom: 8,
   },
   changeContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  percentageRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
     gap: 4,
   },
   changeText: {
     fontWeight: "bold",
+    fontSize: 14,
   },
   changeLabel: {
-    marginLeft: 4,
-  },
-  description: {
-    textAlign: "center",
-    marginTop: 4,
-    opacity: 0.8,
+    fontSize: 11,
   },
 });
