@@ -399,31 +399,35 @@ export const getMostReportedUser = async (): Promise<UserRanking | null> => {
     );
     
     const snapshot = await getDocs(q);
-    const publicacionUids = new Set<string>();
+    const reportCountByPub = new Map<string, number>();
     snapshot.docs.forEach(doc => {
       const publicacionUid = doc.data().publicacionUid;
       if (publicacionUid) {
-        publicacionUids.add(publicacionUid);
+        reportCountByPub.set(publicacionUid, (reportCountByPub.get(publicacionUid) || 0) + 1);
       }
     });
 
+    const publicacionUids = Array.from(reportCountByPub.keys());
+    if (publicacionUids.length === 0) return null;
     const autorReportCount = new Map<string, number>();
+    const batchSize = 10;
     
-    for (const pubUid of Array.from(publicacionUids)) {
-      const pubDoc = await getDoc(doc(db, "publicaciones", pubUid));
-      if (pubDoc.exists()) {
+    for (let i = 0; i < publicacionUids.length; i += batchSize) {
+      const batch = publicacionUids.slice(i, i + batchSize);
+      const publicacionesRef = collection(db, "publicaciones");
+      const qPubs = query(publicacionesRef, where('__name__', 'in', batch));
+      const pubsSnapshot = await getDocs(qPubs);
+      
+      pubsSnapshot.docs.forEach(pubDoc => {
         const autorUid = pubDoc.data().autorUid;
         if (autorUid) {
-          const reportCount = snapshot.docs.filter(
-            d => d.data().publicacionUid === pubUid
-          ).length;
-          
+          const reportCount = reportCountByPub.get(pubDoc.id) || 0;
           autorReportCount.set(
             autorUid,
             (autorReportCount.get(autorUid) || 0) + reportCount
           );
         }
-      }
+      });
     }
 
     let maxCount = 0;
@@ -486,22 +490,15 @@ export const getMostPopularPost = async (sortBy: PostSortType = 'views'): Promis
 
     if (!topPost) return null;
 
-    let autorNombre = "Usuario desconocido";
-    if (topPost.autorUid) {
-      const autorDoc = await getDoc(doc(db, "usuarios", topPost.autorUid));
-      if (autorDoc.exists()) {
-        autorNombre = autorDoc.data().nombre || autorNombre;
-      }
-    }
-
-    let materiaNombre = undefined;
     const materiaId = topPost.materiaId || topPost.subjectUid || topPost.materiaUid || topPost.subjectId;
-    if (materiaId) {
-      const materiaDoc = await getDoc(doc(db, "materias", materiaId));
-      if (materiaDoc.exists()) {
-        materiaNombre = materiaDoc.data().nombre;
-      }
-    }
+    
+    const [autorDoc, materiaDoc] = await Promise.all([
+      topPost.autorUid ? getDoc(doc(db, "usuarios", topPost.autorUid)) : Promise.resolve(null),
+      materiaId ? getDoc(doc(db, "materias", materiaId)) : Promise.resolve(null)
+    ]);
+
+    const autorNombre = autorDoc?.exists() ? (autorDoc.data().nombre || "Usuario desconocido") : "Usuario desconocido";
+    const materiaNombre = materiaDoc?.exists() ? materiaDoc.data().nombre : undefined;
 
     return {
       uid: topPost.uid,
@@ -563,12 +560,28 @@ export const getTopActiveUsers = async (timeFilter: TimeFilter): Promise<UserRan
       userPublicationCount.set(autorUid, (userPublicationCount.get(autorUid) || 0) + 1);
     });
 
+    const userIds = Array.from(userPublicationCount.keys());
+    if (userIds.length === 0) return [];
+
+    const userDataMap = new Map<string, any>();
+    const batchSize = 10;
+    
+    for (let i = 0; i < userIds.length; i += batchSize) {
+      const batch = userIds.slice(i, i + batchSize);
+      const usuariosRef = collection(db, "usuarios");
+      const qUsers = query(usuariosRef, where('__name__', 'in', batch));
+      const usersSnapshot = await getDocs(qUsers);
+      
+      usersSnapshot.docs.forEach(userDoc => {
+        userDataMap.set(userDoc.id, userDoc.data());
+      });
+    }
+
     const rankings: UserRanking[] = [];
     
-    for (const [uid, count] of Array.from(userPublicationCount.entries())) {
-      const userDoc = await getDoc(doc(db, "usuarios", uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
+    userPublicationCount.forEach((count, uid) => {
+      const userData = userDataMap.get(uid);
+      if (userData) {
         rankings.push({
           uid,
           nombre: userData.nombre || "Usuario desconocido",
@@ -577,7 +590,7 @@ export const getTopActiveUsers = async (timeFilter: TimeFilter): Promise<UserRan
           value: count,
         });
       }
-    }
+    });
 
     return rankings.sort((a, b) => b.value - a.value).slice(0, 10);
   } catch (error) {
@@ -607,12 +620,28 @@ export const getTopPopularSubjects = async (timeFilter: TimeFilter): Promise<Sub
       }
     });
 
+    const subjectIds = Array.from(subjectPublicationCount.keys());
+    if (subjectIds.length === 0) return [];
+
+    const subjectDataMap = new Map<string, any>();
+    const batchSize = 10;
+    
+    for (let i = 0; i < subjectIds.length; i += batchSize) {
+      const batch = subjectIds.slice(i, i + batchSize);
+      const materiasRef = collection(db, "materias");
+      const qSubjects = query(materiasRef, where('__name__', 'in', batch));
+      const subjectsSnapshot = await getDocs(qSubjects);
+      
+      subjectsSnapshot.docs.forEach(subjectDoc => {
+        subjectDataMap.set(subjectDoc.id, subjectDoc.data());
+      });
+    }
+
     const rankings: SubjectRanking[] = [];
     
-    for (const [uid, count] of Array.from(subjectPublicationCount.entries())) {
-      const subjectDoc = await getDoc(doc(db, "materias", uid));
-      if (subjectDoc.exists()) {
-        const subjectData = subjectDoc.data();
+    subjectPublicationCount.forEach((count, uid) => {
+      const subjectData = subjectDataMap.get(uid);
+      if (subjectData) {
         rankings.push({
           uid,
           nombre: subjectData.nombre || "Materia desconocida",
@@ -620,7 +649,7 @@ export const getTopPopularSubjects = async (timeFilter: TimeFilter): Promise<Sub
           value: count,
         });
       }
-    }
+    });
 
     return rankings.sort((a, b) => b.value - a.value).slice(0, 10);
   } catch (error) {
@@ -639,39 +668,60 @@ export const getTopReportedUsers = async (timeFilter: TimeFilter): Promise<UserR
     );
     
     const snapshot = await getDocs(q);
-    const publicacionUids = new Set<string>();
+    
+    const reportCountByPub = new Map<string, number>();
     snapshot.docs.forEach(doc => {
       const publicacionUid = doc.data().publicacionUid;
       if (publicacionUid) {
-        publicacionUids.add(publicacionUid);
+        reportCountByPub.set(publicacionUid, (reportCountByPub.get(publicacionUid) || 0) + 1);
       }
     });
 
+    const publicacionUids = Array.from(reportCountByPub.keys());
+    if (publicacionUids.length === 0) return [];
+
     const autorReportCount = new Map<string, number>();
+    const batchSize = 10;
     
-    for (const pubUid of Array.from(publicacionUids)) {
-      const pubDoc = await getDoc(doc(db, "publicaciones", pubUid));
-      if (pubDoc.exists()) {
+    for (let i = 0; i < publicacionUids.length; i += batchSize) {
+      const batch = publicacionUids.slice(i, i + batchSize);
+      const publicacionesRef = collection(db, "publicaciones");
+      const qPubs = query(publicacionesRef, where('__name__', 'in', batch));
+      const pubsSnapshot = await getDocs(qPubs);
+      
+      pubsSnapshot.docs.forEach(pubDoc => {
         const autorUid = pubDoc.data().autorUid;
         if (autorUid) {
-          const reportCount = snapshot.docs.filter(
-            d => d.data().publicacionUid === pubUid
-          ).length;
-          
+          const reportCount = reportCountByPub.get(pubDoc.id) || 0;
           autorReportCount.set(
             autorUid,
             (autorReportCount.get(autorUid) || 0) + reportCount
           );
         }
-      }
+      });
+    }
+
+    const autorIds = Array.from(autorReportCount.keys());
+    if (autorIds.length === 0) return [];
+
+    const userDataMap = new Map<string, any>();
+    
+    for (let i = 0; i < autorIds.length; i += batchSize) {
+      const batch = autorIds.slice(i, i + batchSize);
+      const usuariosRef = collection(db, "usuarios");
+      const qUsers = query(usuariosRef, where('__name__', 'in', batch));
+      const usersSnapshot = await getDocs(qUsers);
+      
+      usersSnapshot.docs.forEach(userDoc => {
+        userDataMap.set(userDoc.id, userDoc.data());
+      });
     }
 
     const rankings: UserRanking[] = [];
     
-    for (const [uid, count] of Array.from(autorReportCount.entries())) {
-      const userDoc = await getDoc(doc(db, "usuarios", uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
+    autorReportCount.forEach((count, uid) => {
+      const userData = userDataMap.get(uid);
+      if (userData) {
         rankings.push({
           uid,
           nombre: userData.nombre || "Usuario desconocido",
@@ -680,7 +730,7 @@ export const getTopReportedUsers = async (timeFilter: TimeFilter): Promise<UserR
           value: count,
         });
       }
-    }
+    });
 
     return rankings.sort((a, b) => b.value - a.value).slice(0, 10);
   } catch (error) {
@@ -703,40 +753,43 @@ export const getTopPopularPosts = async (
     );
     
     const snapshot = await getDocs(q);
-    const rankings: PostRanking[] = [];
     
-    for (const docSnap of snapshot.docs) {
+    const autorIds = new Set<string>();
+    const materiaIds = new Set<string>();
+    const postsData: any[] = [];
+    
+    snapshot.docs.forEach(docSnap => {
       const data = docSnap.data();
+      postsData.push({ uid: docSnap.id, ...data });
       
-      let autorNombre = "Usuario desconocido";
-      if (data.autorUid) {
-        const autorDoc = await getDoc(doc(db, "usuarios", data.autorUid));
-        if (autorDoc.exists()) {
-          autorNombre = autorDoc.data().nombre || autorNombre;
-        }
-      }
-
-      let materiaNombre = undefined;
+      if (data.autorUid) autorIds.add(data.autorUid);
+      
       const materiaId = data.materiaId || data.subjectUid || data.materiaUid || data.subjectId;
-      if (materiaId) {
-        const materiaDoc = await getDoc(doc(db, "materias", materiaId));
-        if (materiaDoc.exists()) {
-          materiaNombre = materiaDoc.data().nombre;
-        }
-      }
+      if (materiaId) materiaIds.add(materiaId);
+    });
 
-      rankings.push({
-        uid: docSnap.id,
+    const [autorDataMap, materiaDataMap] = await Promise.all([
+      fetchDataInBatches(Array.from(autorIds), "usuarios"),
+      fetchDataInBatches(Array.from(materiaIds), "materias")
+    ]);
+
+    const rankings: PostRanking[] = postsData.map(data => {
+      const autorData = data.autorUid ? autorDataMap.get(data.autorUid) : null;
+      const materiaId = data.materiaId || data.subjectUid || data.materiaUid || data.subjectId;
+      const materiaData = materiaId ? materiaDataMap.get(materiaId) : null;
+      
+      return {
+        uid: data.uid,
         titulo: data.titulo || "Sin título",
-        autorNombre,
+        autorNombre: autorData?.nombre || "Usuario desconocido",
         autorUid: data.autorUid,
-        materiaNombre,
+        materiaNombre: materiaData?.nombre,
         views: data.vistas || 0,
         likes: data.totalValoraciones || data.totalCalificaciones || 0,
         fechaCreacion: data.fechaPublicacion?.toDate() || new Date(),
         descripcion: data.descripcion,
-      });
-    }
+      };
+    });
 
     const sorted = rankings.sort((a, b) => {
       if (sortBy === 'views') {
@@ -752,6 +805,26 @@ export const getTopPopularPosts = async (
     return [];
   }
 };
+
+async function fetchDataInBatches(ids: string[], collectionName: string): Promise<Map<string, any>> {
+  const dataMap = new Map<string, any>();
+  if (ids.length === 0) return dataMap;
+  
+  const batchSize = 10;
+  
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    const collectionRef = collection(db, collectionName);
+    const q = query(collectionRef, where('__name__', 'in', batch));
+    const batchSnapshot = await getDocs(q);
+    
+    batchSnapshot.docs.forEach(doc => {
+      dataMap.set(doc.id, doc.data());
+    });
+  }
+  
+  return dataMap;
+}
 
 export const generateChartData = async (
   rankingType: 'activeUsers' | 'popularSubjects' | 'reportedUsers' | 'popularPosts',

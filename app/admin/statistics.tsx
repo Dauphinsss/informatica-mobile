@@ -34,23 +34,30 @@ export default function StatisticsScreen() {
   const [selectedGeneralStat, setSelectedGeneralStat] = useState<GeneralStatType>(null);
 
   useEffect(() => {
-    loadAllStats();
+    loadGeneralStats();
   }, []);
 
-  const loadAllStats = async () => {
+  const loadGeneralStats = async () => {
     try {
       setError(null);
-      const [general, rankings] = await Promise.all([
-        getGeneralStats(),
-        getRankingStats(),
-      ]);
+      setLoading(true);
+      const general = await getGeneralStats();
       setGeneralStats(general);
-      setRankingStats(rankings);
+      loadRankingStats();
     } catch (err) {
-      console.error("Error cargando estadísticas:", err);
+      console.error("Error cargando estadísticas generales:", err);
       setError("No se pudieron cargar las estadísticas. Por favor, intenta de nuevo.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRankingStats = async () => {
+    try {
+      const rankings = await getRankingStats();
+      setRankingStats(rankings);
+    } catch (err) {
+      console.error("Error cargando Rankings:", err);
     }
   };
 
@@ -165,7 +172,7 @@ export default function StatisticsScreen() {
           <Text variant="bodyLarge" style={styles.errorText}>
             {error}
           </Text>
-          <Button mode="contained" onPress={loadAllStats}>
+          <Button mode="contained" onPress={loadGeneralStats}>
             Reintentar
           </Button>
         </View>
