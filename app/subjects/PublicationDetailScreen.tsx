@@ -27,9 +27,12 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
+  increment,
   onSnapshot,
   query,
+  setDoc,
   Timestamp,
   updateDoc,
   where,
@@ -178,7 +181,22 @@ export default function PublicationDetailScreen() {
     );
     setAlertVisible(true);
   };
+  const actualizarEstadisticasUsuario = async (
+    usuarioUid: string,
+    cambios: Record<string, number>
+  ): Promise<void> => {
+    if (!usuarioUid) return;
+    const data: Record<string, any> = {};
+    Object.entries(cambios).forEach(([k, v]) => {
+      data[k] = increment(v);
+    });
 
+    // opcional: escribir uid/usuarioUid en caso de que el doc no exista aún
+    data.uid = usuarioUid;
+    data.usuarioUid = usuarioUid;
+
+    await setDoc(doc(db, "estadisticasUsuario", usuarioUid), data, { merge: true });
+  };
   const reportarPublicacion = async (
     publicacionId: string,
     motivo: string
@@ -215,6 +233,26 @@ export default function PublicationDetailScreen() {
         fechaCreacion: Timestamp.now(),
         estado: "pendiente",
       });
+      let autorPublicacionUid: string | undefined;
+      try {
+        const pubSnap = await getDoc(doc(db, "publicaciones", publicacionId));
+        if (pubSnap.exists()) {
+          const pubData = pubSnap.data() as any;
+          autorPublicacionUid = pubData?.autorUid;
+        }
+      } catch (err) {
+        console.warn("No se pudo obtener autor de la publicación (solo para estadísticas):", err);
+      }
+
+      actualizarEstadisticasUsuario(usuarioLocal.uid, { publicacionesReportadas: 1 }).catch((err) =>
+        console.error("Error actualizando publicacionesReportadas:", err)
+      );
+
+      if (autorPublicacionUid && autorPublicacionUid !== usuarioLocal.uid) {
+        actualizarEstadisticasUsuario(autorPublicacionUid, { reportesRecibidos: 1 }).catch((err) =>
+          console.error("Error actualizando reportesRecibidos:", err)
+        );
+      }
 
       return true;
     } catch (error) {

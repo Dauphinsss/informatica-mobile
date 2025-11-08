@@ -1,16 +1,18 @@
 import { useTheme } from "@/contexts/ThemeContext";
+import { db } from "@/firebase";
 import {
   eliminarArchivo,
+  guardarEnlaceExterno,
   obtenerTiposArchivo,
   seleccionarArchivo,
   subirArchivo,
-  guardarEnlaceExterno,
 } from "@/scripts/services/Files";
 import { crearPublicacion } from "@/scripts/services/Publications";
 import { TipoArchivo } from "@/scripts/types/Files.type";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import { getAuth } from "firebase/auth";
+import { doc, increment, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
@@ -25,13 +27,13 @@ import {
   Text,
   TextInput,
 } from "react-native-paper";
-import { getStyles } from "./_CreatePublicationScreen.styles";
-import { notificarUsuariosMateria } from "../../services/notifications";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomAlert, {
   CustomAlertButton,
   CustomAlertType,
 } from "../../components/ui/CustomAlert";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { notificarUsuariosMateria } from "../../services/notifications";
+import { getStyles } from "./_CreatePublicationScreen.styles";
 
 interface ArchivoTemp {
   id?: string;
@@ -265,6 +267,20 @@ export default function CreatePublicationScreen() {
     setArchivos((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const actualizarEstadisticasUsuario = async (usuarioUid: string, cambios: Record<string, number>) => {
+    try {
+      if (!usuarioUid) return;
+      const data: Record<string, any> = {};
+      Object.entries(cambios).forEach(([key, value]) => {
+        data[key] = increment(value);
+      });
+
+      await setDoc(doc(db, "estadisticasUsuario", usuarioUid), data, { merge: true });
+    } catch (error) {
+      console.error("Error actualizando estadisticasUsuario:", error);
+    }
+  };
+
   const publicar = async () => {
     if (!titulo.trim()) {
       showAlert("Error", "El título es obligatorio", "error");
@@ -299,6 +315,11 @@ export default function CreatePublicationScreen() {
       console.log("Publicación creada con ID:", pubId);
 
       setPublicacionId(pubId);
+      try {
+        await actualizarEstadisticasUsuario(user.uid, { publicacionesCreadas: 1 });
+      } catch (e) {
+        console.error("No se pudo actualizar estadisticasUsuario tras crear publicación:", e);
+      }
 
       // 2. Subir archivos pendientes
       if (archivos.length > 0) {
