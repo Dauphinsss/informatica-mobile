@@ -5,6 +5,7 @@ import FileGalleryScreen from "../subjects/FileGalleryScreen";
 import ManageSubjectsScreen from "./manage-subjects";
 import ManageUsers from "./manage-users";
 import ReportsScreen from "./ReportsScreen";
+import StatisticsScreen from "./statistics";
 import CreateSubjectScreen from "./create-subject";
 import EditSubjectScreen from "./edit-subject";
 
@@ -41,6 +42,13 @@ export default function AdminLayOut() {
         component={ReportsScreen}
         options={{
           title: "Reportes",
+        }}
+      />
+      <Stack.Screen
+        name="Statistics"
+        component={StatisticsScreen}
+        options={{
+          title: "Estadísticas",
         }}
       />
       <Stack.Screen

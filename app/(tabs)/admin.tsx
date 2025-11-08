@@ -14,6 +14,7 @@ type AdminStackParamList = {
   ManageUsers: undefined;
   Reports: undefined;
   ManageSubjects: undefined;
+  Statistics: undefined;
 };
 
 type AdminScreenNavigationProp = StackNavigationProp<
@@ -216,13 +217,12 @@ export default function AdminScreen() {
             </Card>
           </TouchableOpacity>
 
-          {/* Card de Reportes/Estadísticas */}
           <TouchableOpacity
             style={styles.statCard}
             activeOpacity={0.7}
-            disabled
+            onPress={() => navigation.navigate("Statistics")}
           >
-            <Card elevation={2} style={[styles.card, styles.disabledCard]}>
+            <Card elevation={2} style={styles.card}>
               <Card.Content style={styles.cardContent}>
                 <View
                   style={[
@@ -233,20 +233,23 @@ export default function AdminScreen() {
                   <MaterialCommunityIcons
                     name="chart-bar"
                     size={32}
-                    color={theme.colors.onSurfaceVariant}
+                    color={theme.colors.primary}
                   />
                 </View>
                 <View style={styles.statContent}>
-                  <Text variant="bodyLarge" style={[styles.statLabel, styles.comingSoon]}>
-                    Próximamente
-                  </Text>
                   <Text
-                    variant="bodySmall"
-                    style={[styles.subLabel, { color: theme.colors.onSurfaceVariant }]}
+                    variant="bodyLarge"
+                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
                   >
                     Estadísticas
                   </Text>
                 </View>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                  style={styles.chevron}
+                />
               </Card.Content>
             </Card>
           </TouchableOpacity>
