@@ -1,11 +1,12 @@
 import SuspendedModal from '@/components/ui/suspended-modal';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { useDeepLinking, useNotificationDeepLinking } from '@/hooks/useDeepLinking';
 import { setNavigationRef } from '@/services/navigationService';
 import {
-  configurarCanalAndroid,
-  configurarListenerNotificaciones,
-  registrarTokens,
-  solicitarPermisosNotificaciones,
+    configurarCanalAndroid,
+    configurarListenerNotificaciones,
+    registrarTokens,
+    solicitarPermisosNotificaciones,
 } from '@/services/pushNotifications';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
@@ -40,6 +41,10 @@ function AppContent() {
   const [isSuspended, setIsSuspended] = useState(false);
 
   const pendingActions = useMemo(() => [] as any[], []);
+
+  // Hooks para manejar deep linking
+  useDeepLinking();
+  useNotificationDeepLinking();
 
   const navWrapper = useMemo(() => ({
     navigate: (...args: any[]) => {
