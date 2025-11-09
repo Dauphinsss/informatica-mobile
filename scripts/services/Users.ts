@@ -15,6 +15,5 @@ export const crearEstadisticasUsuario = async (usuarioUid: string) => {
       usuarioUid: usuarioUid,
       valoracionesRealizadas: 0,
     });
-    console.log(`Estadísticas creadas para usuario ${usuarioUid}`);
   }
 };

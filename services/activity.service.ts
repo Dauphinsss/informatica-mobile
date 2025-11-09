@@ -46,7 +46,6 @@ export const registrarActividadCliente = async (
       metadata: cleanMetadata,
     });
 
-    console.log(`[Actividad Cliente] Registrado: ${tipo} - ${titulo}`);
   } catch (error) {
     console.error("[Actividad Cliente] Error registrando:", error);
     throw error;

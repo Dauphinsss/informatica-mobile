@@ -136,29 +136,23 @@ export default function CreatePublicationScreen() {
     mimeType: string,
     nombre: string
   ): string | null => {
-    console.log("- mimeType:", mimeType);
-    console.log("- nombre:", nombre);
 
     // Buscar por mimetype
     for (const tipo of tipos) {
       if (tipo.mimetype.some((mime) => mimeType && mimeType.includes(mime))) {
-        console.log("Tipo encontrado por mimetype:", tipo.nombre);
         return tipo.id;
       }
     }
 
     // Buscar por extensión
     const extension = "." + nombre.split(".").pop()?.toLowerCase();
-    console.log("- extensión:", extension);
 
     for (const tipo of tipos) {
       if (tipo.extensiones.includes(extension)) {
-        console.log("Tipo encontrado por extensión:", tipo.nombre);
         return tipo.id;
       }
     }
 
-    console.log("No se encontró tipo compatible");
     return null;
   };
 
@@ -302,7 +296,6 @@ export default function CreatePublicationScreen() {
 
     try {
       // 1. Crear publicación
-      console.log("Creando publicación...");
       const nombreUsuario = user.displayName || user.email || "Usuario";
       const pubId = await crearPublicacion(
         materiaId,
@@ -312,7 +305,6 @@ export default function CreatePublicationScreen() {
         titulo,
         descripcion
       );
-      console.log("Publicación creada con ID:", pubId);
 
       setPublicacionId(pubId);
       try {
@@ -323,14 +315,12 @@ export default function CreatePublicationScreen() {
 
       // 2. Subir archivos pendientes
       if (archivos.length > 0) {
-        console.log(`Subiendo ${archivos.length} archivos...`);
 
         for (let i = 0; i < archivos.length; i++) {
           const archivo = archivos[i];
 
           // Si ya está subido, saltar
           if (archivo.id) {
-            console.log(`Archivo ${i} ya está subido`);
             continue;
           }
 
@@ -344,7 +334,6 @@ export default function CreatePublicationScreen() {
           try {
             // Si es un enlace externo
             if (archivo.esEnlaceExterno) {
-              console.log(`Guardando enlace ${i}: ${archivo.nombreEnlace}`);
               
               const resultado = await guardarEnlaceExterno(
                 pubId,
@@ -352,8 +341,6 @@ export default function CreatePublicationScreen() {
                 archivo.nombreEnlace!,
                 archivo.urlExterna!
               );
-
-              console.log(`Enlace ${i} guardado exitosamente con ID:`, resultado.id);
 
               setArchivos((prev) => {
                 const nuevos = [...prev];
@@ -368,7 +355,6 @@ export default function CreatePublicationScreen() {
             } 
             // Si es un archivo normal
             else {
-              console.log(`Subiendo archivo ${i}: ${archivo.asset!.name}`);
               
               const resultado = await subirArchivo(
                 pubId,
@@ -377,7 +363,6 @@ export default function CreatePublicationScreen() {
                 archivo.asset!.name,
                 undefined,
                 (progreso) => {
-                  console.log(`Progreso archivo ${i}: ${progreso.toFixed(0)}%`);
                   setArchivos((prev) => {
                     const nuevos = [...prev];
                     nuevos[i] = { ...nuevos[i], progreso };
@@ -385,8 +370,6 @@ export default function CreatePublicationScreen() {
                   });
                 }
               );
-
-              console.log(`Archivo ${i} subido exitosamente con ID:`, resultado.id);
 
               setArchivos((prev) => {
                 const nuevos = [...prev];
@@ -431,7 +414,6 @@ export default function CreatePublicationScreen() {
       }
 
       try {
-        console.log("Enviando notificaciones a estudiantes...");
         await notificarUsuariosMateria(
           materiaId,
           materiaNombre,
@@ -441,12 +423,10 @@ export default function CreatePublicationScreen() {
           "newspaper",
           pubId
         );
-        console.log("Notificaciones enviadas");
       } catch (notifError) {
         console.error("Error al enviar notificaciones:", notifError);
       }
 
-      console.log("Publicación completada exitosamente");
       showAlert("Éxito", "Publicación creada correctamente", "success", [
         {
           text: "OK",

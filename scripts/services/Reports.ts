@@ -182,7 +182,6 @@ export const eliminarPublicacion = async (publicacionId: string) => {
 
 export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
   try {
-    console.log("Eliminando publicación y archivos:", publicacionId);
     let autorPublicacionUid: string | undefined;
     try {
       const pubSnap = await getDoc(doc(db, "publicaciones", publicacionId));
@@ -202,8 +201,6 @@ export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
       )
     );
 
-    console.log(`Archivos encontrados: ${archivosSnap.docs.length}`);
-
     const eliminarArchivosStorage = archivosSnap.docs.map(async (archivoDoc) => {
       const archivoData = archivoDoc.data();
 
@@ -217,12 +214,10 @@ export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
           
           const storageRef = ref(storage, filePath);
           await deleteObject(storageRef);
-          console.log(`Archivo eliminado de Storage: ${archivoData.titulo}`);
         } catch (storageError) {
           console.warn(`No se pudo eliminar de Storage: ${archivoData.titulo}`, storageError);
         }
       } else {
-        console.log(`Enlace externo omitido: ${archivoData.titulo}`);
       }
 
       await updateDoc(doc(db, "archivos", archivoDoc.id), {
@@ -240,7 +235,6 @@ export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
         (e) => console.error("estadisticas: publicacionesEliminadas", e)
       );
     }
-    console.log("Publicación y archivos eliminados correctamente");
   } catch (error) {
     console.error("Error al eliminar publicación y archivos:", error);
     throw error;
@@ -259,7 +253,6 @@ export const aplicarStrikeAlAutor = async (autorUid: string) => {
       await updateDoc(doc(db, "estadisticasUsuario", estadisticaDoc.id), {
         strikes: actual + 1,
       });
-      console.log(`Strike aplicado al usuario. Total: ${actual + 1}`);
     }
   } catch (error) {
     console.error("Error al aplicar strike:", error);
@@ -278,7 +271,6 @@ export const banearUsuarioPorNombre = async (nombre: string) => {
       await updateDoc(doc(db, "usuarios", usuarioDoc.id), {
         estado: "suspendido",
       });
-      console.log(`Usuario baneado: ${nombre}`);
     }
   } catch (error) {
     console.error("Error al banear usuario:", error);

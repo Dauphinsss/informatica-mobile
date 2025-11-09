@@ -77,14 +77,6 @@ export const crearDatosMock = async () => {
         ultimaActividad: new Date(),
     });
 
-    console.log("Datos mock creados con éxito:", {
-      usuarioId: usuarioRef.id,
-      publicacionId: publicacionRef.id,
-      reporteId: reporteRef.id,
-      materiaId: MateriaRed.id,
-      inscripcionId: InscripcionRed.id,
-      estadisticasId: EstadisticasUsuarioRef.id,
-    });
   } catch (error) {
     console.error("❌ Error creando datos mock:", error);
   }

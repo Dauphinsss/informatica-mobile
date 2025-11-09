@@ -18,22 +18,14 @@ import {
 import { getAuth } from "firebase/auth";
 import { db, storage } from "@/firebase";
 import * as DocumentPicker from 'expo-document-picker';
-// FileSystem se importa dinámicamente cuando se necesita
 import { Archivo, TipoArchivo } from "../types/Files.type";
 
-/**
- * Verifica que el usuario esté autenticado y espera si es necesario
- */
 const verificarAutenticacion = async (): Promise<boolean> => {
   const auth = getAuth();
-  
-  // Si ya hay un usuario, devolver true inmediatamente
   if (auth.currentUser) {
-    console.log("✅ Usuario autenticado:", auth.currentUser.uid);
     return true;
   }
   
-  // Esperar hasta 5 segundos por la autenticación
   return new Promise((resolve) => {
     let intentos = 0;
     const maxIntentos = 10;
@@ -43,7 +35,6 @@ const verificarAutenticacion = async (): Promise<boolean> => {
       
       if (auth.currentUser) {
         clearInterval(verificar);
-        console.log("✅ Usuario autenticado después de espera:", auth.currentUser.uid);
         resolve(true);
       } else if (intentos >= maxIntentos) {
         clearInterval(verificar);
@@ -54,9 +45,6 @@ const verificarAutenticacion = async (): Promise<boolean> => {
   });
 };
 
-/**
- * Obtiene todos los tipos de archivo disponibles del catálogo
- */
 export const obtenerTiposArchivo = async (): Promise<TipoArchivo[]> => {
   const tipos: TipoArchivo[] = [];
   try {
@@ -73,9 +61,6 @@ export const obtenerTiposArchivo = async (): Promise<TipoArchivo[]> => {
   return tipos;
 };
 
-/**
- * Obtiene un tipo de archivo por su ID
- */
 export const obtenerTipoArchivoPorId = async (tipoId: string): Promise<TipoArchivo | null> => {
   try {
     const tipoDoc = await getDoc(doc(db, "tiposArchivo", tipoId));
@@ -91,9 +76,6 @@ export const obtenerTipoArchivoPorId = async (tipoId: string): Promise<TipoArchi
   return null;
 };
 
-/**
- * Selecciona un archivo del dispositivo
- */
 export const seleccionarArchivo = async (tiposPermitidos?: string[]) => {
   try {
     const result = await DocumentPicker.getDocumentAsync({
@@ -112,9 +94,6 @@ export const seleccionarArchivo = async (tiposPermitidos?: string[]) => {
   }
 };
 
-/**
- * Simula el progreso de subida para uploadBytes
- */
 const simularProgreso = (onProgress?: (progress: number) => void) => {
   if (!onProgress) return () => {};
   
@@ -132,9 +111,6 @@ const simularProgreso = (onProgress?: (progress: number) => void) => {
   };
 };
 
-/**
- * Sube un archivo a Firebase Storage y guarda la referencia en Firestore
- */
 export const subirArchivo = async (
   publicacionId: string,
   archivo: DocumentPicker.DocumentPickerAsset,
@@ -146,50 +122,33 @@ export const subirArchivo = async (
   let detenerProgreso: (() => void) | null = null;
   
   try {
-    console.log("=== INICIANDO SUBIDA DE ARCHIVO ===");
-    console.log("📄 Archivo:", archivo.name);
-    console.log("📏 Tamaño:", archivo.size, "bytes");
-    console.log("📝 Tipo:", archivo.mimeType);
-    
-    // 0. VERIFICAR AUTENTICACIÓN
-    console.log("🔐 Verificando autenticación...");
     const autenticado = await verificarAutenticacion();
     
     if (!autenticado) {
       throw new Error("No se pudo verificar la autenticación. Por favor, inicia sesión nuevamente.");
     }
     
-    // Pequeña pausa para asegurar sincronización
     await new Promise(resolve => setTimeout(resolve, 200));
     
-    // 1. Leer el archivo
-    console.log("📖 Leyendo archivo...");
     let blob: Blob;
     
     try {
-      // Método principal: usar fetch (funciona para la mayoría de casos)
       const response = await fetch(archivo.uri);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       
-      // Obtener como Blob directamente
       blob = await response.blob();
-      console.log("✅ Archivo leído:", blob.size, "bytes");
       
     } catch (fetchError) {
-      console.log("⚠️ Fetch falló, intentando método alternativo...");
       console.error("Error fetch:", fetchError);
       
-      // Método alternativo: leer como base64 y convertir
       try {
-        // Usar la API legacy explícitamente para evitar el warning
         const FileSystemLegacy = require('expo-file-system/legacy');
         const base64 = await FileSystemLegacy.readAsStringAsync(archivo.uri, {
           encoding: FileSystemLegacy.EncodingType.Base64,
         });
         
-        // Convertir base64 a Blob
         const byteCharacters = atob(base64);
         const byteNumbers = new Uint8Array(byteCharacters.length);
         
@@ -197,7 +156,6 @@ export const subirArchivo = async (
           byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         
-        // Determinar MIME type
         let mimeType = archivo.mimeType || 'application/octet-stream';
         if (!mimeType || mimeType === 'application/octet-stream') {
           const extension = archivo.name.split('.').pop()?.toLowerCase();
@@ -209,7 +167,6 @@ export const subirArchivo = async (
         }
         
         blob = new Blob([byteNumbers], { type: mimeType });
-        console.log("✅ Archivo leído con FileSystem:", blob.size, "bytes");
         
       } catch (fsError) {
         console.error("❌ FileSystem también falló:", fsError);
@@ -217,20 +174,16 @@ export const subirArchivo = async (
       }
     }
 
-    // Validar
     if (!blob || blob.size === 0) {
       throw new Error("El archivo no pudo ser leído (tamaño 0)");
     }
 
-    // 2. Preparar Storage reference
     const timestamp = Date.now();
     const nombreLimpio = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `archivos/${publicacionId}/${timestamp}_${nombreLimpio}`;
-    console.log("📁 Ruta Storage:", storagePath);
     
     const storageRef = ref(storage, storagePath);
 
-    // 3. Configurar metadata
     const metadata = {
       contentType: blob.type || archivo.mimeType || 'application/octet-stream',
       customMetadata: {
@@ -241,27 +194,17 @@ export const subirArchivo = async (
       }
     };
 
-    // 4. Iniciar progreso simulado
-    console.log("⬆️ Subiendo a Storage...");
     detenerProgreso = simularProgreso(onProgress);
 
-    // 5. Subir usando uploadBytes (más confiable en React Native)
     const uploadResult = await uploadBytes(storageRef, blob, metadata);
-    console.log("✅ Subida completada!");
     
-    // Detener simulación y marcar 100%
     if (detenerProgreso) {
       detenerProgreso();
       detenerProgreso = null;
     }
 
-    // 6. Obtener URL de descarga
-    console.log("🔗 Obteniendo URL...");
     const downloadURL = await getDownloadURL(uploadResult.ref);
-    console.log("✅ URL obtenida");
 
-    // 7. Guardar en Firestore
-    console.log("💾 Guardando en Firestore...");
     const archivoData = {
       publicacionId,
       tipoArchivoId,
@@ -275,7 +218,6 @@ export const subirArchivo = async (
     };
 
     const docRef = await addDoc(collection(db, "archivos"), archivoData);
-    console.log("✅ Guardado con ID:", docRef.id);
 
     const resultado = {
       id: docRef.id,
@@ -283,18 +225,15 @@ export const subirArchivo = async (
       fechaSubida: new Date()
     } as Archivo;
     
-    console.log("🎉 === SUBIDA COMPLETADA ===");
     return resultado;
     
   } catch (error) {
     console.error("❌ ERROR en subirArchivo:", error);
     
-    // Detener progreso en caso de error
     if (detenerProgreso) {
       detenerProgreso();
     }
     
-    // Proporcionar mensaje de error más útil
     let mensajeError = "Error al subir el archivo";
     
     if (error instanceof Error) {
@@ -313,9 +252,6 @@ export const subirArchivo = async (
   }
 };
 
-/**
- * Obtiene todos los archivos de una publicación
- */
 export const obtenerArchivosPorPublicacion = async (
   publicacionId: string
 ): Promise<Archivo[]> => {
@@ -343,12 +279,8 @@ export const obtenerArchivosPorPublicacion = async (
   return archivos;
 };
 
-/**
- * Elimina un archivo (lógicamente en Firestore y físicamente en Storage)
- */
 export const eliminarArchivo = async (archivoId: string): Promise<void> => {
   try {
-    // 1. Obtener datos del archivo
     const archivoDoc = await getDoc(doc(db, "archivos", archivoId));
     
     if (!archivoDoc.exists()) {
@@ -357,7 +289,6 @@ export const eliminarArchivo = async (archivoId: string): Promise<void> => {
 
     const archivoData = archivoDoc.data();
 
-    // 2. Solo eliminar de Storage si NO es un enlace externo
     if (!archivoData.esEnlaceExterno && archivoData.webUrl) {
       try {
         const storageUrl = archivoData.webUrl;
@@ -368,20 +299,16 @@ export const eliminarArchivo = async (archivoId: string): Promise<void> => {
         
         const storageRef = ref(storage, filePath);
         await deleteObject(storageRef);
-        console.log("✅ Archivo eliminado de Storage");
       } catch (storageError) {
         console.warn("⚠️ No se pudo eliminar de Storage:", storageError);
-        // Continuar con eliminación lógica
       }
     } else {
-      console.log("ℹ️ Enlace externo - no se elimina de Storage");
     }
 
     // 3. Marcar como inactivo en Firestore
     await updateDoc(doc(db, "archivos", archivoId), {
       activo: false
     });
-    console.log("✅ Archivo marcado como inactivo");
     
   } catch (error) {
     console.error("❌ Error al eliminar archivo:", error);
@@ -389,9 +316,6 @@ export const eliminarArchivo = async (archivoId: string): Promise<void> => {
   }
 };
 
-/**
- * Actualiza los metadatos de un archivo
- */
 export const actualizarArchivo = async (
   archivoId: string,
   titulo?: string,
@@ -410,15 +334,11 @@ export const actualizarArchivo = async (
   }
 };
 
-/**
- * Obtiene el tamaño total en bytes de archivos de una publicación
- */
 export const obtenerTamanoTotalArchivos = async (
   publicacionId: string
 ): Promise<number> => {
   try {
     const archivos = await obtenerArchivosPorPublicacion(publicacionId);
-    // Filtrar enlaces externos (tamanoBytes = 0) para no contaminar el cálculo
     return archivos
       .filter(archivo => !archivo.esEnlaceExterno)
       .reduce((total, archivo) => total + archivo.tamanoBytes, 0);
@@ -435,12 +355,6 @@ export const guardarEnlaceExterno = async (
   url: string
 ): Promise<{ id: string }> => {
   try {
-    console.log("Guardando enlace externo:", {
-      publicacionId,
-      tipoArchivoId,
-      nombreEnlace,
-      url,
-    });
 
     const archivoRef = await addDoc(collection(db, "archivos"), {
       activo: true,
@@ -454,8 +368,6 @@ export const guardarEnlaceExterno = async (
       webUrl: url,
       esEnlaceExterno: true,
     });
-
-    console.log("Enlace guardado con ID:", archivoRef.id);
 
     return { id: archivoRef.id };
   } catch (error) {
