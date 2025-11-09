@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, StyleSheet, ScrollView, Dimensions } from "react-native";
 import {
   Portal,
@@ -11,6 +11,7 @@ import {
   Chip,
   Divider,
 } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LineChart } from "react-native-gifted-charts";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -37,6 +38,12 @@ interface RankingDetailModalProps {
   title: string;
   rankingType: "activeUsers" | "popularSubjects" | "reportedUsers" | "popularPosts";
   icon: string;
+  timeFilter: TimeFilter;
+  postSortType: PostSortType;
+  cache: Map<string, { items: any[], chart: ChartDataPoint[] }>;
+  onTimeFilterChange: (filter: TimeFilter) => void;
+  onPostSortTypeChange: (sortType: PostSortType) => void;
+  onCacheUpdate: (cache: Map<string, { items: any[], chart: ChartDataPoint[] }>) => void;
 }
 
 export default function RankingDetailModal({
@@ -45,21 +52,36 @@ export default function RankingDetailModal({
   title,
   rankingType,
   icon,
+  timeFilter,
+  postSortType,
+  cache,
+  onTimeFilterChange,
+  onPostSortTypeChange,
+  onCacheUpdate,
 }: RankingDetailModalProps) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("30days");
-  const [postSortType, setPostSortType] = useState<PostSortType>("views");
   const [topItems, setTopItems] = useState<(UserRanking | SubjectRanking | PostRanking)[]>([]);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
 
   useEffect(() => {
     if (visible) {
       loadData();
+      prefetchOtherFilters();
     }
   }, [visible, timeFilter, postSortType, rankingType]);
 
   const loadData = async () => {
+    const cacheKey = `${rankingType}_${timeFilter}_${postSortType || 'default'}`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      setTopItems(cached.items);
+      setChartData(cached.chart);
+      return;
+    }
+
     setLoading(true);
     try {
       let items: any[] = [];
@@ -86,10 +108,55 @@ export default function RankingDetailModal({
 
       setTopItems(items);
       setChartData(chart);
+      
+      const newCache = new Map(cache);
+      newCache.set(cacheKey, { items, chart });
+      onCacheUpdate(newCache);
     } catch (error) {
       console.error("Error cargando datos del ranking:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const prefetchOtherFilters = async () => {
+    const allFilters: TimeFilter[] = ["today", "7days", "30days", "6months", "all"];
+    
+    for (const filter of allFilters) {
+      if (filter === timeFilter) continue;
+      
+      const cacheKey = `${rankingType}_${filter}_${postSortType || 'default'}`;
+      if (cache.has(cacheKey)) continue;
+      
+      try {
+        let items: any[] = [];
+        let chart: ChartDataPoint[] = [];
+
+        switch (rankingType) {
+          case "activeUsers":
+            items = await getTopActiveUsers(filter);
+            chart = await generateChartData("activeUsers", filter);
+            break;
+          case "popularSubjects":
+            items = await getTopPopularSubjects(filter);
+            chart = await generateChartData("popularSubjects", filter);
+            break;
+          case "reportedUsers":
+            items = await getTopReportedUsers(filter);
+            chart = await generateChartData("reportedUsers", filter);
+            break;
+          case "popularPosts":
+            items = await getTopPopularPosts(filter, postSortType);
+            chart = await generateChartData("popularPosts", filter, postSortType);
+            break;
+        }
+
+        const newCache = new Map(cache);
+        newCache.set(cacheKey, { items, chart });
+        onCacheUpdate(newCache);
+      } catch (error) {
+        console.error(`Error prefetching ${filter}:`, error);
+      }
     }
   };
 
@@ -109,9 +176,23 @@ export default function RankingDetailModal({
               />
             )}
             right={() => (
-              <Chip compact>
-                {user.value} {rankingType === "activeUsers" ? "posts" : "reportes"}
-              </Chip>
+              <View style={{ 
+                backgroundColor: theme.colors.secondaryContainer,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                minWidth: 60,
+                justifyContent: "center",
+                alignItems: "center"
+              }}>
+                <Text style={{ 
+                  color: theme.colors.onSecondaryContainer,
+                  fontWeight: "600",
+                  textAlign: "center"
+                }}>
+                  {user.value}
+                </Text>
+              </View>
             )}
           />
           {index < topItems.length - 1 && <Divider />}
@@ -131,7 +212,25 @@ export default function RankingDetailModal({
                 color={index === 0 ? "#FFD700" : index === 1 ? "#C0C0C0" : index === 2 ? "#CD7F32" : theme.colors.primary}
               />
             )}
-            right={() => <Chip compact>{subject.value} publicaciones</Chip>}
+            right={() => (
+              <View style={{ 
+                backgroundColor: theme.colors.secondaryContainer,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                minWidth: 50,
+                justifyContent: "center",
+                alignItems: "center"
+              }}>
+                <Text style={{ 
+                  color: theme.colors.onSecondaryContainer,
+                  fontWeight: "600",
+                  textAlign: "center"
+                }}>
+                  {subject.value}
+                </Text>
+              </View>
+            )}
           />
           {index < topItems.length - 1 && <Divider />}
         </View>
@@ -151,13 +250,42 @@ export default function RankingDetailModal({
               />
             )}
             right={() => (
-              <View style={{ alignItems: "flex-end" }}>
-                <Chip compact style={{ marginBottom: 4 }}>
-                  {post.views} vistas
-                </Chip>
-                <Chip compact>
-                  {post.likes} likes
-                </Chip>
+              <View style={{ alignItems: "flex-end", justifyContent: "center" }}>
+                <View style={{ 
+                  backgroundColor: theme.colors.secondaryContainer,
+                  borderRadius: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  minWidth: 50,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: 4
+                }}>
+                  <Text style={{ 
+                    color: theme.colors.onSecondaryContainer,
+                    fontWeight: "600",
+                    textAlign: "center"
+                  }}>
+                    {post.views}
+                  </Text>
+                </View>
+                <View style={{ 
+                  backgroundColor: theme.colors.secondaryContainer,
+                  borderRadius: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  minWidth: 50,
+                  justifyContent: "center",
+                  alignItems: "center"
+                }}>
+                  <Text style={{ 
+                    color: theme.colors.onSecondaryContainer,
+                    fontWeight: "600",
+                    textAlign: "center"
+                  }}>
+                    {post.likes}
+                  </Text>
+                </View>
               </View>
             )}
           />
@@ -178,33 +306,58 @@ export default function RankingDetailModal({
           { backgroundColor: theme.colors.surface },
         ]}
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: "bold" }}>
+        <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+          <Text variant="titleLarge" style={styles.headerTitle} numberOfLines={1}>
               {title}
-            </Text>
-            <IconButton
+          </Text>
+          <IconButton
               icon="close"
-              size={24}
               onPress={onDismiss}
-              iconColor={theme.colors.onSurface}
-            />
-          </View>
+              size={20}
+              style={[styles.closeButton, { right: -24, top: -24 }]}
+              accessibilityLabel="Cerrar"
+          />
+        </View>
 
-          <Divider style={{ marginBottom: 16 }} />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 0 }}>
 
           <Text variant="labelLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
             Período de tiempo
           </Text>
           <SegmentedButtons
             value={timeFilter}
-            onValueChange={(value) => setTimeFilter(value as TimeFilter)}
+            onValueChange={(value) => onTimeFilterChange(value as TimeFilter)}
             buttons={[
-              { value: "today", label: "Hoy" },
-              { value: "7days", label: "7 días" },
-              { value: "30days", label: "30 días" },
-              { value: "6months", label: "6 meses" },
-              { value: "all", label: "Todo" },
+              {
+                value: "today",
+                label: "Hoy",
+                style: { paddingVertical: 2, minWidth: 40 },
+                labelStyle: { fontSize: 10, fontWeight: "400", lineHeight: 14 },
+              },
+              {
+                value: "7days",
+                label: "7d",
+                style: { paddingVertical: 2, minWidth: 40 },
+                labelStyle: { fontSize: 10, fontWeight: "400", lineHeight: 14 },
+              },
+              {
+                value: "30days",
+                label: "30d",
+                style: { paddingVertical: 2, minWidth: 40 },
+                labelStyle: { fontSize: 10, fontWeight: "400", lineHeight: 14 },
+              },
+              {
+                value: "6months",
+                label: "6m",
+                style: { paddingVertical: 2, minWidth: 40 },
+                labelStyle: { fontSize: 10, fontWeight: "400", lineHeight: 14 },
+              },
+              {
+                value: "all",
+                label: "Todo",
+                style: { paddingVertical: 2, minWidth: 40 },
+                labelStyle: { fontSize: 10, fontWeight: "400", lineHeight: 14 },
+              },
             ]}
             style={styles.segmentedButtons}
             density="small"
@@ -217,7 +370,7 @@ export default function RankingDetailModal({
               </Text>
               <SegmentedButtons
                 value={postSortType}
-                onValueChange={(value) => setPostSortType(value as PostSortType)}
+                onValueChange={(value) => onPostSortTypeChange(value as PostSortType)}
                 buttons={[
                   { value: "views", label: "Vistas", icon: "eye" },
                   { value: "likes", label: "Likes", icon: "thumb-up" },
@@ -258,12 +411,21 @@ export default function RankingDetailModal({
                       yAxisColor={theme.colors.outline}
                       xAxisColor={theme.colors.outline}
                       yAxisTextStyle={{ color: theme.colors.onSurfaceVariant, fontSize: 10 }}
-                      xAxisLabelTextStyle={{ color: theme.colors.onSurfaceVariant, fontSize: 10 }}
+                      xAxisLabelTextStyle={{ 
+                        color: theme.colors.onSurfaceVariant, 
+                        fontSize: 9,
+                        transform: [{ rotate: '-35deg' }],
+                        width: 60,
+                        textAlign: 'right'
+                      }}
                       curved
                       areaChart
                       hideDataPoints={chartData.length > 20}
                       dataPointsColor={theme.colors.primary}
                       dataPointsRadius={4}
+                      showVerticalLines={false}
+                      xAxisLabelsVerticalShift={10}
+                      hideRules={chartData.length > 15}
                     />
                   </View>
                 </View>
@@ -300,11 +462,29 @@ const styles = StyleSheet.create({
     padding: 20,
     maxHeight: "90%",
   },
-  header: {
+  headerContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
+    position: 'relative',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    position: 'relative',
+    paddingHorizontal: 8,
+  },
+  headerTitle: {
+    fontWeight: '600',
+    textAlign: 'center',
+    alignSelf: 'center',
+    marginHorizontal: 8,
+    marginVertical: 2,
+  },
+  closeButton: {
+    position: 'absolute',
   },
   sectionTitle: {
     fontWeight: "600",
@@ -312,7 +492,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   segmentedButtons: {
-    marginBottom: 8,
+    marginBottom: 0,
   },
   loadingContainer: {
     paddingVertical: 40,
@@ -325,7 +505,8 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 5,
+    paddingBottom: 0,
   },
   listContainer: {
     borderRadius: 12,

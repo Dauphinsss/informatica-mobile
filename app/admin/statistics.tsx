@@ -14,10 +14,15 @@ import {
   getGeneralStats,
   getRankingStats,
 } from "@/services/statistics.service";
-import { GeneralStats, RankingStats } from "@/scripts/types/Statistics.type";
+import { GeneralStats, RankingStats, TimeFilter, PostSortType } from "@/scripts/types/Statistics.type";
 
 type RankingModalType = "activeUsers" | "popularSubjects" | "reportedUsers" | "popularPosts" | null;
 type GeneralStatType = "users" | "posts" | "pendingReports" | "totalReports" | null;
+interface RankingModalState {
+  timeFilter: TimeFilter;
+  postSortType: PostSortType;
+  cache: Map<string, { items: any[], chart: any[] }>;
+}
 
 export default function StatisticsScreen() {
   const navigation = useNavigation();
@@ -32,6 +37,12 @@ export default function StatisticsScreen() {
   const [selectedRanking, setSelectedRanking] = useState<RankingModalType>(null);
   const [generalModalVisible, setGeneralModalVisible] = useState(false);
   const [selectedGeneralStat, setSelectedGeneralStat] = useState<GeneralStatType>(null);
+  const [rankingModalStates, setRankingModalStates] = useState<Record<string, RankingModalState>>({
+    activeUsers: { timeFilter: "30days", postSortType: "views", cache: new Map() },
+    popularSubjects: { timeFilter: "30days", postSortType: "views", cache: new Map() },
+    reportedUsers: { timeFilter: "30days", postSortType: "views", cache: new Map() },
+    popularPosts: { timeFilter: "30days", postSortType: "views", cache: new Map() },
+  });
 
   useEffect(() => {
     loadGeneralStats();
@@ -336,6 +347,27 @@ export default function StatisticsScreen() {
           title={getModalConfig().title}
           rankingType={selectedRanking}
           icon={getModalConfig().icon}
+          timeFilter={rankingModalStates[selectedRanking].timeFilter}
+          postSortType={rankingModalStates[selectedRanking].postSortType}
+          cache={rankingModalStates[selectedRanking].cache}
+          onTimeFilterChange={(filter) => {
+            setRankingModalStates(prev => ({
+              ...prev,
+              [selectedRanking]: { ...prev[selectedRanking], timeFilter: filter }
+            }));
+          }}
+          onPostSortTypeChange={(sortType) => {
+            setRankingModalStates(prev => ({
+              ...prev,
+              [selectedRanking]: { ...prev[selectedRanking], postSortType: sortType }
+            }));
+          }}
+          onCacheUpdate={(cache) => {
+            setRankingModalStates(prev => ({
+              ...prev,
+              [selectedRanking]: { ...prev[selectedRanking], cache }
+            }));
+          }}
         />
       )}
 

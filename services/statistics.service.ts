@@ -1,27 +1,25 @@
 import { db } from "@/firebase";
 import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-  Timestamp,
-  getCountFromServer,
-  doc,
-  getDoc,
-} from "firebase/firestore";
-import {
-  GeneralStats,
-  RankingStats,
-  UserRanking,
-  SubjectRanking,
-  PostRanking,
-  TimeFilter,
-  PeriodComparison,
-  ChartDataPoint,
-  PostSortType,
+    ChartDataPoint,
+    GeneralStats,
+    PeriodComparison,
+    PostRanking,
+    PostSortType,
+    RankingStats,
+    SubjectRanking,
+    TimeFilter,
+    UserRanking,
 } from "@/scripts/types/Statistics.type";
+import {
+    collection,
+    doc,
+    getCountFromServer,
+    getDoc,
+    getDocs,
+    query,
+    Timestamp,
+    where
+} from "firebase/firestore";
 
 const getTimeRange = (filter: TimeFilter): { startDate: Date; endDate: Date } => {
   const now = new Date();
@@ -480,7 +478,7 @@ export const getMostPopularPost = async (sortBy: PostSortType = 'views'): Promis
 
     for (const docSnap of snapshot.docs) {
       const data = docSnap.data();
-      const value = sortBy === 'views' ? (data.vistas || 0) : (data.totalValoraciones || 0);
+      const value = sortBy === 'views' ? (data.vistas || 0) : (data.totalCalificaciones || 0);
       
       if (value > maxValue) {
         maxValue = value;
@@ -507,7 +505,7 @@ export const getMostPopularPost = async (sortBy: PostSortType = 'views'): Promis
       autorUid: topPost.autorUid,
       materiaNombre,
       views: topPost.vistas || 0,
-      likes: topPost.totalValoraciones || 0,
+      likes: topPost.totalCalificaciones || 0,
       fechaCreacion: topPost.fechaPublicacion?.toDate() || new Date(),
       descripcion: topPost.descripcion,
     };
@@ -785,7 +783,7 @@ export const getTopPopularPosts = async (
         autorUid: data.autorUid,
         materiaNombre: materiaData?.nombre,
         views: data.vistas || 0,
-        likes: data.totalValoraciones || data.totalCalificaciones || 0,
+        likes: data.totalCalificaciones || data.totalCalificaciones || 0,
         fechaCreacion: data.fechaPublicacion?.toDate() || new Date(),
         descripcion: data.descripcion,
       };
@@ -832,68 +830,201 @@ export const generateChartData = async (
   sortBy?: PostSortType
 ): Promise<ChartDataPoint[]> => {
   try {
-    const { startDate, endDate } = getTimeRange(timeFilter);
+    let { startDate, endDate } = getTimeRange(timeFilter);
     
-    let intervalDays = 1;
-    if (timeFilter === '30days') intervalDays = 3;
-    if (timeFilter === '6months') intervalDays = 15;
-    if (timeFilter === 'all') intervalDays = 30;
-
-    const chartData: ChartDataPoint[] = [];
-    const currentDate = new Date(startDate);
-
-    while (currentDate <= endDate) {
-      const nextDate = new Date(currentDate);
-      nextDate.setDate(nextDate.getDate() + intervalDays);
-
-      let value = 0;
-
-      if (rankingType === 'activeUsers' || rankingType === 'popularSubjects') {
-        const publicacionesRef = collection(db, "publicaciones");
-        const q = query(
-          publicacionesRef,
-          where("fechaPublicacion", ">=", Timestamp.fromDate(currentDate)),
-          where("fechaPublicacion", "<", Timestamp.fromDate(nextDate)),
-          where("estado", "==", "activo")
-        );
-        const snapshot = await getDocs(q);
-        value = snapshot.size;
-      } else if (rankingType === 'reportedUsers') {
-        const reportesRef = collection(db, "reportes");
-        const q = query(
-          reportesRef,
-          where("fechaCreacion", ">=", Timestamp.fromDate(currentDate)),
-          where("fechaCreacion", "<", Timestamp.fromDate(nextDate))
-        );
-        const snapshot = await getDocs(q);
-        value = snapshot.size;
-      } else if (rankingType === 'popularPosts') {
-        const publicacionesRef = collection(db, "publicaciones");
-        const q = query(
-          publicacionesRef,
-          where("fechaPublicacion", ">=", Timestamp.fromDate(currentDate)),
-          where("fechaPublicacion", "<", Timestamp.fromDate(nextDate)),
-          where("estado", "==", "activo")
-        );
-        const snapshot = await getDocs(q);
+    if (timeFilter === 'all') {
+      let collectionName = '';
+      let dateFieldName = '';
+      
+      if (rankingType === 'reportedUsers') {
+        collectionName = 'reportes';
+        dateFieldName = 'fechaCreacion';
+      } else {
+        collectionName = 'publicaciones';
+        dateFieldName = 'fechaPublicacion';
+      }
+      
+      const collectionRef = collection(db, collectionName);
+      const qFirst = query(collectionRef, where(dateFieldName, '>', Timestamp.fromDate(new Date(2020, 0, 1))));
+      const snapshot = await getDocs(qFirst);
+      
+      if (!snapshot.empty) {
+        let earliestDate: Date | null = null;
+        snapshot.docs.forEach(doc => {
+          const docDate = doc.data()[dateFieldName]?.toDate();
+          if (docDate && (!earliestDate || docDate < earliestDate)) {
+            earliestDate = docDate;
+          }
+        });
         
-        if (sortBy === 'likes') {
-          value = snapshot.docs.reduce((sum, doc) => sum + (doc.data().totalValoraciones || 0), 0);
-        } else {
-          value = snapshot.docs.reduce((sum, doc) => sum + (doc.data().vistas || 0), 0);
+        if (earliestDate) {
+          startDate = earliestDate;
         }
       }
-
-      chartData.push({
-        value,
-        label: currentDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }),
-        date: new Date(currentDate),
-      });
-
-      currentDate.setDate(currentDate.getDate() + intervalDays);
+    }
+    
+    let intervalHours = 0;
+    let intervalDays = 0;
+    let useMonthlyIntervals = false;
+    
+    if (timeFilter === 'today') {
+      intervalHours = 8;
+    } else if (timeFilter === '7days') {
+      intervalDays = 1;
+    } else if (timeFilter === '30days') {
+      intervalDays = 3;
+    } else if (timeFilter === '6months') {
+      useMonthlyIntervals = true;
+    } else if (timeFilter === 'all') {
+      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      intervalDays = Math.max(1, Math.floor(totalDays / 15));
     }
 
-    return chartData;
+    const chartData: ChartDataPoint[] = [];
+    
+    if (useMonthlyIntervals) {
+      const current = new Date(startDate);
+      current.setDate(1);
+      
+      for (let i = 0; i < 6; i++) {
+        const monthStart = new Date(current);
+        const monthEnd = new Date(current);
+        monthEnd.setMonth(monthEnd.getMonth() + 1);
+        
+        let value = 0;
+
+        if (rankingType === 'activeUsers' || rankingType === 'popularSubjects') {
+          const publicacionesRef = collection(db, "publicaciones");
+          const q = query(
+            publicacionesRef,
+            where("fechaPublicacion", ">=", Timestamp.fromDate(monthStart)),
+            where("fechaPublicacion", "<", Timestamp.fromDate(monthEnd)),
+            where("estado", "==", "activo")
+          );
+          const snapshot = await getDocs(q);
+          value = snapshot.size;
+        } else if (rankingType === 'reportedUsers') {
+          const reportesRef = collection(db, "reportes");
+          const q = query(
+            reportesRef,
+            where("fechaCreacion", ">=", Timestamp.fromDate(monthStart)),
+            where("fechaCreacion", "<", Timestamp.fromDate(monthEnd))
+          );
+          const snapshot = await getDocs(q);
+          value = snapshot.size;
+        } else if (rankingType === 'popularPosts') {
+          const publicacionesRef = collection(db, "publicaciones");
+          const q = query(
+            publicacionesRef,
+            where("fechaPublicacion", ">=", Timestamp.fromDate(monthStart)),
+            where("fechaPublicacion", "<", Timestamp.fromDate(monthEnd)),
+            where("estado", "==", "activo")
+          );
+          const snapshot = await getDocs(q);
+          
+          if (sortBy === 'likes') {
+            value = snapshot.docs.reduce((sum, doc) => sum + (doc.data().totalCalificaciones || 0), 0);
+          } else {
+            value = snapshot.docs.reduce((sum, doc) => sum + (doc.data().vistas || 0), 0);
+          }
+        }
+
+        const label = monthStart.toLocaleDateString('es-ES', { month: 'short' });
+
+        chartData.push({
+          value,
+          label,
+          date: new Date(monthStart),
+        });
+        
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else {
+      const currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        const nextDate = new Date(currentDate);
+        
+        if (intervalHours > 0) {
+          nextDate.setHours(nextDate.getHours() + intervalHours);
+        } else {
+          nextDate.setDate(nextDate.getDate() + intervalDays);
+        }
+
+        let value = 0;
+
+        if (rankingType === 'activeUsers' || rankingType === 'popularSubjects') {
+          const publicacionesRef = collection(db, "publicaciones");
+          const q = query(
+            publicacionesRef,
+            where("fechaPublicacion", ">=", Timestamp.fromDate(currentDate)),
+            where("fechaPublicacion", "<", Timestamp.fromDate(nextDate)),
+            where("estado", "==", "activo")
+          );
+          const snapshot = await getDocs(q);
+          value = snapshot.size;
+        } else if (rankingType === 'reportedUsers') {
+          const reportesRef = collection(db, "reportes");
+          const q = query(
+            reportesRef,
+            where("fechaCreacion", ">=", Timestamp.fromDate(currentDate)),
+            where("fechaCreacion", "<", Timestamp.fromDate(nextDate))
+          );
+          const snapshot = await getDocs(q);
+          value = snapshot.size;
+        } else if (rankingType === 'popularPosts') {
+          const publicacionesRef = collection(db, "publicaciones");
+          const q = query(
+            publicacionesRef,
+            where("fechaPublicacion", ">=", Timestamp.fromDate(currentDate)),
+            where("fechaPublicacion", "<", Timestamp.fromDate(nextDate)),
+            where("estado", "==", "activo")
+          );
+          const snapshot = await getDocs(q);
+          
+          if (sortBy === 'likes') {
+            value = snapshot.docs.reduce((sum, doc) => sum + (doc.data().totalCalificaciones || 0), 0);
+          } else {
+            value = snapshot.docs.reduce((sum, doc) => sum + (doc.data().vistas || 0), 0);
+          }
+        }
+
+        let label = '';
+        if (timeFilter === 'today') {
+          label = `${currentDate.getHours()}h`;
+        } else {
+          label = currentDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        }
+
+        chartData.push({
+          value,
+          label,
+          date: new Date(currentDate),
+        });
+
+        if (intervalHours > 0) {
+          currentDate.setHours(currentDate.getHours() + intervalHours);
+        } else {
+          currentDate.setDate(currentDate.getDate() + intervalDays);
+        }
+      }
+    }
+
+    const sampledData = chartData.map((point, index) => {
+      let showLabel = true;
+      if (chartData.length > 20) {
+        showLabel = index % 4 === 0;
+      } else if (chartData.length > 12) {
+        showLabel = index % 2 === 0;
+      }
+      
+      return {
+        ...point,
+        label: showLabel ? point.label : '',
+      };
+    });
+
+    return sampledData;
   } catch (error) {
     console.error("Error generando datos de gráfico:", error);
     return [];
