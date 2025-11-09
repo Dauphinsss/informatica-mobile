@@ -15,6 +15,7 @@ import {
   notificarDecisionAdminAutor,
   notificarDecisionAdminDenunciantes,
 } from "@/services/notifications";
+import { registrarActividadCliente } from "@/services/activity.service";
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -463,6 +464,22 @@ export default function ReportsScreen() {
           "Reporte descartado",
           motivo
         );
+        
+        await registrarActividadCliente(
+          'publicacion_aprobada',
+          'Publicación aprobada por administrador',
+          `La publicación "${reporteSeleccionado.titulo}" de ${reporteSeleccionado.autor} fue aprobada: ${motivo}`,
+          auth.currentUser?.uid,
+          'Admin',
+          reporteSeleccionado.publicacionId,
+          {
+            publicacionTitulo: reporteSeleccionado.titulo,
+            autorNombre: reporteSeleccionado.autor,
+            motivo,
+            decision: 'Reporte descartado',
+          }
+        );
+        
         const fechaStr =
           fecha && typeof fecha.toLocaleDateString === "function"
             ? fecha.toLocaleDateString()
@@ -526,6 +543,22 @@ export default function ReportsScreen() {
           "Publicación eliminada + strike",
           motivo
         );
+        
+        await registrarActividadCliente(
+          'publicacion_eliminada',
+          'Publicación eliminada por administrador',
+          `La publicación "${reporteSeleccionado.titulo}" de ${reporteSeleccionado.autor} fue eliminada por ${motivo}`,
+          auth.currentUser?.uid,
+          'Admin',
+          reporteSeleccionado.publicacionId,
+          {
+            publicacionTitulo: reporteSeleccionado.titulo,
+            autorNombre: reporteSeleccionado.autor,
+            motivo,
+            decision: 'Publicación eliminada + strike',
+          }
+        );
+        
         const fechaStr =
           fecha && typeof fecha.toLocaleDateString === "function"
             ? fecha.toLocaleDateString()
@@ -590,6 +623,21 @@ export default function ReportsScreen() {
           "Usuario baneado",
           motivo
         );
+        
+        await registrarActividadCliente(
+          'usuario_baneado',
+          'Usuario baneado del sistema',
+          `${reporteSeleccionado.autor} fue baneado por ${motivo}`,
+          auth.currentUser?.uid,
+          'Admin',
+          reporteSeleccionado.autorUid,
+          {
+            usuarioNombre: reporteSeleccionado.autor,
+            motivo,
+            decision: 'Usuario baneado',
+          }
+        );
+        
         const fechaStr =
           fecha && typeof fecha.toLocaleDateString === "function"
             ? fecha.toLocaleDateString()

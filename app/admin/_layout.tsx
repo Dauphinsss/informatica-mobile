@@ -6,6 +6,7 @@ import ManageSubjectsScreen from "./manage-subjects";
 import ManageUsers from "./manage-users";
 import ReportsScreen from "./ReportsScreen";
 import StatisticsScreen from "./statistics";
+import AllActivityScreen from "./AllActivityScreen";
 import CreateSubjectScreen from "./create-subject";
 import EditSubjectScreen from "./edit-subject";
 
@@ -49,6 +50,13 @@ export default function AdminLayOut() {
         component={StatisticsScreen}
         options={{
           title: "Estadísticas",
+        }}
+      />
+      <Stack.Screen
+        name="AllActivity"
+        component={AllActivityScreen}
+        options={{
+          title: "Actividad Reciente",
         }}
       />
       <Stack.Screen

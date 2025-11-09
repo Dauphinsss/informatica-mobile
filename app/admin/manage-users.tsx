@@ -1,4 +1,5 @@
 import { useTheme } from "@/contexts/ThemeContext";
+import { registrarActividadCliente } from "@/services/activity.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { collection, doc, onSnapshot, updateDoc } from "firebase/firestore";
@@ -15,13 +16,12 @@ import {
   Appbar,
   Avatar,
   Button,
-  Chip,
   Dialog,
   Divider,
   List,
   Portal,
   Searchbar,
-  Text,
+  Text
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth, db } from "../../firebase";
@@ -129,8 +129,38 @@ const ManageUsers = () => {
     try {
       const userRef = doc(db, "usuarios", selectedUser.uid);
       await updateDoc(userRef, { estado: newStatus });
+      
+      const activityType = actionType === "suspend" ? "usuario_baneado" : "usuario_desbaneado";
+      const usuarioNombre =
+        selectedUser?.nombre ||
+        selectedUser?.correo ||
+        'Usuario sin nombre';
+      const usuarioCorreo = selectedUser?.correo || selectedUser?.email || 'sin correo';
 
-      // Ya no necesitamos actualizar manualmente, onSnapshot lo hará automáticamente
+      const titulo = actionType === "suspend"
+        ? `Usuario ${usuarioNombre} suspendido`
+        : `Usuario ${usuarioNombre} reactivado`;
+
+      const descripcion = actionType === "suspend"
+        ? `El administrador ha suspendido la cuenta del usuario con correo ${usuarioCorreo}.`
+        : `El administrador ha reactivado la cuenta del usuario con correo ${usuarioCorreo}.`;
+      registrarActividadCliente(
+        activityType,
+        titulo,
+        descripcion,
+        auth.currentUser?.uid,
+        auth.currentUser?.displayName || auth.currentUser?.email || "Admin",
+        selectedUser.uid,
+        {
+          usuarioNombre: usuarioNombre,
+          usuarioEmail: usuarioCorreo,
+          estadoPrevio: selectedUser?.estado || 'desconocido',
+          estadoNuevo: newStatus,
+        }
+      ).catch((error) => {
+        console.error("[Manage Users] Error registrando actividad:", error);
+      });
+      
       setDialogVisible(false);
       setSelectedUser(null);
     } catch (error) {
@@ -138,7 +168,6 @@ const ManageUsers = () => {
     }
   };
 
-  // Listener en tiempo real para usuarios
   useEffect(() => {
     const usersCollection = collection(db, "usuarios");
 

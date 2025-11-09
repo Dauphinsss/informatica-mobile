@@ -6,7 +6,11 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Appbar, Card, Divider, Text } from "react-native-paper";
+import { Appbar, Card, Divider, Text, ActivityIndicator, Button } from "react-native-paper";
+import ActivityCard from "../admin/components/ActivityCard";
+import ActivityDetailModal from "../admin/components/ActivityDetailModal";
+import { obtenerActividadesPreview, escucharActividadesRecientes } from "@/services/activity.service";
+import { ActivityLog } from "@/scripts/types/Activity.type";
 
 // Definir el tipo de navegación para el stack de admin
 type AdminStackParamList = {
@@ -31,6 +35,10 @@ export default function AdminScreen() {
   const [totalUsuarios, setTotalUsuarios] = useState(0);
   const [totalDenuncias, setTotalDenuncias] = useState(0);
   const [denunciasPendientes, setDenunciasPendientes] = useState(0);
+  const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityLog | null>(null);
+  const [activityModalVisible, setActivityModalVisible] = useState(false);
 
   // Obtener estadísticas en tiempo real
   useEffect(() => {
@@ -66,6 +74,29 @@ export default function AdminScreen() {
       unsubUsuarios();
       unsubDenuncias();
       unsubPendientes();
+    };
+  }, []);
+
+  useEffect(() => {
+    setLoadingActivities(true);
+    
+    let unsubscribe: (() => void) | undefined;
+    
+    const timer = setTimeout(() => {
+      unsubscribe = escucharActividadesRecientes(
+        10,
+        (activities) => {
+          setRecentActivities(activities);
+          setLoadingActivities(false);
+        }
+      );
+    }, 500);
+
+    return () => {
+      clearTimeout(timer);
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
   }, []);
 
@@ -257,29 +288,85 @@ export default function AdminScreen() {
 
         {/* Actividad Reciente */}
         <View style={styles.activitySection}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Actividad Reciente
-          </Text>
+          <View style={styles.activityHeader}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Actividad Reciente
+            </Text>
+            <Button
+              mode="text"
+              onPress={() => navigation.navigate("AllActivity" as any)}
+              compact
+            >
+              Ver todo
+            </Button>
+          </View>
 
-          <Card elevation={1} style={styles.activityCard}>
-            <Card.Content>
-              <View style={styles.activityItem}>
-                <MaterialCommunityIcons
-                  name="information-outline"
-                  size={20}
-                  color={theme.colors.onSurfaceVariant}
-                />
-                <Text
-                  variant="bodyMedium"
-                  style={[styles.activityText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  No hay actividad reciente
-                </Text>
-              </View>
-            </Card.Content>
-          </Card>
+          {loadingActivities ? (
+            <Card elevation={1} style={styles.activityCard}>
+              <Card.Content>
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" />
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.activityText, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}
+                  >
+                    Cargando actividad...
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          ) : recentActivities.length > 0 ? (
+            <Card 
+              elevation={1} 
+              style={[
+                styles.activityCard,
+                { backgroundColor: theme.colors.elevation.level1 }
+              ]}
+            >
+              <Card.Content style={{ padding: 0 }}>
+                {recentActivities.map((activity, index) => (
+                  <React.Fragment key={activity.id}>
+                    <ActivityCard 
+                      activity={activity} 
+                      onPress={() => {
+                        setSelectedActivity(activity);
+                        setActivityModalVisible(true);
+                      }}
+                    />
+                    {index < recentActivities.length - 1 && <Divider />}
+                  </React.Fragment>
+                ))}
+              </Card.Content>
+            </Card>
+          ) : (
+            <Card elevation={1} style={styles.activityCard}>
+              <Card.Content>
+                <View style={styles.activityItem}>
+                  <MaterialCommunityIcons
+                    name="history"
+                    size={20}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                  <Text
+                    variant="bodyMedium"
+                    style={[styles.activityText, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    No hay actividad reciente
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          )}
         </View>
       </ScrollView>
+      <ActivityDetailModal
+        visible={activityModalVisible}
+        activity={selectedActivity}
+        onDismiss={() => {
+          setActivityModalVisible(false);
+          setSelectedActivity(null);
+        }}
+      />
     </View>
   );
 }
@@ -360,6 +447,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 32,
   },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   activityCard: {
     borderRadius: 12,
   },
@@ -371,5 +464,9 @@ const styles = StyleSheet.create({
   activityText: {
     flex: 1,
     fontStyle: "italic",
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
   },
 });

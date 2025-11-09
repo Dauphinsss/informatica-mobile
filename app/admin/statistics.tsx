@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { View, ScrollView } from "react-native";
-import { Appbar, Text, ActivityIndicator, Button, Divider } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/ThemeContext";
-import { getStyles } from "./statistics.styles";
+import { GeneralStats, PostSortType, RankingStats, TimeFilter } from "@/scripts/types/Statistics.type";
+import {
+    getGeneralStats,
+    getRankingStats,
+} from "@/services/statistics.service";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
+import { ScrollView, View } from "react-native";
+import { ActivityIndicator, Appbar, Button, Divider, Text } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import GeneralStatDetailModal from "./components/GeneralStatDetailModal";
+import RankingDetailModal from "./components/RankingDetailModal";
 import StatCardGeneral from "./components/StatCardGeneral";
 import StatCardRanking from "./components/StatCardRanking";
-import RankingDetailModal from "./components/RankingDetailModal";
-import GeneralStatDetailModal from "./components/GeneralStatDetailModal";
-import {
-  getGeneralStats,
-  getRankingStats,
-} from "@/services/statistics.service";
-import { GeneralStats, RankingStats, TimeFilter, PostSortType } from "@/scripts/types/Statistics.type";
+import { getStyles } from "./statistics.styles";
 
 type RankingModalType = "activeUsers" | "popularSubjects" | "reportedUsers" | "popularPosts" | null;
 type GeneralStatType = "users" | "posts" | "pendingReports" | "totalReports" | null;

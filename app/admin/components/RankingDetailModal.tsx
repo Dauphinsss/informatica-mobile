@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   SegmentedButtons,
   List,
-  Chip,
   Divider,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
