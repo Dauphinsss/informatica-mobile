@@ -6,9 +6,11 @@ import {
   DocumentData,
   getDoc,
   getDocs,
+  increment,
   onSnapshot,
   query,
   QuerySnapshot,
+  setDoc,
   updateDoc,
   where
 } from "firebase/firestore";
@@ -17,7 +19,12 @@ import {
   ref
 } from "firebase/storage";
 import { Report } from "../types/Reports.type";
-
+async function actualizarEstadisticasUsuario(usuarioUid: string, cambios: Record<string, number>) {
+  if (!usuarioUid) return;
+  const data: Record<string, any> = {};
+  Object.entries(cambios).forEach(([k, v]) => (data[k] = increment(v)));
+  await setDoc(doc(db, "estadisticasUsuario", usuarioUid), data, { merge: true });
+}
 export const obtenerReportes = async (): Promise<Report[]> => {
   const reportes: Report[] = [];
   const usuariosCache = new Map<string, string>();
@@ -176,6 +183,16 @@ export const eliminarPublicacion = async (publicacionId: string) => {
 export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
   try {
     console.log("Eliminando publicación y archivos:", publicacionId);
+    let autorPublicacionUid: string | undefined;
+    try {
+      const pubSnap = await getDoc(doc(db, "publicaciones", publicacionId));
+      if (pubSnap.exists()) {
+        const pubData = pubSnap.data() as any;
+        autorPublicacionUid = pubData?.autorUid;
+      }
+    } catch (e) {
+      console.warn("No se pudo leer autor de la publicación:", e);
+    }
 
     const archivosSnap = await getDocs(
       query(
@@ -218,7 +235,11 @@ export const eliminarPublicacionYArchivos = async (publicacionId: string) => {
     await updateDoc(doc(db, "publicaciones", publicacionId), {
       estado: "eliminado",
     });
-
+    if (autorPublicacionUid) {
+      actualizarEstadisticasUsuario(autorPublicacionUid, { publicacionesEliminadas: 1 }).catch(
+        (e) => console.error("estadisticas: publicacionesEliminadas", e)
+      );
+    }
     console.log("Publicación y archivos eliminados correctamente");
   } catch (error) {
     console.error("Error al eliminar publicación y archivos:", error);
