@@ -37,6 +37,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
+import { registrarActividadCliente } from "@/services/activity.service";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
@@ -234,15 +235,45 @@ export default function PublicationDetailScreen() {
         estado: "pendiente",
       });
       let autorPublicacionUid: string | undefined;
+      let tituloPublicacion: string | undefined;
+      let autorPublicacionNombre: string | undefined;
       try {
         const pubSnap = await getDoc(doc(db, "publicaciones", publicacionId));
         if (pubSnap.exists()) {
           const pubData = pubSnap.data() as any;
           autorPublicacionUid = pubData?.autorUid;
+          tituloPublicacion = pubData?.titulo;
+          autorPublicacionNombre = pubData?.autorNombre;
         }
       } catch (err) {
         console.warn("No se pudo obtener autor de la publicación (solo para estadísticas):", err);
       }
+
+      (async () => {
+        try {
+          const actorNombre = usuarioLocal.displayName || usuarioLocal.email || undefined;
+          const actividadTitulo = tituloPublicacion || 'Publicación reportada';
+          const actividadDescripcion = `Se reportó la publicación "${tituloPublicacion || publicacionId}"${
+            autorPublicacionNombre ? ` del autor ${autorPublicacionNombre}` : autorPublicacionUid ? ` del autor ${autorPublicacionUid}` : ''
+          } por motivo: ${motivo}`;
+
+          await registrarActividadCliente(
+            'publicacion_reportada',
+            actividadTitulo,
+            actividadDescripcion,
+            usuarioLocal.uid,
+            actorNombre,
+            publicacionId,
+            {
+              motivo,
+              autorPublicacionUid: autorPublicacionUid || undefined,
+              autorPublicacionNombre: autorPublicacionNombre || undefined,
+            }
+          );
+        } catch (err) {
+          console.warn('No se pudo registrar actividad de reporte:', err);
+        }
+      })();
 
       actualizarEstadisticasUsuario(usuarioLocal.uid, { publicacionesReportadas: 1 }).catch((err) =>
         console.error("Error actualizando publicacionesReportadas:", err)
