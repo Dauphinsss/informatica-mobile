@@ -279,27 +279,6 @@ export default function ProfileScreen() {
               onPress={() => navigation.navigate("NotificationsSettings")}
             />
             <List.Item
-              title="Privacidad"
-              description="Configuración de privacidad"
-              left={(props) => (
-                <View style={styles.iconWrapper}>
-                  <MaterialCommunityIcons
-                    name="shield-account"
-                    size={24}
-                    color={theme.colors.onSurfaceVariant}
-                  />
-                </View>
-              )}
-              right={(props) => (
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              )}
-              onPress={() => {}}
-            />
-            <List.Item
               title="Ayuda"
               description="Centro de ayuda"
               left={(props) => (
@@ -318,7 +297,7 @@ export default function ProfileScreen() {
                   color={theme.colors.onSurfaceVariant}
                 />
               )}
-              onPress={() => {}}
+              onPress={() => navigation.navigate("HelpCenter")}
             />
           </Card>
         </Animated.View>

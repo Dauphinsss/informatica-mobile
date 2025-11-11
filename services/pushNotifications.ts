@@ -194,7 +194,7 @@ export async function registrarTokens(uid: string, expoToken: string, fcmToken: 
       rol: 'usuario',
       tokens: [expoToken],    
       pushTokens: [fcmToken],
-    });
+    }, { merge: true });
   } else {
     await updateDoc(userRef, {
       tokens: arrayUnion(expoToken),

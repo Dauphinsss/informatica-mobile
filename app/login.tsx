@@ -5,9 +5,9 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Button, Text } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth, db } from "../firebase";
 import { crearEstadisticasUsuario } from "../scripts/services/Users";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 GoogleSignin.configure({
   webClientId:
@@ -34,23 +34,21 @@ export default function LoginScreen() {
       const result = await signInWithCredential(auth, credential);
 
       const user = result.user;
+      
+      const googleUser = userInfo.data?.user;
+      const nombre = googleUser?.name || googleUser?.givenName || user.displayName || "Sin nombre";
+      const correo = googleUser?.email || user.email || "";
+      const foto = googleUser?.photo || user.photoURL || "";
+
       const usuarioRef = doc(db, "usuarios", user.uid);
       const usuarioDoc = await getDoc(usuarioRef);
 
-      console.log("Datos del usuario de Google:", {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-      });
-
       if (!usuarioDoc.exists()) {
-        console.log("Creando nuevo usuario en Firestore");
         await setDoc(usuarioRef, {
           uid: user.uid,
-          correo: user.email || "",
-          nombre: user.displayName || "Usuario sin nombre",
-          foto: user.photoURL || "",
+          correo: correo,
+          nombre: nombre,
+          foto: foto,
           rol: "usuario",
           estado: "activo",
           creadoEn: serverTimestamp(),
@@ -59,23 +57,19 @@ export default function LoginScreen() {
         await crearEstadisticasUsuario(user.uid);
       } else {
         const datosActuales = usuarioDoc.data();
-        const updateData: any = {
-          correo: user.email || datosActuales?.correo || "",
-          nombre: user.displayName || datosActuales?.nombre || "Usuario sin nombre",
-          foto: user.photoURL || datosActuales?.foto || "",
+        await setDoc(usuarioRef, {
+          uid: user.uid,
+          correo: correo,
+          nombre: nombre,
+          foto: foto,
           rol: datosActuales?.rol || "usuario",
           estado: datosActuales?.estado || "activo",
+          creadoEn: datosActuales?.creadoEn || serverTimestamp(),
           ultimoAcceso: serverTimestamp(),
-        };
-        
-        if (!datosActuales?.creadoEn) {
-          updateData.creadoEn = serverTimestamp();
-        }
-        
-        await setDoc(usuarioRef, updateData, { merge: true });
+        }, { merge: true });
       }
+      setLoading(false);
     } catch (error: any) {
-      console.error("Error:", error);
       setLoading(false);
     }
   };

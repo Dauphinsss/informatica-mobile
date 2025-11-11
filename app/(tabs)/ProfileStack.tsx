@@ -4,6 +4,7 @@ import MisPublicacionesScreen from "../profile/MisPublicacionesScreen";
 import FileGalleryScreen from "../subjects/FileGalleryScreen";
 import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
 import NotificationsSettingsScreen from "./NotificationsSettingsScreen";
+import HelpCenterScreen from "./HelpCenterScreen";
 import ProfileScreen from "./profile";
 
 const Stack = createNativeStackNavigator();
@@ -31,6 +32,10 @@ export default function ProfileStack() {
       <Stack.Screen
         name="NotificationsSettings"
         component={NotificationsSettingsScreen}
+      />
+      <Stack.Screen
+        name="HelpCenter"
+        component={HelpCenterScreen}
       />
     </Stack.Navigator>
   );
