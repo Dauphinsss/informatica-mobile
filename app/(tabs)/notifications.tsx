@@ -8,7 +8,6 @@ import {
 } from "@/services/notifications";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -17,9 +16,12 @@ import {
 import {
   ActivityIndicator,
   Appbar,
+  Button,
+  Dialog,
   Divider,
   IconButton,
   List,
+  Portal,
   Text,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -33,6 +35,8 @@ export default function NotificationsScreen() {
   );
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [notifToDelete, setNotifToDelete] = useState<{ id: string; titulo: string } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -117,27 +121,20 @@ export default function NotificationsScreen() {
     notifUsuarioId: string,
     titulo: string
   ) => {
-    Alert.alert(
-      "Eliminar notificación",
-      `¿Estás seguro de que deseas eliminar "${titulo}"?`,
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await eliminarNotificacionUsuario(notifUsuarioId);
-            } catch (error) {
-              console.error("Error al eliminar notificación:", error);
-            }
-          },
-        },
-      ]
-    );
+    setNotifToDelete({ id: notifUsuarioId, titulo });
+    setDialogVisible(true);
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!notifToDelete) return;
+    
+    try {
+      await eliminarNotificacionUsuario(notifToDelete.id);
+      setDialogVisible(false);
+      setNotifToDelete(null);
+    } catch (error) {
+      console.error("Error al eliminar notificación:", error);
+    }
   };
 
   const getIconColor = (tipo: string, leida: boolean) => {
@@ -329,6 +326,39 @@ export default function NotificationsScreen() {
           )}
         </ScrollView>
       )}
+
+      <Portal>
+        <Dialog
+          visible={dialogVisible}
+          onDismiss={() => setDialogVisible(false)}
+          style={{ backgroundColor: theme.colors.surface }}
+        >
+          <Dialog.Title style={{ textAlign: 'center', color: theme.colors.onSurface }}>
+            Eliminar notificación
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+              ¿Estás seguro de que deseas eliminar "{notifToDelete?.titulo}"?
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button
+              onPress={() => setDialogVisible(false)}
+              textColor={theme.colors.onSurface}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onPress={confirmarEliminacion}
+              textColor={theme.colors.error}
+              mode="contained"
+              buttonColor={theme.colors.errorContainer}
+            >
+              Eliminar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
