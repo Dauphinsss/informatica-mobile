@@ -46,12 +46,6 @@ export const useDeepLinking = () => {
         return;
       }
 
-      // Evitar procesar el mismo link dos veces
-      if (processedUrls.current.has(url)) {
-        console.log('Deep Link: Ya procesado anteriormente:', url);
-        return;
-      }
-
       processedUrls.current.add(url);
 
       // Extraer el ID de la publicación
