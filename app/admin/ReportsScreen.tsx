@@ -470,7 +470,7 @@ export default function ReportsScreen() {
           'Publicación aprobada por administrador',
           `La publicación "${reporteSeleccionado.titulo}" de ${reporteSeleccionado.autor} fue aprobada: ${motivo}`,
           auth.currentUser?.uid,
-          'Admin',
+          auth.currentUser?.displayName || auth.currentUser?.email || 'Admin',
           reporteSeleccionado.publicacionId,
           {
             publicacionTitulo: reporteSeleccionado.titulo,
@@ -549,7 +549,7 @@ export default function ReportsScreen() {
           'Publicación eliminada por administrador',
           `La publicación "${reporteSeleccionado.titulo}" de ${reporteSeleccionado.autor} fue eliminada por ${motivo}`,
           auth.currentUser?.uid,
-          'Admin',
+          auth.currentUser?.displayName || auth.currentUser?.email || 'Admin',
           reporteSeleccionado.publicacionId,
           {
             publicacionTitulo: reporteSeleccionado.titulo,
@@ -629,7 +629,7 @@ export default function ReportsScreen() {
           'Usuario baneado del sistema',
           `${reporteSeleccionado.autor} fue baneado por ${motivo}`,
           auth.currentUser?.uid,
-          'Admin',
+          auth.currentUser?.displayName || auth.currentUser?.email || 'Admin',
           reporteSeleccionado.autorUid,
           {
             usuarioNombre: reporteSeleccionado.autor,

@@ -393,7 +393,6 @@ export default function MisPublicacionesScreen() {
   return (
     <View style={[styles.container]}>
       <Appbar.Header>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
         {!selectionMode ? (
           <Appbar.Content title="Mis Publicaciones" />
         ) : (

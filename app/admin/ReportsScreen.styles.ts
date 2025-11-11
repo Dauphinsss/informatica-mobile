@@ -17,7 +17,6 @@ export const getStyles = (theme: MD3Theme) =>
     filterContainer: {
       flexDirection: "row",
       justifyContent: "space-evenly",
-      paddingHorizontal: "4%",
       paddingVertical: 8,
       paddingBottom: 8,
       gap: 8,
