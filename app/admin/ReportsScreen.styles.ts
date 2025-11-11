@@ -12,13 +12,13 @@ export const getStyles = (theme: MD3Theme) =>
     content: {
       flex: 1,
       paddingHorizontal: "4%",
-      paddingVertical: 16,
+      paddingVertical: 8,
     },
     filterContainer: {
       flexDirection: "row",
       justifyContent: "space-evenly",
       paddingHorizontal: "4%",
-      paddingVertical: 16,
+      paddingVertical: 8,
       paddingBottom: 8,
       gap: 8,
       backgroundColor: theme.colors.background,

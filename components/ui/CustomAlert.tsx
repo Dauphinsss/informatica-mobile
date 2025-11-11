@@ -46,10 +46,10 @@ export default function CustomAlert({
 }: CustomAlertProps) {
 
   const theme = useTheme();
-  const lilacStrong = theme.dark ? (theme.colors.secondaryContainer || '#b39ddb') : (theme.colors.secondary || '#7c43bd');
+  const lilacStrong = theme.dark ? (theme.colors.secondaryContainer || '#b39ddb') : (theme.colors.primary || '#7c43bd');
   const lilacLight = theme.dark ? (theme.colors.secondary || '#d1b3ff') : (theme.colors.secondaryContainer || '#ede7f6');
   const buttonLilac = theme.dark ? lilacLight : lilacStrong;
-  const buttonText = theme.dark ? '#f8f8f8' : '#444';
+  const buttonText = theme.colors.background;
   const colorMap: Record<CustomAlertType, string> = {
     info: buttonLilac,
     success: buttonLilac,
@@ -76,8 +76,6 @@ export default function CustomAlert({
             backgroundColor: theme.colors.elevation?.level1 || theme.colors.surface,
             borderRadius: 12,
             padding: 16,
-            borderColor: theme.colors.outline,
-            borderWidth: theme.dark ? 1 : 0,
             minWidth: 280,
             maxWidth: 400,
           },
@@ -112,7 +110,7 @@ export default function CustomAlert({
                     if (!btn.preventDismiss) onDismiss();
                   }}
                   style={styles.button}
-                  buttonColor={mode === 'contained' ? (btn.color || buttonLilac) : undefined}
+                  buttonColor={mode === 'contained' ? (buttonLilac || btn.color) : undefined}
                   textColor={mode === 'contained' ? buttonText : (btn.color || buttonLilac)}
                 >
                   {btn.text}

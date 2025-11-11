@@ -1,28 +1,24 @@
+import { StatisticsProvider } from "@/app/admin/contexts/StatisticsContext";
+import GeneralScreen from "@/app/admin/screens/GeneralScreen";
+import RankingScreen from "@/app/admin/screens/RankingScreen";
+import { useTheme } from "@/contexts/ThemeContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { BottomTabBarProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
-import { useTheme } from "react-native-paper";
-import { auth, db } from "../../firebase";
-import AdminLayOut from "../admin/_layout";
-
-import HomeStack from "./HomeStack";
-import MisPublicacionesStack from "./MisPublicacionesStack";
-import ProfileStack from "./ProfileStack";
+import { Appbar } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Tab = createBottomTabNavigator();
 
-type AnimatedTabBarProps = BottomTabBarProps;
-
-const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
+const AnimatedTabBar: React.FC<BottomTabBarProps> = ({
   state,
   descriptors,
   navigation,
   insets,
 }) => {
-  const theme = useTheme();
+  const { theme } = useTheme();
   const animatedValuesRef = useRef<Record<string, Animated.Value>>({});
 
   state.routes.forEach((route, index) => {
@@ -116,7 +112,7 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
           routeOptions.tabBarIcon?.({
             focused,
             color: iconColor,
-            size: 24,
+            size: 26,
           }) ?? null;
 
         const onPress = () => {
@@ -194,88 +190,28 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
   );
 };
 
-export default function TabLayout() {
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (auth.currentUser) {
-        try {
-          const userDoc = await getDoc(
-            doc(db, "usuarios", auth.currentUser.uid)
-          );
-          if (userDoc.exists()) {
-            setUserRole(userDoc.data().rol);
-          }
-        } catch (error) {
-          console.error("Error al obtener rol:", error);
-        }
-      }
-      setLoading(false);
-    };
-    fetchUserRole();
-  }, []);
-
-  if (loading) {
-    return null;
-  }
+function StatisticsTabs() {
+  const insets = useSafeAreaInsets();
 
   const renderTabBar = (props: BottomTabBarProps) => {
-    try {
-      const activeRoute = props.state.routes[props.state.index];
-      if (
-        activeRoute.name === "Admin" &&
-        typeof activeRoute.state?.index === "number" &&
-        activeRoute.state.index > 0
-      ) {
-        return null;
-      }
-      if (
-        activeRoute.name === "Profile" &&
-        activeRoute.state &&
-        typeof activeRoute.state.index === "number" &&
-        activeRoute.state.index > 0
-      ) {
-        return null;
-      }
-      if (
-        activeRoute.name === "Home" &&
-        activeRoute.state &&
-        typeof activeRoute.state.index === "number" &&
-        activeRoute.state.index > 0
-      ) {
-        return null;
-      }
-      if (
-        activeRoute.name === "MisPublicaciones" &&
-        activeRoute.state &&
-        typeof activeRoute.state.index === "number" &&
-        activeRoute.state.index > 0
-      ) {
-        return null;
-      }
-    } catch {}
-
-    return <AnimatedTabBar {...props} />;
+    return <AnimatedTabBar {...props} insets={insets} />;
   };
 
   return (
     <Tab.Navigator
-      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
       }}
       tabBar={renderTabBar}
     >
       <Tab.Screen
-        name="Home"
-        component={HomeStack}
+        name="General"
+        component={GeneralScreen}
         options={{
-          tabBarLabel: "Inicio",
+          tabBarLabel: "General",
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
-              name={focused ? "home" : "home-outline"}
+              name={focused ? "chart-box" : "chart-box-outline"}
               size={26}
               color={color}
             />
@@ -283,42 +219,13 @@ export default function TabLayout() {
         }}
       />
       <Tab.Screen
-        name="MisPublicaciones"
-        component={MisPublicacionesStack}
+        name="Ranking"
+        component={RankingScreen}
         options={{
-          tabBarLabel: "Publicaciones",
+          tabBarLabel: "Ranking",
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
-              name={focused ? "book-open-variant" : "book-open-outline"}
-              size={26}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Admin"
-        component={AdminLayOut}
-        options={{
-          tabBarLabel: "Admin",
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "shield-account" : "shield-account-outline"}
-              size={26}
-              color={color}
-            />
-          ),
-          tabBarButton: userRole === "admin" ? undefined : () => null,
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileStack}
-        options={{
-          tabBarLabel: "Perfil",
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "account-circle" : "account-circle-outline"}
+              name={focused ? "podium" : "podium"}
               size={26}
               color={color}
             />
@@ -326,6 +233,27 @@ export default function TabLayout() {
         }}
       />
     </Tab.Navigator>
+  );
+}
+
+export default function StatisticsStack() {
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+
+  return (
+    <StatisticsProvider>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <Appbar.Header
+          style={{
+            backgroundColor: theme.colors.surface,
+          }}
+        >
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title="Estadísticas" />
+        </Appbar.Header>
+        <StatisticsTabs />
+      </View>
+    </StatisticsProvider>
   );
 }
 
@@ -364,10 +292,5 @@ const styles = StyleSheet.create({
     width: 64,
     height: 32,
     borderRadius: 16,
-  },
-  badge: {
-    position: "absolute",
-    top: -8,
-    right: -12,
   },
 });

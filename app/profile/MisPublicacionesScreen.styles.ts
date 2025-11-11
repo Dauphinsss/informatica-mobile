@@ -83,7 +83,6 @@ export const getStyles = (theme: MD3Theme) =>
       alignItems: 'center',
       marginBottom: 10,
       paddingHorizontal: 16,
-      paddingTop: 12,
       backgroundColor: theme.colors.background,
       position: 'relative',
     },

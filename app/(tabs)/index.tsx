@@ -23,6 +23,7 @@ import {
 import {
   Appbar,
   Avatar,
+  Badge,
   Card,
   FAB,
   IconButton,
@@ -69,6 +70,7 @@ export default function HomeScreen() {
   const [userMenuVisible, setUserMenuVisible] = useState(false);
   const [newSubjectIds, setNewSubjectIds] = useState<string[]>([]);
   const [newSubjectsNotifIds, setNewSubjectsNotifIds] = useState<Map<string, string>>(new Map());
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const formatSemestre = (sem: any) => {
     if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
@@ -143,6 +145,9 @@ export default function HomeScreen() {
         
         setNewSubjectIds(nuevasMaterias.map((item) => item.id));
         setNewSubjectsNotifIds(idsMap);
+        
+        const noLeidas = notifs.filter((n) => !n.leida).length;
+        setUnreadCount(noLeidas);
       }
     );
     
@@ -254,6 +259,25 @@ export default function HomeScreen() {
     >
       <Appbar.Header>
         <Appbar.Content title="Ing. Informática" />
+        <View style={{ position: 'relative', marginRight: 8 }}>
+          <IconButton
+            icon="bell"
+            size={24}
+            onPress={() => navigation.navigate("Notifications")}
+          />
+          {unreadCount > 0 && (
+            <Badge
+              style={{
+                position: 'absolute',
+                top: 4,
+                right: 4,
+              }}
+              size={18}
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
+        </View>
         <TouchableOpacity
           onPress={() => setUserMenuVisible(true)}
           style={styles.avatarButton}

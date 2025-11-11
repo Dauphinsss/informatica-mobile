@@ -27,13 +27,11 @@ export default function ProfileScreen() {
   const { themeMode, setThemeMode, theme } = useTheme();
   const [themeDialogVisible, setThemeDialogVisible] = useState(false);
 
-  // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim1 = useRef(new Animated.Value(50)).current;
   const slideAnim2 = useRef(new Animated.Value(50)).current;
   const slideAnim3 = useRef(new Animated.Value(50)).current;
-  const slideAnim4 = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -62,12 +60,6 @@ export default function ProfileScreen() {
           useNativeDriver: true,
         }),
         Animated.spring(slideAnim3, {
-          toValue: 0,
-          tension: 40,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim4, {
           toValue: 0,
           tension: 40,
           friction: 8,
@@ -124,7 +116,6 @@ export default function ProfileScreen() {
       </Appbar.Header>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header animado con avatar */}
         <Animated.View
           style={[
             styles.headerCard,
@@ -167,7 +158,6 @@ export default function ProfileScreen() {
           </Surface>
         </Animated.View>
 
-        {/* Información de la cuenta */}
         <Animated.View
           style={[
             styles.section,
@@ -224,49 +214,12 @@ export default function ProfileScreen() {
           </Card>
         </Animated.View>
 
-        {/* Publicaciones */}
         <Animated.View
           style={[
             styles.section,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim2 }],
-            },
-          ]}
-        >
-          <Card elevation={1} style={styles.card}>
-            <List.Item
-              title="Mis Publicaciones"
-              description="Ver todas tus publicaciones"
-              left={(props) => (
-                <View style={styles.iconWrapper}>
-                  <MaterialCommunityIcons
-                    name="book-open-variant"
-                    size={24}
-                    color={theme.colors.primary}
-                  />
-                </View>
-              )}
-              right={(props) => (
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              )}
-              onPress={() => navigation.navigate("MisPublicacionesScreen")}
-              style={styles.listItem}
-            />
-          </Card>
-        </Animated.View>
-
-        {/* Configuración */}
-        <Animated.View
-          style={[
-            styles.section,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim3 }],
             },
           ]}
         >
@@ -370,12 +323,11 @@ export default function ProfileScreen() {
           </Card>
         </Animated.View>
 
-        {/* Botón de cerrar sesión */}
         <Animated.View
           style={[
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim4 }],
+              transform: [{ translateY: slideAnim3 }],
             },
           ]}
         >
@@ -390,7 +342,6 @@ export default function ProfileScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* Dialog para seleccionar tema */}
       <Portal>
         <Dialog
           visible={themeDialogVisible}

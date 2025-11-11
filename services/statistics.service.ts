@@ -1024,7 +1024,21 @@ export const generateChartData = async (
       };
     });
 
-    return sampledData;
+    const normalized = sampledData.map(p => {
+      const raw = (p as any).value;
+      const num = Number(raw) || 0;
+      return {
+        ...p,
+        value: num < 0 ? 0 : num,
+      } as ChartDataPoint;
+    });
+
+    const hadNegative = sampledData.some(p => Number((p as any).value) < 0);
+    if (hadNegative) {
+      console.warn('generateChartData: detected negative values in chart data, clamped to 0');
+    }
+
+    return normalized;
   } catch (error) {
     console.error("Error generando datos de gráfico:", error);
     return [];

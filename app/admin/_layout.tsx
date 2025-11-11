@@ -2,13 +2,13 @@ import { createStackNavigator } from "@react-navigation/stack";
 import React from "react";
 import AdminScreen from "../(tabs)/admin";
 import FileGalleryScreen from "../subjects/FileGalleryScreen";
-import ManageSubjectsScreen from "./manage-subjects";
-import ManageUsers from "./manage-users";
-import ReportsScreen from "./ReportsScreen";
-import StatisticsScreen from "./statistics";
 import AllActivityScreen from "./AllActivityScreen";
 import CreateSubjectScreen from "./create-subject";
 import EditSubjectScreen from "./edit-subject";
+import ManageSubjectsScreen from "./manage-subjects";
+import ManageUsers from "./manage-users";
+import ReportsScreen from "./ReportsScreen";
+import StatisticsStack from "./StatisticsStack";
 
 const Stack = createStackNavigator();
 
@@ -16,7 +16,7 @@ export default function AdminLayOut() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: false, // Ocultamos el header del stack porque cada pantalla maneja el suyo
+        headerShown: false,
       }}
     >
       <Stack.Screen
@@ -47,7 +47,7 @@ export default function AdminLayOut() {
       />
       <Stack.Screen
         name="Statistics"
-        component={StatisticsScreen}
+        component={StatisticsStack}
         options={{
           title: "Estadísticas",
         }}

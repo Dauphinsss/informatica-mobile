@@ -391,7 +391,7 @@ export default function MisPublicacionesScreen() {
 
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <View style={[styles.container]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         {!selectionMode ? (
@@ -440,6 +440,7 @@ export default function MisPublicacionesScreen() {
             data={filtered}
             keyExtractor={(item) => item.id}
             style={styles.scrollView}
+            contentContainerStyle={{ paddingBottom: insets.bottom }}
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={5}

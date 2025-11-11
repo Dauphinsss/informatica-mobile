@@ -1,15 +1,12 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
-import SubjectDetailScreen from "../subjects/SubjectDetailScreen";
-import HomeScreen from "./index";
-import CreatePublicationScreen from "../subjects/CreatePublicationScreen";
+import MisPublicacionesScreen from "../profile/MisPublicacionesScreen";
 import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
 import FileGalleryScreen from "../subjects/FileGalleryScreen";
-import NotificationsScreen from "./notifications";
 
 const Stack = createNativeStackNavigator();
 
-export default function HomeStack() {
+export default function MisPublicacionesStack() {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -17,20 +14,8 @@ export default function HomeStack() {
       }}
     >
       <Stack.Screen 
-        name="HomeMain" 
-        component={HomeScreen} 
-      />
-      <Stack.Screen 
-        name="Notifications" 
-        component={NotificationsScreen} 
-      />
-      <Stack.Screen 
-        name="SubjectDetail" 
-        component={SubjectDetailScreen} 
-      />
-      <Stack.Screen 
-        name="CreatePublication" 
-        component={CreatePublicationScreen} 
+        name="MisPublicacionesMain" 
+        component={MisPublicacionesScreen} 
       />
       <Stack.Screen 
         name="PublicationDetail" 

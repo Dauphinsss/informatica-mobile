@@ -74,6 +74,8 @@ export interface RankingDetailData {
 
 export type RankingType = 'activeUsers' | 'popularSubjects' | 'reportedUsers' | 'popularPosts';
 
+export type GeneralStatType = "users" | "posts" | "pendingReports" | "totalReports" | null;
+
 export interface PeriodComparison {
   current: number;
   previous: number;
