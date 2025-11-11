@@ -1,8 +1,13 @@
 import { useTheme } from "@/contexts/ThemeContext";
+import { db } from "@/firebase";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   Appbar,
+  Avatar,
+  Surface,
   Text
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,43 +15,55 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 interface Admin {
   name: string;
   email: string;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  photo?: string;
 }
 
 export default function HelpCenterScreen() {
   const { isDark, theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const [admins, setAdmins] = useState<Admin[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const admins: Admin[] = [
-    {
-      name: 'Marko',
-      email: 'marcosvelasquezvela20020509@gmail.com',
-      icon: 'account',
-    },
-    {
-      name: 'Daniel',
-      email: 'virreira.daniel@gmail.com',
-      icon: 'account',
-    },
-    {
-      name: 'Steven',
-      email: 'steven18122004@gmail.com',
-      icon: 'account',
-    },
-    {
-      name: 'Victor',
-      email: 'victorterrazasc05@gmail.com',
-      icon: 'account',
-    },
-  ];
+  useEffect(() => {
+    const fetchAdmins = async () => {
+      try {
+        const adminEmails = [
+          'marcosvelasquezvela20020509@gmail.com',
+          'steven18122004@gmail.com',
+          'victorterrazasc05@gmail.com',
+          'virreiradaniel@gmail.com',
+        ];
+
+        const q = query(
+          collection(db, 'usuarios'),
+          where('correo', 'in', adminEmails)
+        );
+
+        const snapshot = await getDocs(q);
+        const adminData: Admin[] = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          adminData.push({
+            name: data.nombre || 'Admin',
+            email: data.correo,
+            photo: data.foto || '',
+          });
+        });
+
+        setAdmins(adminData);
+      } catch (error) {
+        console.error('Error cargando admins:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdmins();
+  }, []);
 
   const handleEmailPress = (email: string) => {
     Linking.openURL(`mailto:${email}`);
-  };
-
-  const handleCopyEmail = (email: string) => {
-    // Copiar al portapapeles
-    require('react-native').NativeModules.Clipboard?.setString(email);
   };
 
   return (
@@ -72,41 +89,49 @@ export default function HelpCenterScreen() {
 
         <View style={styles.adminsList}>
           {admins.map((admin, index) => (
-            <Pressable
+            <Surface
               key={index}
-              onPress={() => handleEmailPress(admin.email)}
-              style={({ pressed }) => [
-                styles.adminCard,
-                {
-                  backgroundColor: isDark ? theme.colors.elevation.level2 : theme.colors.surface,
-                  opacity: pressed ? 0.7 : 1,
-                  borderColor: theme.colors.outline,
-                },
-              ]}
+              elevation={2}
+              style={styles.adminCard}
             >
-              <View style={styles.adminContent}>
-                <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
+              <Pressable
+                onPress={() => handleEmailPress(admin.email)}
+                style={({ pressed }) => [
+                  styles.adminPressable,
+                  {
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.adminContent}>
+                  {admin.photo ? (
+                    <Avatar.Image
+                      size={48}
+                      source={{ uri: admin.photo }}
+                    />
+                  ) : (
+                    <Avatar.Icon
+                      size={48}
+                      icon="account"
+                      style={{ backgroundColor: theme.colors.primaryContainer }}
+                    />
+                  )}
+                  <View style={styles.adminInfo}>
+                    <Text variant="titleMedium" style={[styles.adminName, { color: theme.colors.onSurface }]}>
+                      {admin.name}
+                    </Text>
+                    <Text variant="bodySmall" style={[styles.adminEmail, { color: theme.colors.onSurfaceVariant }]}>
+                      {admin.email}
+                    </Text>
+                  </View>
                   <MaterialCommunityIcons
-                    name={admin.icon}
+                    name="chevron-right"
                     size={24}
-                    color={theme.colors.primary}
+                    color={theme.colors.onSurfaceVariant}
                   />
                 </View>
-                <View style={styles.adminInfo}>
-                  <Text variant="titleMedium" style={[styles.adminName, { color: theme.colors.onSurface }]}>
-                    {admin.name}
-                  </Text>
-                  <Text variant="bodySmall" style={[styles.adminEmail, { color: theme.colors.onSurfaceVariant }]}>
-                    {admin.email}
-                  </Text>
-                </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              </View>
-            </Pressable>
+              </Pressable>
+            </Surface>
           ))}
         </View>
       </ScrollView>
@@ -142,9 +167,12 @@ const styles = StyleSheet.create({
   },
   adminCard: {
     borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
     marginHorizontal: 8,
+    marginBottom: 1,
+    overflow: 'hidden',
+  },
+  adminPressable: {
+    padding: 16,
   },
   adminContent: {
     flexDirection: 'row',
