@@ -11,8 +11,9 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import {
   ActivityIndicator,
   Appbar,
@@ -24,6 +25,7 @@ import {
   Portal,
   Text,
 } from "react-native-paper";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function NotificationsScreen() {
@@ -125,6 +127,14 @@ export default function NotificationsScreen() {
     setDialogVisible(true);
   };
 
+  const eliminarDirecto = async (notifUsuarioId: string) => {
+    try {
+      await eliminarNotificacionUsuario(notifUsuarioId);
+    } catch (error) {
+      console.error("Error al eliminar notificación:", error);
+    }
+  };
+
   const confirmarEliminacion = async () => {
     if (!notifToDelete) return;
     
@@ -136,6 +146,14 @@ export default function NotificationsScreen() {
       console.error("Error al eliminar notificación:", error);
     }
   };
+
+  const renderRightActions = () => (
+    <View style={[styles.swipeBackground, { backgroundColor: theme.colors.background }]} />
+  );
+  
+  const renderLeftActions = () => (
+    <View style={[styles.swipeBackground, { backgroundColor: theme.colors.background }]} />
+  );
 
   const getIconColor = (tipo: string, leida: boolean) => {
     if (leida) return theme.colors.outline;
@@ -215,89 +233,92 @@ export default function NotificationsScreen() {
 
               {grupo.data.map((notif) => {
                 return (
-                  <View key={notif.id}>
-                    <TouchableOpacity
-                      onPress={() => toggleExpand(notif)}
-                      activeOpacity={0.7}
-                      style={[
-                        styles.notifItem,
-                        {
-                          backgroundColor: !notif.leida
-                            ? theme.dark
-                              ? "rgba(255, 255, 255, 0.05)"
-                              : "rgba(0, 0, 0, 0.03)"
-                            : "transparent",
-                        },
-                      ]}
-                    >
-                      <List.Icon
-                        icon={notif.icono}
-                        color={getIconColor(notif.tipo, notif.leida)}
-                        style={{ margin: 0 }}
-                      />
-                      <View style={styles.notifContent}>
-                        <View style={styles.notifHeader}>
+                  <ReanimatedSwipeable
+                    key={notif.id}
+                    renderRightActions={renderRightActions}
+                    renderLeftActions={renderLeftActions}
+                    overshootLeft={false}
+                    overshootRight={false}
+                    friction={1.5}
+                    rightThreshold={60}
+                    leftThreshold={60}
+                    onSwipeableWillOpen={() => eliminarDirecto(notif.id)}
+                  >
+                    <Animated.View>
+                      <TouchableOpacity
+                        onPress={() => toggleExpand(notif)}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.notifItem,
+                          {
+                            backgroundColor: !notif.leida
+                              ? theme.dark
+                                ? "rgba(255, 255, 255, 0.05)"
+                                : "rgba(0, 0, 0, 0.03)"
+                              : "transparent",
+                          },
+                        ]}
+                      >
+                        <List.Icon
+                          icon={notif.icono}
+                          color={getIconColor(notif.tipo, notif.leida)}
+                          style={{ margin: 0 }}
+                        />
+                        <View style={styles.notifContent}>
+                          <View style={styles.notifHeader}>
+                            <Text
+                              variant="bodyLarge"
+                              style={[
+                                styles.notifTitle,
+                                {
+                                  color: theme.colors.onSurface,
+                                  fontWeight: !notif.leida ? "700" : "600",
+                                },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {notif.titulo}
+                            </Text>
+                            <Text
+                              variant="bodySmall"
+                              style={{
+                                color: theme.colors.onSurfaceVariant,
+                                marginLeft: 8,
+                              }}
+                            >
+                              {formatearTiempo(notif.creadoEn)}
+                            </Text>
+                          </View>
                           <Text
-                            variant="bodyLarge"
+                            variant="bodyMedium"
                             style={[
-                              styles.notifTitle,
+                              styles.notifDescription,
                               {
-                                color: theme.colors.onSurface,
-                                fontWeight: !notif.leida ? "700" : "600",
+                                color: theme.colors.onSurfaceVariant,
+                                opacity: notif.leida ? 0.7 : 1,
                               },
                             ]}
-                            numberOfLines={1}
+                            numberOfLines={2}
                           >
-                            {notif.titulo}
-                          </Text>
-                          <Text
-                            variant="bodySmall"
-                            style={{
-                              color: theme.colors.onSurfaceVariant,
-                              marginLeft: 8,
-                            }}
-                          >
-                            {formatearTiempo(notif.creadoEn)}
+                            {notif.descripcion}
                           </Text>
                         </View>
-                        <Text
-                          variant="bodyMedium"
-                          style={[
-                            styles.notifDescription,
-                            {
-                              color: theme.colors.onSurfaceVariant,
-                              opacity: notif.leida ? 0.7 : 1,
-                            },
-                          ]}
-                          numberOfLines={2}
-                        >
-                          {notif.descripcion}
-                        </Text>
-                      </View>
-                      <View style={styles.notifActions}>
-                        {!notif.leida && (
-                          <View
-                            style={[
-                              styles.unreadDot,
-                              { backgroundColor: theme.colors.primary },
-                            ]}
-                          />
-                        )}
-                        <IconButton
-                          icon="delete-outline"
-                          size={20}
-                          iconColor={theme.colors.error}
-                          style={{ margin: 0 }}
-                          onPress={() =>
-                            handleEliminarNotificacion(notif.id, notif.titulo)
-                          }
-                        />
-                      </View>
-                    </TouchableOpacity>
-                    <Divider
-                      style={{ backgroundColor: theme.colors.outlineVariant }}
-                    />
-                  </View>
+                        <View style={styles.notifActions}>
+                          {!notif.leida && (
+                            <View
+                              style={[
+                                styles.unreadDot,
+                                { backgroundColor: theme.colors.primary },
+                              ]}
+                            />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                      <Divider
+                        style={{ backgroundColor: theme.colors.outlineVariant }}
+                      />
+                    </Animated.View>
+                  </ReanimatedSwipeable>
                 );
               })}
             </View>
@@ -427,5 +448,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 100,
+  },
+  swipeBackground: {
+    flex: 1,
+    justifyContent: 'center',
   },
 });
