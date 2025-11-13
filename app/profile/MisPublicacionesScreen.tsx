@@ -1,16 +1,12 @@
-// src/screens/profile/MisPublicacionesScreen.tsx
 import { PublicationFilters, SortBy, SortOrder } from "@/app/components/filters/PublicationFilters";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
-import {
-  escucharPublicacionesPorAutor,
-  obtenerPublicacionesPorAutor
-} from "@/scripts/services/Publications";
+import { escucharPublicacionesPorAutor } from "@/scripts/services/Publications";
 import { eliminarPublicacionYArchivos } from "@/scripts/services/Reports";
 import { Publicacion } from "@/scripts/types/Publication.type";
 import { likesService } from "@/services/likes.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { collection, getDocs } from "firebase/firestore";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -275,67 +271,54 @@ export default function MisPublicacionesScreen() {
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    let unsubscribe: (() => void) | undefined;
-    
-    const fetchMaterias = async () => {
-      setCargando(true);
-      const snap = await getDocs(collection(db, "materias"));
-      const mats = snap.docs.map((doc: any) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          nombre: data.nombre,
-          semestre: data.semestre,
-        } as Materia;
-      });
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      let unsubscribe: (() => void) | undefined;
       
-      if (!isMounted) return;
-      setMaterias(mats);
-
-      if (user) {
-        const pubs = await obtenerPublicacionesPorAutor(user.uid);
-        if (!isMounted) return;
-        
-        const publicacionesConMateria = pubs.map(pub => {
-          const materia = mats.find((m: Materia) => m.id === pub.materiaId);
+      const fetchMaterias = async () => {
+        setCargando(true);
+        const snap = await getDocs(collection(db, "materias"));
+        const mats = snap.docs.map((doc: any) => {
+          const data = doc.data();
           return {
-            ...pub,
-            materiaNombre: materia?.nombre || "Materia",
-            materiaSemestre: materia?.semestre || 0,
-          };
-        }) as PublicacionConMateria[];
-
-        setPublicaciones(publicacionesConMateria);
-        
-        unsubscribe = escucharPublicacionesPorAutor(user.uid, (pubs) => {
-          if (!isMounted) return;
-          const publicacionesActualizadas = pubs.map(pub => {
-            const materia = mats.find((m: Materia) => m.id === pub.materiaId);
-            return {
-              ...pub,
-              materiaNombre: materia?.nombre || "Materia",
-              materiaSemestre: materia?.semestre || 0,
-            };
-          }) as PublicacionConMateria[];
-          
-          setPublicaciones(publicacionesActualizadas);
+            id: doc.id,
+            nombre: data.nombre,
+            semestre: data.semestre,
+          } as Materia;
         });
-      }
+        
+        if (!isMounted) return;
+        setMaterias(mats);
+
+        if (user) {
+          unsubscribe = escucharPublicacionesPorAutor(user.uid, (pubs) => {
+            if (!isMounted) return;
+            const publicacionesActualizadas = pubs.map(pub => {
+              const materia = mats.find((m: Materia) => m.id === pub.materiaId);
+              return {
+                ...pub,
+                materiaNombre: materia?.nombre || "Materia",
+                materiaSemestre: materia?.semestre || 0,
+              };
+            }) as PublicacionConMateria[];
+            
+            setPublicaciones(publicacionesActualizadas);
+            setCargando(false);
+          });
+        } else {
+          setCargando(false);
+        }
+      };
       
-      // Pequeño delay para transición suave
-      setTimeout(() => {
-        if (isMounted) setCargando(false);
-      }, 300);
-    };
-    
-    fetchMaterias();
-    return () => {
-      isMounted = false;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [user]);
+      fetchMaterias();
+      
+      return () => {
+        isMounted = false;
+        if (unsubscribe) unsubscribe();
+      };
+    }, [user])
+  );
 
   function normalizar(texto: string) {
     return texto
@@ -503,6 +486,13 @@ export default function MisPublicacionesScreen() {
             { text: 'Cancelar', onPress: () => setConfirmDeleteVisible(false), mode: 'text' },
             { text: 'Eliminar', onPress: handleConfirmDelete, mode: 'contained', preventDismiss: true },
           ]}
+        />
+        <CustomAlert
+          visible={isDeleting}
+          onDismiss={() => {}}
+          title="Eliminando..."
+          message={`Eliminando ${selectedIds.length} publicación${selectedIds.length !== 1 ? 'es' : ''}. Por favor espere...`}
+          type="info"
         />
         <CustomAlert
           visible={successDeleteVisible}
