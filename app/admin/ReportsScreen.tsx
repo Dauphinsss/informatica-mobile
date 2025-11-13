@@ -10,12 +10,12 @@ import {
   escucharReportes,
 } from "@/scripts/services/Reports";
 import { ArchivoPublicacion } from "@/scripts/types/Publication.type";
+import { registrarActividadCliente } from "@/services/activity.service";
 import { comentariosService } from "@/services/comments.service";
 import {
   notificarDecisionAdminAutor,
   notificarDecisionAdminDenunciantes,
 } from "@/services/notifications";
-import { registrarActividadCliente } from "@/services/activity.service";
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -28,7 +28,6 @@ import {
   View,
 } from "react-native";
 import {
-  ActivityIndicator,
   Appbar,
   Button,
   Card,
@@ -38,7 +37,7 @@ import {
   List,
   Modal,
   Portal,
-  Text,
+  Text
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomAlert, {
@@ -48,7 +47,10 @@ import CustomAlert, {
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import { FilterType, Report } from "../../scripts/types/Reports.type";
 import { getStyles } from "./ReportsScreen.styles";
-
+import {
+  ReportDetailSkeleton,
+  ReportsListSkeleton
+} from './ReportsSkeleton';
 type ReportCardProps = {
   reporte: Report;
   onPress: (reporte: Report) => void;
@@ -722,12 +724,7 @@ export default function ReportsScreen() {
         </View>
 
         {cargando ? (
-          <View style={styles.emptyContainer}>
-            <ActivityIndicator size="large" />
-            <Text variant="bodyLarge" style={styles.emptyText}>
-              Cargando reportes...
-            </Text>
-          </View>
+          <ReportsListSkeleton />
         ) : reportesFiltrados.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text variant="headlineSmall" style={styles.emptyText}>
@@ -819,15 +816,7 @@ export default function ReportsScreen() {
                       <Divider style={styles.divider} />
 
                       {cargandoArchivos ? (
-                        <View style={styles.archivosLoadingContainer}>
-                          <ActivityIndicator size="small" />
-                          <Text
-                            variant="bodySmall"
-                            style={styles.archivosLoadingText}
-                          >
-                            Cargando archivos...
-                          </Text>
-                        </View>
+                        <ReportDetailSkeleton />
                       ) : archivos.length === 0 ? (
                         <Text
                           variant="bodyMedium"

@@ -1,3 +1,4 @@
+// src/screens/profile/MisPublicacionesScreen.tsx
 import { PublicationFilters, SortBy, SortOrder } from "@/app/components/filters/PublicationFilters";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
@@ -15,7 +16,6 @@ import { collection, getDocs } from "firebase/firestore";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, FlatList, Pressable, useWindowDimensions, View } from "react-native";
 import {
-  ActivityIndicator,
   Appbar,
   Avatar,
   Card,
@@ -24,9 +24,10 @@ import {
   Text,
   TouchableRipple
 } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomAlert from "../../components/ui/CustomAlert";
 import getStyles from "./MisPublicacionesScreen.styles";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PublicationCardSkeleton from "./PublicationCardSkeleton";
 
 type PublicationCardProps = {
   pub: PublicacionConMateria;
@@ -321,7 +322,11 @@ export default function MisPublicacionesScreen() {
           setPublicaciones(publicacionesActualizadas);
         });
       }
-      setCargando(false);
+      
+      // Pequeño delay para transición suave
+      setTimeout(() => {
+        if (isMounted) setCargando(false);
+      }, 300);
     };
     
     fetchMaterias();
@@ -389,6 +394,16 @@ export default function MisPublicacionesScreen() {
 
   const styles = getStyles(theme);
 
+  // Renderizar skeletons mientras carga
+  const renderSkeletons = () => (
+    <>
+      <PublicationCardSkeleton />
+      <PublicationCardSkeleton />
+      <PublicationCardSkeleton />
+      <PublicationCardSkeleton />
+      <PublicationCardSkeleton />
+    </>
+  );
 
   return (
     <View style={[styles.container]}>
@@ -427,8 +442,8 @@ export default function MisPublicacionesScreen() {
           </View>
         </View>
         {cargando ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator style={styles.loadingIndicator} />
+          <View style={{ flex: 1, paddingTop: 8 }}>
+            {renderSkeletons()}
           </View>
         ) : filtered.length === 0 ? (
           <Text variant="bodyLarge" style={styles.emptyText}>
@@ -462,8 +477,8 @@ export default function MisPublicacionesScreen() {
                 onToggleSelect={toggleSelect}
                 onLike={handleLike}
                 onComment={handleCommentPress}
-                  styles={styles}
-                  primaryColor={theme.colors.primary}
+                styles={styles}
+                primaryColor={theme.colors.primary}
               />
             )}
           />

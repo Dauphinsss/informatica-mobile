@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from "react";
-import { View, ScrollView, StyleSheet } from "react-native";
-import { Appbar, Text, ActivityIndicator, Divider, Button } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/ThemeContext";
+import { ActivityLog } from "@/scripts/types/Activity.type";
+import { obtenerActividadesRecientes } from "@/services/activity.service";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Appbar, Button, Divider, Text } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AllActivityListSkeleton from "./ActivityListSkeleton";
 import ActivityCard from "./components/ActivityCard";
 import ActivityDetailModal from "./components/ActivityDetailModal";
-import { obtenerActividadesRecientes } from "@/services/activity.service";
-import { ActivityLog } from "@/scripts/types/Activity.type";
-import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
-
 const ITEMS_PER_PAGE = 20;
 
 export default function AllActivityScreen() {
@@ -71,12 +71,7 @@ export default function AllActivityScreen() {
       </Appbar.Header>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
-            Cargando actividad...
-          </Text>
-        </View>
+        <AllActivityListSkeleton/>
       ) : activities.length === 0 ? (
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons

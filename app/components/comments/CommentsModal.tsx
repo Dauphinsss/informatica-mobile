@@ -8,22 +8,22 @@ import {
   Dimensions,
   FlatList,
   Keyboard,
-  Platform,
   PanResponder,
+  Platform,
   StyleSheet,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
 
 import {
-  ActivityIndicator,
   Avatar,
   IconButton,
   Text,
   TextInput,
-  useTheme,
+  useTheme
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { CommentsModalSkeleton } from "./CommentsSkeleton";
 
 interface CommentsModalProps {
   visible: boolean;
@@ -422,18 +422,8 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             </View>
 
             <View style={styles.commentsList}>
-              {loading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" />
-                  <Text
-                    style={{
-                      marginTop: 16,
-                      color: theme.colors.onSurfaceVariant,
-                    }}
-                  >
-                    Cargando comentarios...
-                  </Text>
-                </View>
+              {loading && comments.length === 0 ?  (
+                 <CommentsModalSkeleton />
               ) : comments.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Text variant="bodyLarge" style={styles.emptyText}>

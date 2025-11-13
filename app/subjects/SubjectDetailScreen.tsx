@@ -15,16 +15,16 @@ import {
 import React, { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
-  ActivityIndicator,
   Appbar,
   Avatar,
   Card,
   Chip,
   FAB,
-  Text,
+  Text
 } from "react-native-paper";
-import { getStyles } from "./_SubjectDetailScreen.styles";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PublicationCardSkeleton from "../profile/PublicationCardSkeleton";
+import { getStyles } from "./_SubjectDetailScreen.styles";
 
 export default function SubjectDetailScreen() {
   const { theme } = useTheme();
@@ -172,12 +172,12 @@ export default function SubjectDetailScreen() {
           showSemestreFilter={false}
         />
         {cargando ? (
-          <View style={styles.emptyContainer}>
-            <ActivityIndicator size="large" />
-            <Text variant="bodyLarge" style={styles.emptyText}>
-              Cargando publicaciones...
-            </Text>
-          </View>
+          <>
+          <PublicationCardSkeleton />
+          <PublicationCardSkeleton />
+          <PublicationCardSkeleton />
+          <PublicationCardSkeleton />
+          </>
         ) : publicacionesFiltradas.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text variant="headlineSmall" style={styles.emptyText}>
