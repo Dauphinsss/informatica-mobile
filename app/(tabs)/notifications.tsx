@@ -1,3 +1,5 @@
+// src/screens/notifications/NotificationsScreen.tsx
+import { NotificationSectionSkeleton } from "@/app/(tabs)/components/NotificationItemSkeleton";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth } from "@/firebase";
 import {
@@ -14,7 +16,6 @@ import {
   View,
 } from "react-native";
 import {
-  ActivityIndicator,
   Appbar,
   Button,
   Dialog,
@@ -45,7 +46,8 @@ export default function NotificationsScreen() {
       user.uid,
       (notifs) => {
         setNotificaciones(notifs);
-        setLoading(false);
+        // Pequeño delay para transición suave
+        setTimeout(() => setLoading(false), 300);
       },
       (error) => {
         console.error("Error al cargar notificaciones:", error);
@@ -187,12 +189,13 @@ export default function NotificationsScreen() {
       </Appbar.Header>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <Text style={{ marginTop: 16, color: theme.colors.onSurface }}>
-            Cargando notificaciones...
-          </Text>
-        </View>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          <NotificationSectionSkeleton />
+          <NotificationSectionSkeleton />
+        </ScrollView>
       ) : (
         <ScrollView
           style={styles.content}
@@ -370,11 +373,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   section: {
     marginBottom: 24,
   },
@@ -388,7 +386,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: "bold" as const,
   },
-
   notifItem: {
     flexDirection: "row",
     alignItems: "center",

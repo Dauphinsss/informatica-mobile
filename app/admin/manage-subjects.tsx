@@ -12,19 +12,19 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
-  ActivityIndicator,
   Appbar,
   FAB,
   Portal,
   Searchbar,
   Snackbar,
   Text,
-  useTheme,
+  useTheme
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth, db, storage } from "../../firebase";
 
 // Components
+import SubjectCardSkeleton from "@/app/(tabs)/components/SubjectCardSkeleton";
 import CreateSubjectModal from "./components/CreateSubjectModal";
 import EditSubjectModal from "./components/EditSubjectModal";
 import SubjectCard from "./components/SubjectCard";
@@ -448,10 +448,13 @@ export default function ManageSubjectsScreen() {
         )}
 
         {loadingSubjects ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" />
-            <Text style={styles.loadingText}>Cargando materias...</Text>
-          </View>
+          <>
+          <SubjectCardSkeleton />
+          <SubjectCardSkeleton />
+          <SubjectCardSkeleton />
+          <SubjectCardSkeleton />
+          <SubjectCardSkeleton />
+          </>
         ) : (
           <>
             {filteredSubjects.map((subject, index) => (
