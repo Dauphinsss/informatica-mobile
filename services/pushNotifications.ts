@@ -2,7 +2,6 @@ import { db } from '@/firebase';
 import { getExpoPushTokenAsync } from 'expo-notifications';
 import { arrayUnion, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { Platform } from 'react-native';
-import { navigate, openSubjectsModal } from './navigationService';
 
 let Device: any;
 let Notifications: any;
@@ -13,10 +12,9 @@ try {
   
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
+      shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
     }),
   });
 } catch (error) {
@@ -92,10 +90,8 @@ export async function obtenerExpoPushToken(): Promise<string | null> {
     const tokenData = await getExpoPushTokenAsync({
       projectId: '7c7b0c2f-b147-414d-90e9-e80c65c42571',
     });
-    console.log('Token de Expo obtenido en Expo Go:', tokenData.data);
     return tokenData.data;
   } catch (error) {
-    console.log('Error al obtener el token de Expo:', error);
     return null;
   }
 }
@@ -113,24 +109,41 @@ export async function enviarNotificacionLocal(
     const { getNotificationSettings } = await import('@/hooks/useNotificationSettings');
     const settings = await getNotificationSettings();
 
-    if (!settings.localNotificationsEnabled) {
-      return;
+    // Verificar configuración específica por tipo de notificación
+    const tipo = data?.tipo;
+    const accion = data?.accion;
+    
+    if (tipo === 'publicacion' || accion === 'ver_publicacion') {
+      if (!settings.newPublicationsEnabled) {
+        return;
+      }
+    }
+    
+    if (tipo === 'materia' || accion === 'ver_materia') {
+      if (!settings.newSubjectsEnabled) {
+        return;
+      }
+    }
+    
+    if (tipo === 'admin_decision' || accion === 'admin_decision') {
+      if (!settings.adminAlertsEnabled) {
+        return;
+      }
     }
 
     await Notifications.scheduleNotificationAsync({
       content: {
         title: titulo,
         body: descripcion,
-        sound: settings.sound ? 'default' : undefined,
+        sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: data || {},
         badge: 1,
       },
       trigger: null,
     });
-    console.log('Notificación local enviada:', titulo);
   } catch (error) {
-    console.log('Error al enviar notificación local:', error);
+    // Silent error
   }
 }
 
@@ -203,6 +216,42 @@ export async function registrarTokens(uid: string, expoToken: string, fcmToken: 
   }
 }
 
+/**
+ * Limpia todos los tokens antiguos y registra nuevos tokens
+ * Se ejecuta cada vez que se abre la app para evitar tokens huérfanos
+ */
+export async function regenerarTokens(uid: string) {
+  try {
+    const expoToken = await obtenerExpoPushToken();
+    const fcmToken = await obtenerFCMToken();
+
+    if (!expoToken || !fcmToken) {
+      return;
+    }
+
+    const userRef = doc(db, 'usuarios', uid);
+    const snap = await getDoc(userRef);
+
+    if (!snap.exists()) {
+      // Si el usuario no existe, crearlo con los tokens
+      await setDoc(userRef, {
+        uid,
+        rol: 'usuario',
+        tokens: [expoToken],    
+        pushTokens: [fcmToken],
+      }, { merge: true });
+    } else {
+      // Si existe, reemplazar los tokens
+      await updateDoc(userRef, {
+        tokens: [expoToken],
+        pushTokens: [fcmToken],
+      });
+    }
+  } catch (error) {
+    console.error('[Tokens] Error al regenerar tokens:', error);
+  }
+}
+
 export async function registrarTokensUsuario(uid: string) {
   const expoToken = await obtenerExpoPushToken();
   const fcmToken = await obtenerFCMToken();
@@ -210,19 +259,4 @@ export async function registrarTokensUsuario(uid: string) {
   if (expoToken && fcmToken) {
     await registrarTokens(uid, expoToken, fcmToken);
   }
-}
-
-export function configurarListenerNotificaciones() {
-  if (!Notifications) return;
-
-  Notifications.addNotificationResponseReceivedListener((response: any) => {
-    const data = response.notification.request.content.data;
-
-    if (data.accion === 'ver_materia' && data.materiaId) {
-      navigate('Home', { screen: 'HomeMain' });
-      setTimeout(() => {
-        openSubjectsModal();
-      }, 300);
-    }
-  });
 }

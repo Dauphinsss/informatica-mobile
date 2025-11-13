@@ -1,42 +1,51 @@
+// src/screens/notifications/NotificationsScreen.tsx
+import { NotificationSectionSkeleton } from "@/app/(tabs)/components/NotificationItemSkeleton";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth } from "@/firebase";
 import {
+  eliminarNotificacionesUsuarioBatch,
   eliminarNotificacionUsuario,
   escucharNotificaciones,
   marcarComoLeida,
   NotificacionCompleta,
 } from "@/services/notifications";
+import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import {
-  ActivityIndicator,
   Appbar,
   Button,
   Dialog,
   Divider,
   IconButton,
   List,
+  Menu,
   Portal,
   Text,
 } from "react-native-paper";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const user = auth.currentUser;
+  const navigation = useNavigation<any>();
   const [notificaciones, setNotificaciones] = useState<NotificacionCompleta[]>(
     []
   );
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [notifToDelete, setNotifToDelete] = useState<{ id: string; titulo: string } | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -45,7 +54,8 @@ export default function NotificationsScreen() {
       user.uid,
       (notifs) => {
         setNotificaciones(notifs);
-        setLoading(false);
+        // Pequeño delay para transición suave
+        setTimeout(() => setLoading(false), 300);
       },
       (error) => {
         console.error("Error al cargar notificaciones:", error);
@@ -56,20 +66,67 @@ export default function NotificationsScreen() {
     return () => unsubscribe();
   }, [user]);
 
-  const toggleExpand = async (notif: NotificacionCompleta) => {
-    if (expandedId === notif.id) {
-      setExpandedId(null);
-    } else {
-      setExpandedId(notif.id);
-    }
-
-    // Marcar como leída cuando se toca
+  const handleNotificationPress = async (notif: NotificacionCompleta) => {
+    // Marcar como leída
     if (!notif.leida) {
       try {
         await marcarComoLeida(notif.id);
       } catch (error) {
         console.error("Error al marcar como leída:", error);
       }
+    }
+
+    // Navegar según el tipo de notificación
+    const metadata = notif.metadata;
+    
+    if (!metadata) {
+      console.log('Notificación sin metadata, solo marcando como leída');
+      return;
+    }
+
+    try {
+      // Obtener la navegación del tab padre
+      const tabNavigation = navigation.getParent() || navigation;
+
+      switch (metadata.accion) {
+        case 'ver_publicacion':
+          if (metadata.materiaId && metadata.publicacionId) {
+            console.log('[Notificación] Navegando a publicación:', metadata.publicacionId);
+            tabNavigation.navigate('Home', {
+              screen: 'PublicationDetail',
+              params: {
+                publicacionId: metadata.publicacionId,
+                materiaNombre: metadata.materiaNombre || 'Publicación',
+              },
+            });
+          }
+          break;
+
+        case 'ver_materia':
+          if (metadata.materiaId) {
+            console.log('[Notificación] Navegando a materia:', metadata.materiaId);
+            tabNavigation.navigate('Home', {
+              screen: 'SubjectDetail',
+              params: {
+                id: metadata.materiaId,
+                materiaId: metadata.materiaId,
+                nombre: metadata.materiaNombre || 'Materia',
+              },
+            });
+          }
+          break;
+
+        case 'admin_decision':
+          console.log('[Notificación] Decisión de admin, permaneciendo en notificaciones');
+          // Ya estamos en la pantalla de notificaciones, no hacemos nada más
+          break;
+
+        default:
+          console.log('[Notificación] Acción no reconocida:', metadata.accion);
+          break;
+      }
+    } catch (error) {
+      console.error('Error al navegar desde notificación:', error);
     }
   };
 
@@ -125,6 +182,14 @@ export default function NotificationsScreen() {
     setDialogVisible(true);
   };
 
+  const eliminarDirecto = async (notifUsuarioId: string) => {
+    try {
+      await eliminarNotificacionUsuario(notifUsuarioId);
+    } catch (error) {
+      console.error("Error al eliminar notificación:", error);
+    }
+  };
+
   const confirmarEliminacion = async () => {
     if (!notifToDelete) return;
     
@@ -134,6 +199,93 @@ export default function NotificationsScreen() {
       setNotifToDelete(null);
     } catch (error) {
       console.error("Error al eliminar notificación:", error);
+    }
+  };
+
+  const renderRightActions = () => (
+    <View style={[styles.swipeBackground, { backgroundColor: theme.colors.background }]} />
+  );
+  
+  const renderLeftActions = () => (
+    <View style={[styles.swipeBackground, { backgroundColor: theme.colors.background }]} />
+  );
+
+  const eliminarNotificacionesPorFecha = async (dias: number) => {
+    setMenuVisible(false);
+    setDeleting(true);
+    
+    const ahora = new Date();
+    const fechaLimite = new Date(ahora);
+    fechaLimite.setDate(fechaLimite.getDate() - dias);
+
+    // Eliminar notificaciones DENTRO del rango (desde hace X días hasta ahora)
+    const notificacionesAEliminar = notificaciones.filter((notif) => {
+      const fecha = notif.creadoEn?.toDate
+        ? notif.creadoEn.toDate()
+        : new Date(notif.creadoEn);
+      return fecha >= fechaLimite; // Cambio: >= en lugar de <
+    });
+
+    if (notificacionesAEliminar.length === 0) {
+      setDeleting(false);
+      return;
+    }
+
+    try {
+      const ids = notificacionesAEliminar.map((notif) => notif.id);
+      await eliminarNotificacionesUsuarioBatch(ids);
+    } catch (error) {
+      console.error("Error al eliminar notificaciones:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const eliminarNotificacionesUltimas24Horas = async () => {
+    setMenuVisible(false);
+    setDeleting(true);
+    
+    const ahora = new Date();
+    const hace24Horas = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+
+    const notificacionesAEliminar = notificaciones.filter((notif) => {
+      const fecha = notif.creadoEn?.toDate
+        ? notif.creadoEn.toDate()
+        : new Date(notif.creadoEn);
+      return fecha >= hace24Horas;
+    });
+
+    if (notificacionesAEliminar.length === 0) {
+      setDeleting(false);
+      return;
+    }
+
+    try {
+      const ids = notificacionesAEliminar.map((notif) => notif.id);
+      await eliminarNotificacionesUsuarioBatch(ids);
+    } catch (error) {
+      console.error("Error al eliminar notificaciones de últimas 24 horas:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const eliminarTodasLasNotificaciones = async () => {
+    setMenuVisible(false);
+    setDeleting(true);
+    
+    if (notificaciones.length === 0) {
+      setDeleting(false);
+      return;
+    }
+
+    try {
+      const ids = notificaciones.map((notif) => notif.id);
+      await eliminarNotificacionesUsuarioBatch(ids);
+    } catch (error) {
+      console.error("Error al eliminar todas las notificaciones:", error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -147,6 +299,8 @@ export default function NotificationsScreen() {
         return "#ff9800";
       case "error":
         return "#f44336";
+      case "info":
+        return "#2196f3";
       default:
         return theme.colors.primary;
     }
@@ -183,16 +337,59 @@ export default function NotificationsScreen() {
       ]}
     >
       <Appbar.Header>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Notificaciones" />
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={
+            <Appbar.Action
+              icon="dots-vertical"
+              onPress={() => setMenuVisible(true)}
+              disabled={deleting}
+            />
+          }
+        >
+          <Menu.Item
+            onPress={() => {}}
+            title="Borrar Notificaciones"
+
+            titleStyle={{ color: theme.colors.primary }}
+          />
+          <Divider />
+          <Menu.Item
+            onPress={eliminarNotificacionesUltimas24Horas}
+            title="Últimas 24 horas"
+            leadingIcon="clock-time-four-outline"
+          />
+          <Menu.Item
+            onPress={() => eliminarNotificacionesPorFecha(7)}
+            title="Última semana"
+            leadingIcon="calendar-week"
+          />
+          <Menu.Item
+            onPress={() => eliminarNotificacionesPorFecha(30)}
+            title="Últimos 30 días"
+            leadingIcon="calendar-range"
+          />
+          <Divider />
+          <Menu.Item
+            onPress={eliminarTodasLasNotificaciones}
+            title="Borrar todo"
+            leadingIcon="delete-sweep"
+            titleStyle={{ color: theme.colors.error }}
+          />
+        </Menu>
       </Appbar.Header>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <Text style={{ marginTop: 16, color: theme.colors.onSurface }}>
-            Cargando notificaciones...
-          </Text>
-        </View>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          <NotificationSectionSkeleton />
+          <NotificationSectionSkeleton />
+        </ScrollView>
       ) : (
         <ScrollView
           style={styles.content}
@@ -215,89 +412,92 @@ export default function NotificationsScreen() {
 
               {grupo.data.map((notif) => {
                 return (
-                  <View key={notif.id}>
-                    <TouchableOpacity
-                      onPress={() => toggleExpand(notif)}
-                      activeOpacity={0.7}
-                      style={[
-                        styles.notifItem,
-                        {
-                          backgroundColor: !notif.leida
-                            ? theme.dark
-                              ? "rgba(255, 255, 255, 0.05)"
-                              : "rgba(0, 0, 0, 0.03)"
-                            : "transparent",
-                        },
-                      ]}
-                    >
-                      <List.Icon
-                        icon={notif.icono}
-                        color={getIconColor(notif.tipo, notif.leida)}
-                        style={{ margin: 0 }}
-                      />
-                      <View style={styles.notifContent}>
-                        <View style={styles.notifHeader}>
+                  <ReanimatedSwipeable
+                    key={notif.id}
+                    renderRightActions={renderRightActions}
+                    renderLeftActions={renderLeftActions}
+                    overshootLeft={false}
+                    overshootRight={false}
+                    friction={1.5}
+                    rightThreshold={60}
+                    leftThreshold={60}
+                    onSwipeableWillOpen={() => eliminarDirecto(notif.id)}
+                  >
+                    <Animated.View>
+                      <TouchableOpacity
+                        onPress={() => handleNotificationPress(notif)}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.notifItem,
+                          {
+                            backgroundColor: !notif.leida
+                              ? theme.dark
+                                ? "rgba(255, 255, 255, 0.05)"
+                                : "rgba(0, 0, 0, 0.03)"
+                              : "transparent",
+                          },
+                        ]}
+                      >
+                        <List.Icon
+                          icon={notif.icono}
+                          color={getIconColor(notif.tipo, notif.leida)}
+                          style={{ margin: 0 }}
+                        />
+                        <View style={styles.notifContent}>
+                          <View style={styles.notifHeader}>
+                            <Text
+                              variant="bodyLarge"
+                              style={[
+                                styles.notifTitle,
+                                {
+                                  color: theme.colors.onSurface,
+                                  fontWeight: !notif.leida ? "700" : "600",
+                                },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {notif.titulo}
+                            </Text>
+                            <Text
+                              variant="bodySmall"
+                              style={{
+                                color: theme.colors.onSurfaceVariant,
+                                marginLeft: 8,
+                              }}
+                            >
+                              {formatearTiempo(notif.creadoEn)}
+                            </Text>
+                          </View>
                           <Text
-                            variant="bodyLarge"
+                            variant="bodyMedium"
                             style={[
-                              styles.notifTitle,
+                              styles.notifDescription,
                               {
-                                color: theme.colors.onSurface,
-                                fontWeight: !notif.leida ? "700" : "600",
+                                color: theme.colors.onSurfaceVariant,
+                                opacity: notif.leida ? 0.7 : 1,
                               },
                             ]}
-                            numberOfLines={1}
+                            numberOfLines={2}
                           >
-                            {notif.titulo}
-                          </Text>
-                          <Text
-                            variant="bodySmall"
-                            style={{
-                              color: theme.colors.onSurfaceVariant,
-                              marginLeft: 8,
-                            }}
-                          >
-                            {formatearTiempo(notif.creadoEn)}
+                            {notif.descripcion}
                           </Text>
                         </View>
-                        <Text
-                          variant="bodyMedium"
-                          style={[
-                            styles.notifDescription,
-                            {
-                              color: theme.colors.onSurfaceVariant,
-                              opacity: notif.leida ? 0.7 : 1,
-                            },
-                          ]}
-                          numberOfLines={2}
-                        >
-                          {notif.descripcion}
-                        </Text>
-                      </View>
-                      <View style={styles.notifActions}>
-                        {!notif.leida && (
-                          <View
-                            style={[
-                              styles.unreadDot,
-                              { backgroundColor: theme.colors.primary },
-                            ]}
-                          />
-                        )}
-                        <IconButton
-                          icon="delete-outline"
-                          size={20}
-                          iconColor={theme.colors.error}
-                          style={{ margin: 0 }}
-                          onPress={() =>
-                            handleEliminarNotificacion(notif.id, notif.titulo)
-                          }
-                        />
-                      </View>
-                    </TouchableOpacity>
-                    <Divider
-                      style={{ backgroundColor: theme.colors.outlineVariant }}
-                    />
-                  </View>
+                        <View style={styles.notifActions}>
+                          {!notif.leida && (
+                            <View
+                              style={[
+                                styles.unreadDot,
+                                { backgroundColor: theme.colors.primary },
+                              ]}
+                            />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                      <Divider
+                        style={{ backgroundColor: theme.colors.outlineVariant }}
+                      />
+                    </Animated.View>
+                  </ReanimatedSwipeable>
                 );
               })}
             </View>
@@ -359,6 +559,17 @@ export default function NotificationsScreen() {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      <Portal>
+        <Dialog visible={deleting} dismissable={false}>
+          <Dialog.Content style={{ alignItems: 'center', paddingVertical: 30 }}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text variant="bodyLarge" style={{ marginTop: 20, color: theme.colors.onSurface }}>
+              Eliminando notificaciones...
+            </Text>
+          </Dialog.Content>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
@@ -369,11 +580,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
   section: {
     marginBottom: 24,
@@ -388,7 +594,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: "bold" as const,
   },
-
   notifItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -427,5 +632,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 100,
+  },
+  swipeBackground: {
+    flex: 1,
+    justifyContent: 'center',
   },
 });

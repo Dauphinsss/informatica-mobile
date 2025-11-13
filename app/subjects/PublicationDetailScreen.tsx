@@ -1,22 +1,23 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
-  eliminarArchivo,
-  guardarEnlaceExterno,
-  obtenerTiposArchivo,
-  seleccionarArchivo,
-  subirArchivo,
+    eliminarArchivo,
+    guardarEnlaceExterno,
+    obtenerTiposArchivo,
+    seleccionarArchivo,
+    subirArchivo,
 } from "@/scripts/services/Files";
 import {
-  incrementarVistas,
-  obtenerArchivosConTipo,
-  obtenerPublicacionPorId,
+    incrementarVistas,
+    obtenerArchivosConTipo,
+    obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
 import { eliminarPublicacionYArchivos } from "@/scripts/services/Reports";
 import {
-  ArchivoPublicacion,
-  Publicacion,
+    ArchivoPublicacion,
+    Publicacion,
 } from "@/scripts/types/Publication.type";
+import { registrarActividadCliente } from "@/services/activity.service";
 import { comentariosService } from "@/services/comments.service";
 import * as downloadsService from "@/services/downloads.service";
 import { likesService } from "@/services/likes.service";
@@ -24,51 +25,51 @@ import { compartirPublicacionMejorado } from "@/services/shareService";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getAuth } from "firebase/auth";
 import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  increment,
-  onSnapshot,
-  query,
-  setDoc,
-  Timestamp,
-  updateDoc,
-  where,
+    addDoc,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    increment,
+    onSnapshot,
+    query,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where,
 } from "firebase/firestore";
-import { registrarActividadCliente } from "@/services/activity.service";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Dimensions,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  ScrollView,
-  View,
+    Dimensions,
+    Image,
+    KeyboardAvoidingView,
+    Linking,
+    Platform,
+    ScrollView,
+    View,
 } from "react-native";
 import {
-  ActivityIndicator,
-  Appbar,
-  Avatar,
-  Button,
-  Card,
-  Chip,
-  Dialog,
-  Divider,
-  IconButton,
-  Portal,
-  Text,
-  TextInput,
+    ActivityIndicator,
+    Appbar,
+    Avatar,
+    Button,
+    Card,
+    Chip,
+    Dialog,
+    Divider,
+    IconButton,
+    Portal,
+    Text,
+    TextInput,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomAlert, {
-  CustomAlertButton,
-  CustomAlertType,
+    CustomAlertButton,
+    CustomAlertType,
 } from "../../components/ui/CustomAlert";
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import CommentsModal from "../components/comments/CommentsModal";
+import { PublicationDetailSkeleton } from "../components/publications/PublicationDetailSkeleton";
 import { getStyles } from "./_PublicationDetailScreen.styles";
 
 const { width } = Dimensions.get("window");
@@ -97,9 +98,12 @@ export default function PublicationDetailScreen() {
   const [editDescription, setEditDescription] = useState<string>("");
   const [tiposArchivo, setTiposArchivo] = useState<any[]>([]);
   const [fileProcessing, setFileProcessing] = useState(false);
-  const [confirmDeleteFileVisible, setConfirmDeleteFileVisible] = useState(false);
+  const [confirmDeleteFileVisible, setConfirmDeleteFileVisible] =
+    useState(false);
   const [fileToDeleteId, setFileToDeleteId] = useState<string | null>(null);
-  const [filesMarkedForDelete, setFilesMarkedForDelete] = useState<string[]>([]);
+  const [filesMarkedForDelete, setFilesMarkedForDelete] = useState<string[]>(
+    []
+  );
   const [stagedAdds, setStagedAdds] = useState<
     {
       id: string;
@@ -128,13 +132,19 @@ export default function PublicationDetailScreen() {
   const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<CustomAlertType>("info");
-  const [alertButtons, setAlertButtons] = useState<CustomAlertButton[] | undefined>(undefined);
+  const [alertButtons, setAlertButtons] = useState<
+    CustomAlertButton[] | undefined
+  >(undefined);
   const [motivoDialogVisible, setMotivoDialogVisible] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>("");
   const [motivoPersonalizado, setMotivoPersonalizado] = useState<string>("");
-  const accionPendiente = React.useRef<null | ((motivo: string) => Promise<void>)>(null);
+  const accionPendiente = React.useRef<
+    null | ((motivo: string) => Promise<void>)
+  >(null);
   const [savedMotivo, setSavedMotivo] = useState<string>("");
-  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(
+    null
+  );
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [downloadAllProgress, setDownloadAllProgress] = useState<{
@@ -196,7 +206,9 @@ export default function PublicationDetailScreen() {
     data.uid = usuarioUid;
     data.usuarioUid = usuarioUid;
 
-    await setDoc(doc(db, "estadisticasUsuario", usuarioUid), data, { merge: true });
+    await setDoc(doc(db, "estadisticasUsuario", usuarioUid), data, {
+      merge: true,
+    });
   };
   const reportarPublicacion = async (
     publicacionId: string,
@@ -246,19 +258,29 @@ export default function PublicationDetailScreen() {
           autorPublicacionNombre = pubData?.autorNombre;
         }
       } catch (err) {
-        console.warn("No se pudo obtener autor de la publicación (solo para estadísticas):", err);
+        console.warn(
+          "No se pudo obtener autor de la publicación (solo para estadísticas):",
+          err
+        );
       }
 
       (async () => {
         try {
-          const actorNombre = usuarioLocal.displayName || usuarioLocal.email || undefined;
-          const actividadTitulo = tituloPublicacion || 'Publicación reportada';
-          const actividadDescripcion = `Se reportó la publicación "${tituloPublicacion || publicacionId}"${
-            autorPublicacionNombre ? ` del autor ${autorPublicacionNombre}` : autorPublicacionUid ? ` del autor ${autorPublicacionUid}` : ''
+          const actorNombre =
+            usuarioLocal.displayName || usuarioLocal.email || undefined;
+          const actividadTitulo = tituloPublicacion || "Publicación reportada";
+          const actividadDescripcion = `Se reportó la publicación "${
+            tituloPublicacion || publicacionId
+          }"${
+            autorPublicacionNombre
+              ? ` del autor ${autorPublicacionNombre}`
+              : autorPublicacionUid
+              ? ` del autor ${autorPublicacionUid}`
+              : ""
           } por motivo: ${motivo}`;
 
           await registrarActividadCliente(
-            'publicacion_reportada',
+            "publicacion_reportada",
             actividadTitulo,
             actividadDescripcion,
             usuarioLocal.uid,
@@ -271,16 +293,20 @@ export default function PublicationDetailScreen() {
             }
           );
         } catch (err) {
-          console.warn('No se pudo registrar actividad de reporte:', err);
+          console.warn("No se pudo registrar actividad de reporte:", err);
         }
       })();
 
-      actualizarEstadisticasUsuario(usuarioLocal.uid, { publicacionesReportadas: 1 }).catch((err) =>
+      actualizarEstadisticasUsuario(usuarioLocal.uid, {
+        publicacionesReportadas: 1,
+      }).catch((err) =>
         console.error("Error actualizando publicacionesReportadas:", err)
       );
 
       if (autorPublicacionUid && autorPublicacionUid !== usuarioLocal.uid) {
-        actualizarEstadisticasUsuario(autorPublicacionUid, { reportesRecibidos: 1 }).catch((err) =>
+        actualizarEstadisticasUsuario(autorPublicacionUid, {
+          reportesRecibidos: 1,
+        }).catch((err) =>
           console.error("Error actualizando reportesRecibidos:", err)
         );
       }
@@ -601,8 +627,10 @@ export default function PublicationDetailScreen() {
       return;
     }
 
-    const tipoEnlace = tiposArchivo.find((t) => t.nombre.toLowerCase() === "enlace");
-    
+    const tipoEnlace = tiposArchivo.find(
+      (t) => t.nombre.toLowerCase() === "enlace"
+    );
+
     if (!tipoEnlace) {
       showAlert(
         "Error",
@@ -708,7 +736,11 @@ export default function PublicationDetailScreen() {
               );
             }
           } catch (err) {
-            showAlert("Error", `No se pudo subir ${s.name || s.nombreEnlace || "archivo"}`, "error");
+            showAlert(
+              "Error",
+              `No se pudo subir ${s.name || s.nombreEnlace || "archivo"}`,
+              "error"
+            );
           }
 
           setStagedAdds((prev) =>
@@ -716,7 +748,7 @@ export default function PublicationDetailScreen() {
               idx === i ? { ...item, subiendo: false, progreso: 100 } : item
             )
           );
-        } 
+        }
         setStagedAdds([]);
       }
 
@@ -773,46 +805,41 @@ export default function PublicationDetailScreen() {
     }
 
     let mensaje = `¿Deseas descargar "${archivo.titulo}"?`;
-    
-    showAlert(
-      "Descargar archivo",
-      mensaje,
-      "confirm",
-      [
-        { text: "Cancelar", onPress: () => {}, mode: "text" },
-        {
-          text: "Descargar",
-          onPress: async () => {
-            setAlertVisible(false);
-            setDownloadingFileId(archivo.id);
-            setDownloadProgress(0);
 
-            const result = await downloadsService.descargarArchivo(
-              archivo,
-              (progress: any) => {
-                setDownloadProgress(Math.round(progress.progress * 100));
-              }
-            );
+    showAlert("Descargar archivo", mensaje, "confirm", [
+      { text: "Cancelar", onPress: () => {}, mode: "text" },
+      {
+        text: "Descargar",
+        onPress: async () => {
+          setAlertVisible(false);
+          setDownloadingFileId(archivo.id);
+          setDownloadProgress(0);
 
-            setDownloadingFileId(null);
-            setDownloadProgress(0);
-
-            if (result.success) {
-              if (result.requiresShare && result.shareUri) {
-                await downloadsService.compartirArchivo(result.shareUri);
-              }
-            } else {
-              showAlert(
-                "Error al descargar",
-                result.error || 'No se pudo descargar el archivo',
-                "error"
-              );
+          const result = await downloadsService.descargarArchivo(
+            archivo,
+            (progress: any) => {
+              setDownloadProgress(Math.round(progress.progress * 100));
             }
-          },
-          mode: "contained",
+          );
+
+          setDownloadingFileId(null);
+          setDownloadProgress(0);
+
+          if (result.success) {
+            if (result.requiresShare && result.shareUri) {
+              await downloadsService.compartirArchivo(result.shareUri);
+            }
+          } else {
+            showAlert(
+              "Error al descargar",
+              result.error || "No se pudo descargar el archivo",
+              "error"
+            );
+          }
         },
-      ]
-    );
+        mode: "contained",
+      },
+    ]);
   };
 
   const descargarTodosLosArchivos = async () => {
@@ -842,7 +869,7 @@ export default function PublicationDetailScreen() {
           text: "Descargar",
           onPress: async () => {
             setAlertVisible(false);
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
             setDownloadingAll(true);
             setDownloadAllProgress({
               current: 0,
@@ -852,7 +879,7 @@ export default function PublicationDetailScreen() {
 
             const result = await downloadsService.descargarMultiplesArchivos(
               archivosDescargables,
-              publicacion?.titulo || 'esta publicación',
+              publicacion?.titulo || "esta publicación",
               (current: number, total: number, fileName: string) => {
                 setDownloadAllProgress({
                   current,
@@ -867,27 +894,42 @@ export default function PublicationDetailScreen() {
 
             if (result.success) {
               const documentosCount = result.pendingShare?.length || 0;
-              
+
               let message = `Se descargaron ${result.downloadedCount} archivo(s) correctamente`;
-              
+
               if (result.failedCount > 0) {
-                message += `\n\n ${result.failedCount} fallaron:\n${result.errors.join("\n")}`;
+                message += `\n\n ${
+                  result.failedCount
+                } fallaron:\n${result.errors.join("\n")}`;
               }
 
-              const buttons = documentosCount > 0 
-                ? [
-                    { text: "Cerrar", onPress: () => {}, mode: "text" as const },
-                    {
-                      text: "Guardar documentos",
-                      onPress: async () => {
-                        for (const doc of result.pendingShare!) {
-                          await downloadsService.compartirArchivo(doc.shareUri);
-                        }
+              const buttons =
+                documentosCount > 0
+                  ? [
+                      {
+                        text: "Cerrar",
+                        onPress: () => {},
+                        mode: "text" as const,
                       },
-                      mode: "contained" as const,
-                    },
-                  ]
-                : [{ text: "OK", onPress: () => {}, mode: "contained" as const }];
+                      {
+                        text: "Guardar documentos",
+                        onPress: async () => {
+                          for (const doc of result.pendingShare!) {
+                            await downloadsService.compartirArchivo(
+                              doc.shareUri
+                            );
+                          }
+                        },
+                        mode: "contained" as const,
+                      },
+                    ]
+                  : [
+                      {
+                        text: "OK",
+                        onPress: () => {},
+                        mode: "contained" as const,
+                      },
+                    ];
 
               showAlert(
                 "Descarga completada",
@@ -947,11 +989,7 @@ export default function PublicationDetailScreen() {
       });
     } catch (error) {
       console.error("Error al compartir publicación:", error);
-      showAlert(
-        "Error",
-        "No se pudo compartir la publicación",
-        "error"
-      );
+      showAlert("Error", "No se pudo compartir la publicación", "error");
     } finally {
       setSharingPublication(false);
     }
@@ -1031,7 +1069,10 @@ export default function PublicationDetailScreen() {
                 setLoading(false);
               }}
               onError={(e) => {
-                console.error("[PublicationDetail] LinkPreview image onError:", e);
+                console.error(
+                  "[PublicationDetail] LinkPreview image onError:",
+                  e
+                );
                 setError("Error");
               }}
             />
@@ -1055,7 +1096,10 @@ export default function PublicationDetailScreen() {
     );
   };
 
-  const renderArchivoPreview = (archivo: ArchivoPublicacion, isDownloading: boolean = false) => {
+  const renderArchivoPreview = (
+    archivo: ArchivoPublicacion,
+    isDownloading: boolean = false
+  ) => {
     const tipo = archivo.tipoNombre.toLowerCase();
     const icono = obtenerIconoPorTipo(archivo.tipoNombre || "");
 
@@ -1075,9 +1119,7 @@ export default function PublicationDetailScreen() {
           {isDownloading && (
             <View style={styles.imageLoadingOverlay}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.imageLoadingText}>
-                {downloadProgress}%
-              </Text>
+              <Text style={styles.imageLoadingText}>{downloadProgress}%</Text>
             </View>
           )}
         </View>
@@ -1094,9 +1136,7 @@ export default function PublicationDetailScreen() {
         {isDownloading && (
           <View style={styles.iconLoadingOverlay}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.imageLoadingText}>
-              {downloadProgress}%
-            </Text>
+            <Text style={styles.imageLoadingText}>{downloadProgress}%</Text>
           </View>
         )}
       </View>
@@ -1108,7 +1148,7 @@ export default function PublicationDetailScreen() {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={materiaNombre} />
-        
+
         {publicacion && (
           <Appbar.Action
             icon="share-variant"
@@ -1117,7 +1157,7 @@ export default function PublicationDetailScreen() {
             disabled={sharingPublication}
           />
         )}
-        
+
         {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
           <Appbar.Action
             icon="flag"
@@ -1127,7 +1167,7 @@ export default function PublicationDetailScreen() {
         )}
 
         {publicacion && usuario && publicacion.autorUid === usuario.uid && (
-          <View style={{ flexDirection: 'row' }}>
+          <View style={{ flexDirection: "row" }}>
             {!editMode ? (
               <Appbar.Action
                 icon="pencil"
@@ -1139,7 +1179,7 @@ export default function PublicationDetailScreen() {
                 style={{ marginHorizontal: 4 }}
               />
             ) : (
-              <View style={{ flexDirection: 'row' }}>
+              <View style={{ flexDirection: "row" }}>
                 <Appbar.Action
                   icon="close"
                   onPress={handleCancelEdit}
@@ -1161,18 +1201,19 @@ export default function PublicationDetailScreen() {
           </View>
         )}
       </Appbar.Header>
-      
+
       <SafeAreaView
         style={styles.container}
         edges={["bottom", "left", "right"]}
       >
         {cargando ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" />
-            <Text variant="bodyLarge" style={styles.loadingText}>
-              Cargando publicación...
-            </Text>
-          </View>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <PublicationDetailSkeleton />
+          </ScrollView>
         ) : !publicacion ? (
           <View style={styles.loadingContainer}>
             <Text variant="headlineSmall" style={styles.loadingText}>
@@ -1185,173 +1226,254 @@ export default function PublicationDetailScreen() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
           >
-          <ScrollView 
-            style={{ flex: 1 }}
-            contentContainerStyle={{ 
-              flexGrow: 1,
-              paddingBottom: 24 
-            }}
-            showsVerticalScrollIndicator={false}
-          >
-            <Card style={styles.headerCard}>
-              <Card.Content>
-                <View style={styles.autorContainer}>
-                  {publicacion.autorFoto ? (
-                    <Avatar.Image
-                      size={48}
-                      source={{ uri: publicacion.autorFoto }}
-                    />
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                flexGrow: 1,
+                paddingBottom: 24,
+              }}
+              showsVerticalScrollIndicator={false}
+            >
+              <Card style={styles.headerCard}>
+                <Card.Content>
+                  <View style={styles.autorContainer}>
+                    {publicacion.autorFoto ? (
+                      <Avatar.Image
+                        size={48}
+                        source={{ uri: publicacion.autorFoto }}
+                      />
+                    ) : (
+                      <Avatar.Text
+                        size={48}
+                        label={
+                          publicacion.autorNombre?.charAt(0).toUpperCase() ||
+                          "?"
+                        }
+                      />
+                    )}
+                    <View style={styles.autorInfo}>
+                      <Text variant="titleMedium" style={styles.autorNombre}>
+                        {publicacion.autorNombre}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.fecha}>
+                        {formatearFecha(publicacion.fechaPublicacion)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Divider style={styles.divider} />
+
+                  {!editMode ? (
+                    <View>
+                      <Text variant="headlineSmall" style={styles.titulo}>
+                        {publicacion.titulo}
+                      </Text>
+
+                      <Text variant="bodyLarge" style={styles.descripcion}>
+                        {publicacion.descripcion}
+                      </Text>
+                    </View>
                   ) : (
-                    <Avatar.Text
-                      size={48}
-                      label={
-                        publicacion.autorNombre?.charAt(0).toUpperCase() || "?"
-                      }
-                    />
+                    <View>
+                      <TextInput
+                        label="Título"
+                        value={editTitle}
+                        onChangeText={setEditTitle}
+                        mode="outlined"
+                        style={{ marginBottom: 12 }}
+                      />
+                      <TextInput
+                        label="Descripción"
+                        value={editDescription}
+                        onChangeText={setEditDescription}
+                        mode="outlined"
+                        style={{ marginBottom: 12 }}
+                      />
+                    </View>
                   )}
-                  <View style={styles.autorInfo}>
-                    <Text variant="titleMedium" style={styles.autorNombre}>
-                      {publicacion.autorNombre}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.fecha}>
-                      {formatearFecha(publicacion.fechaPublicacion)}
-                    </Text>
-                  </View>
-                </View>
 
-                <Divider style={styles.divider} />
-
-                {!editMode ? (
-                  <View>
-                    <Text variant="headlineSmall" style={styles.titulo}>
-                      {publicacion.titulo}
-                    </Text>
-
-                    <Text variant="bodyLarge" style={styles.descripcion}>
-                      {publicacion.descripcion}
-                    </Text>
-                  </View>
-                ) : (
-                  <View>
-                    <TextInput
-                      label="Título"
-                      value={editTitle}
-                      onChangeText={setEditTitle}
-                      mode="outlined"
-                      style={{ marginBottom: 12 }}
-                    />
-                    <TextInput
-                      label="Descripción"
-                      value={editDescription}
-                      onChangeText={setEditDescription}
-                      mode="outlined"
-                      style={{ marginBottom: 12 }}
-                    />
-                  </View>
-                )}
-
-                <View style={styles.statsContainer}>
-                  <Chip
-                    icon="eye"
-                    compact
-                    style={styles.statChip}
-                    textStyle={styles.statText}
-                  >
-                    {publicacion.vistas}
-                  </Chip>
-
-                  <Chip
-                    icon="comment"
-                    compact
-                    style={styles.statChip}
-                    textStyle={styles.statText}
-                    onPress={() => setCommentsModalVisible(true)}
-                  >
-                    {realTimeCommentCount}
-                  </Chip>
-                  
-                  <Chip
-                    icon={userLiked ? "heart" : "heart-outline"}
-                    compact
-                    style={styles.statChip}
-                    textStyle={styles.statText}
-                    onPress={toggleLike}
-                    disabled={likeLoading}
-                  >
-                    {likeCount}
-                  </Chip>
-                </View>
-              </Card.Content>
-            </Card>
-
-            {archivos.length > 0 && (
-              <View style={styles.archivosContainer}>
-                <View style={styles.archivosHeader}>
-                  <Text variant="titleMedium" style={styles.archivosTitle}>
-                    Archivos adjuntos ({archivos.length})
-                  </Text>
-                  {!editMode && (
-                    <Button
-                      mode="contained-tonal"
-                      icon="download-multiple"
+                  <View style={styles.statsContainer}>
+                    <Chip
+                      icon="eye"
                       compact
-                      onPress={descargarTodosLosArchivos}
-                      disabled={
-                        downloadingAll ||
-                        downloadingFileId !== null ||
-                        archivos.filter((a) => !a.esEnlaceExterno).length === 0
-                      }
-                      loading={downloadingAll}
-                      style={styles.downloadAllButton}
+                      style={styles.statChip}
+                      textStyle={styles.statText}
                     >
-                      Descargar todos
-                    </Button>
-                  )}
-                </View>
+                      {publicacion.vistas}
+                    </Chip>
 
-                <View style={styles.archivosGrid}>
-                  {archivos.map((archivo) => {
-                    const isMarked = filesMarkedForDelete.includes(archivo.id);
-                    const isDownloading = downloadingFileId === archivo.id;
-                    return (
-                      <View key={archivo.id} style={styles.archivoCardWrapper}>
-                        <Card
-                          style={[
-                            styles.archivoCard,
-                            { position: "relative" },
-                            isMarked ? { opacity: 0.45 } : undefined,
-                          ]}
-                          onPress={() => abrirArchivo(archivo)}
-                          onLongPress={() => descargarArchivo(archivo)}
+                    <Chip
+                      icon="comment"
+                      compact
+                      style={styles.statChip}
+                      textStyle={styles.statText}
+                      onPress={() => setCommentsModalVisible(true)}
+                    >
+                      {realTimeCommentCount}
+                    </Chip>
+
+                    <Chip
+                      icon={userLiked ? "heart" : "heart-outline"}
+                      compact
+                      style={styles.statChip}
+                      textStyle={styles.statText}
+                      onPress={toggleLike}
+                      disabled={likeLoading}
+                    >
+                      {likeCount}
+                    </Chip>
+                  </View>
+                </Card.Content>
+              </Card>
+
+              {archivos.length > 0 && (
+                <View style={styles.archivosContainer}>
+                  <View style={styles.archivosHeader}>
+                    <Text variant="titleMedium" style={styles.archivosTitle}>
+                      Archivos adjuntos ({archivos.length})
+                    </Text>
+                    {!editMode && (
+                      <Button
+                        mode="contained-tonal"
+                        icon="download-multiple"
+                        compact
+                        onPress={descargarTodosLosArchivos}
+                        disabled={
+                          downloadingAll ||
+                          downloadingFileId !== null ||
+                          archivos.filter((a) => !a.esEnlaceExterno).length ===
+                            0
+                        }
+                        loading={downloadingAll}
+                        style={styles.downloadAllButton}
+                      >
+                        Descargar todos
+                      </Button>
+                    )}
+                  </View>
+
+                  <View style={styles.archivosGrid}>
+                    {archivos.map((archivo) => {
+                      const isMarked = filesMarkedForDelete.includes(
+                        archivo.id
+                      );
+                      const isDownloading = downloadingFileId === archivo.id;
+                      return (
+                        <View
+                          key={archivo.id}
+                          style={styles.archivoCardWrapper}
                         >
-                          {!editMode ? (
-                            <View>
-                              {!archivo.esEnlaceExterno && (
-                                <IconButton
-                                  icon="download"
-                                  size={18}
-                                  onPress={() => descargarArchivo(archivo)}
-                                  style={styles.downloadButton}
-                                  iconColor={theme.colors.onSurface}
-                                  disabled={isDownloading}
-                                />
-                              )}
+                          <Card
+                            style={[
+                              styles.archivoCard,
+                              { position: "relative" },
+                              isMarked ? { opacity: 0.45 } : undefined,
+                            ]}
+                            onPress={() => abrirArchivo(archivo)}
+                            onLongPress={() => descargarArchivo(archivo)}
+                          >
+                            {!editMode ? (
+                              <View>
+                                {!archivo.esEnlaceExterno && (
+                                  <IconButton
+                                    icon="download"
+                                    size={18}
+                                    onPress={() => descargarArchivo(archivo)}
+                                    style={styles.downloadButton}
+                                    iconColor={theme.colors.onSurface}
+                                    disabled={isDownloading}
+                                  />
+                                )}
 
-                              {archivo.esEnlaceExterno && (
-                                <IconButton
-                                  icon="link-variant"
-                                  size={18}
-                                  style={styles.downloadButton}
-                                  iconColor={theme.colors.onSurface}
-                                  onPress={() => {}}
-                                />
-                              )}
+                                {archivo.esEnlaceExterno && (
+                                  <IconButton
+                                    icon="link-variant"
+                                    size={18}
+                                    style={styles.downloadButton}
+                                    iconColor={theme.colors.onSurface}
+                                    onPress={() => {}}
+                                  />
+                                )}
+                              </View>
+                            ) : (
+                              <IconButton
+                                icon={isMarked ? "check" : "close"}
+                                size={16}
+                                onPress={() =>
+                                  confirmarEliminarArchivo(archivo.id)
+                                }
+                                style={{
+                                  margin: 0,
+                                  position: "absolute",
+                                  top: 6,
+                                  right: 6,
+                                  backgroundColor: theme.colors.primary,
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: 14,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  zIndex: 50,
+                                  elevation: 6,
+                                }}
+                                iconColor={theme.colors.onPrimary || "#fff"}
+                              />
+                            )}
+
+                            {renderArchivoPreview(archivo, isDownloading)}
+                          </Card>
+
+                          <View style={styles.archivoInfoContainer}>
+                            <View style={styles.archivoInfoRow}>
+                              <IconButton
+                                icon={obtenerIconoPorTipo(
+                                  archivo.tipoNombre || ""
+                                )}
+                                size={20}
+                                iconColor={theme.colors.primary}
+                                style={{ margin: 0, marginRight: 4 }}
+                              />
+                              <Text
+                                variant="bodyMedium"
+                                style={styles.archivoTitulo}
+                                numberOfLines={2}
+                              >
+                                {archivo.titulo}
+                              </Text>
                             </View>
-                          ) : (
+                            {isMarked && (
+                              <Text
+                                style={{
+                                  color: theme.colors.error,
+                                  fontSize: 12,
+                                  marginTop: 4,
+                                }}
+                              >
+                                Marcado para eliminar (se eliminará al guardar)
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+
+                    {stagedAdds.map((s, index) => {
+                      return (
+                        <View key={s.id} style={styles.archivoCardWrapper}>
+                          <Card
+                            style={[
+                              styles.archivoCard,
+                              { position: "relative" },
+                            ]}
+                          >
                             <IconButton
-                              icon={isMarked ? "check" : "close"}
+                              icon="close"
                               size={16}
-                              onPress={() => confirmarEliminarArchivo(archivo.id)}
+                              onPress={() =>
+                                setStagedAdds((prev) =>
+                                  prev.filter((x) => x.id !== s.id)
+                                )
+                              }
                               style={{
                                 margin: 0,
                                 position: "absolute",
@@ -1368,180 +1490,126 @@ export default function PublicationDetailScreen() {
                               }}
                               iconColor={theme.colors.onPrimary || "#fff"}
                             />
-                          )}
 
-                          {renderArchivoPreview(archivo, isDownloading)}
-                        </Card>
-
-                        <View style={styles.archivoInfoContainer}>
-                          <View style={styles.archivoInfoRow}>
-                            <IconButton
-                              icon={obtenerIconoPorTipo(archivo.tipoNombre || "")}
-                              size={20}
-                              iconColor={theme.colors.primary}
-                              style={{ margin: 0, marginRight: 4 }}
-                            />
-                            <Text
-                              variant="bodyMedium"
-                              style={styles.archivoTitulo}
-                              numberOfLines={2}
-                            >
-                              {archivo.titulo}
-                            </Text>
-                          </View>
-                          {isMarked && (
-                            <Text
-                              style={{
-                                color: theme.colors.error,
-                                fontSize: 12,
-                                marginTop: 4,
-                              }}
-                            >
-                              Marcado para eliminar (se eliminará al guardar)
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  })}
-
-                  {stagedAdds.map((s, index) => {   
-                    return (
-                    <View key={s.id} style={styles.archivoCardWrapper}>
-                      <Card style={[styles.archivoCard, { position: "relative" }]}>
-                        <IconButton
-                          icon="close"
-                          size={16}
-                          onPress={() =>
-                            setStagedAdds((prev) => prev.filter((x) => x.id !== s.id))
-                          }
-                          style={{
-                            margin: 0,
-                            position: "absolute",
-                            top: 6,
-                            right: 6,
-                            backgroundColor: theme.colors.primary,
-                            width: 28,
-                            height: 28,
-                            borderRadius: 14,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            zIndex: 50,
-                            elevation: 6,
-                          }}
-                          iconColor={theme.colors.onPrimary || "#fff"}
-                        />
-
-                        <View style={{ padding: 12, alignItems: "center" }}>
-                          <IconButton
-                            icon={s.esEnlaceExterno ? "link-variant" : "file-document"}
-                            size={24}
-                            iconColor={theme.colors.primary}
-                            style={{ margin: 0 }}
-                          />
-                          <Text
-                            variant="bodyMedium"
-                            style={{
-                              textAlign: "center",
-                              marginTop: 4,
-                              color: theme.colors.onSurface,
-                              fontSize: 14,
-                              fontWeight: "500",
-                            }}
-                            numberOfLines={2}
-                            ellipsizeMode="tail"
-                            onLayout={(event) => {
-                              const { width, height } = event.nativeEvent.layout;
-                            }}
-                          >
-                            {(() => {
-                              const texto = s.name || s.nombreEnlace || s.file?.name || "Nuevo archivo";
-                              return texto;
-                            })()}
-                          </Text>
-                          {s.esEnlaceExterno && s.url && (
-                            <Text
-                              style={{
-                                color: theme.colors.secondary,
-                                fontSize: 11,
-                                marginTop: 2,
-                              }}
-                              numberOfLines={1}
-                            >
-                              {s.url}
-                            </Text>
-                          )}
-                          {s.subiendo ? (
-                            <>
+                            <View style={{ padding: 12, alignItems: "center" }}>
+                              <IconButton
+                                icon={
+                                  s.esEnlaceExterno
+                                    ? "link-variant"
+                                    : "file-document"
+                                }
+                                size={24}
+                                iconColor={theme.colors.primary}
+                                style={{ margin: 0 }}
+                              />
                               <Text
+                                variant="bodyMedium"
                                 style={{
-                                  color: theme.colors.primary,
-                                  fontSize: 12,
+                                  textAlign: "center",
                                   marginTop: 4,
+                                  color: theme.colors.onSurface,
+                                  fontSize: 14,
+                                  fontWeight: "500",
+                                }}
+                                numberOfLines={2}
+                                ellipsizeMode="tail"
+                                onLayout={(event) => {
+                                  const { width, height } =
+                                    event.nativeEvent.layout;
                                 }}
                               >
-                                Subiendo... {s.progreso || 0}%
+                                {(() => {
+                                  const texto =
+                                    s.name ||
+                                    s.nombreEnlace ||
+                                    s.file?.name ||
+                                    "Nuevo archivo";
+                                  return texto;
+                                })()}
                               </Text>
-                            </>
-                          ) : (
-                            <Text
-                              style={{
-                                color: theme.colors.primary,
-                                fontSize: 12,
-                                marginTop: 4,
-                              }}
-                            >
-                              {s.progreso === 100 ? "Subido ✓" : ""}
-                            </Text>
-                          )}
+                              {s.esEnlaceExterno && s.url && (
+                                <Text
+                                  style={{
+                                    color: theme.colors.secondary,
+                                    fontSize: 11,
+                                    marginTop: 2,
+                                  }}
+                                  numberOfLines={1}
+                                >
+                                  {s.url}
+                                </Text>
+                              )}
+                              {s.subiendo ? (
+                                <>
+                                  <Text
+                                    style={{
+                                      color: theme.colors.primary,
+                                      fontSize: 12,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    Subiendo... {s.progreso || 0}%
+                                  </Text>
+                                </>
+                              ) : (
+                                <Text
+                                  style={{
+                                    color: theme.colors.primary,
+                                    fontSize: 12,
+                                    marginTop: 4,
+                                  }}
+                                >
+                                  {s.progreso === 100 ? "Subido ✓" : ""}
+                                </Text>
+                              )}
+                            </View>
+                          </Card>
+
+                          <View style={styles.archivoInfoContainer} />
                         </View>
-                      </Card>
+                      );
+                    })}
 
-                      <View style={styles.archivoInfoContainer} />
-                    </View>
-                    );
-                  })}
-
-                  {editMode && (
-                    <View style={styles.archivoCardWrapper}>
-                      <View
-                        style={[
-                          styles.archivoCard,
-                          {
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backgroundColor: "transparent",
-                            elevation: 0,
-                            shadowColor: "transparent",
-                            borderWidth: 0,
-                          },
-                        ]}
-                      >
-                        <IconButton
-                          icon="plus"
-                          size={28}
-                          onPress={mostrarDialogoSeleccion}
-                          disabled={fileProcessing}
-                          style={{
-                            backgroundColor: theme.colors.primary,
-                            width: width * 0.15,
-                            height: width * 0.15,
-                            borderRadius: 28,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: 0,
-                          }}
-                          iconColor={theme.colors.onPrimary}
-                        />
+                    {editMode && (
+                      <View style={styles.archivoCardWrapper}>
+                        <View
+                          style={[
+                            styles.archivoCard,
+                            {
+                              alignItems: "center",
+                              justifyContent: "center",
+                              backgroundColor: "transparent",
+                              elevation: 0,
+                              shadowColor: "transparent",
+                              borderWidth: 0,
+                            },
+                          ]}
+                        >
+                          <IconButton
+                            icon="plus"
+                            size={28}
+                            onPress={mostrarDialogoSeleccion}
+                            disabled={fileProcessing}
+                            style={{
+                              backgroundColor: theme.colors.primary,
+                              width: width * 0.15,
+                              height: width * 0.15,
+                              borderRadius: 28,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              padding: 0,
+                            }}
+                            iconColor={theme.colors.onPrimary}
+                          />
+                        </View>
                       </View>
-                    </View>
-                  )}
+                    )}
+                  </View>
                 </View>
-              </View>
-            )}
-          </ScrollView>
-  </KeyboardAvoidingView>
-  )}
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
 
         <CommentsModal
           visible={commentsModalVisible}
@@ -1702,10 +1770,20 @@ export default function PublicationDetailScreen() {
               </View>
               {downloadAllProgress && (
                 <View>
-                  <Text variant="bodyLarge" style={{ textAlign: "center", marginBottom: 8 }}>
-                    Descargando {downloadAllProgress.current} de {downloadAllProgress.total}
+                  <Text
+                    variant="bodyLarge"
+                    style={{ textAlign: "center", marginBottom: 8 }}
+                  >
+                    Descargando {downloadAllProgress.current} de{" "}
+                    {downloadAllProgress.total}
                   </Text>
-                  <Text variant="bodyMedium" style={{ textAlign: "center", color: theme.colors.onSurfaceVariant }}>
+                  <Text
+                    variant="bodyMedium"
+                    style={{
+                      textAlign: "center",
+                      color: theme.colors.onSurfaceVariant,
+                    }}
+                  >
                     {downloadAllProgress.fileName}
                   </Text>
                 </View>

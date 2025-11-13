@@ -1,18 +1,18 @@
 import { db } from "@/firebase";
 import { getNotificationSettings } from "@/hooks/useNotificationSettings";
 import {
-    addDoc,
-    collection,
-    doc,
-    documentId,
-    getDocs,
-    limit,
-    onSnapshot,
-    query,
-    serverTimestamp,
-    updateDoc,
-    where,
-    writeBatch,
+  addDoc,
+  collection,
+  doc,
+  documentId,
+  getDocs,
+  limit,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
 } from "firebase/firestore";
 import { enviarNotificacionLocal } from "./pushNotifications";
 
@@ -26,7 +26,13 @@ export interface NotificacionBase {
   metadata?: {
     materiaId?: string;
     materiaNombre?: string;
+    publicacionId?: string;
     accion?: string;
+    tipo?: string;
+    publicacionTitulo?: string;
+    motivo?: string;
+    decision?: string;
+    tipoAccion?: string;
   };
 }
 
@@ -91,6 +97,30 @@ export const crearNotificacion = async (
   metadata?: any,
   enviarPush: boolean = true
 ) => {
+  // Verificar configuración del usuario receptor
+  const userSettings = await getNotificationSettings(userId);
+  const accion = metadata?.accion;
+  const tipoData = metadata?.tipo;
+  
+  // Verificar según el tipo de notificación
+  if (accion === 'admin_decision' || tipoData === 'admin_decision') {
+    if (!userSettings.adminAlertsEnabled) {
+      return null;
+    }
+  }
+  
+  if (accion === 'ver_publicacion' || tipoData === 'publicacion') {
+    if (!userSettings.newPublicationsEnabled) {
+      return null;
+    }
+  }
+  
+  if (accion === 'ver_materia' || tipoData === 'materia') {
+    if (!userSettings.newSubjectsEnabled) {
+      return null;
+    }
+  }
+
   const notifId = await crearNotificacionMasiva(
     [userId],
     titulo,
@@ -256,6 +286,29 @@ export const eliminarNotificacionUsuario = async (
 };
 
 /**
+ * Eliminar múltiples notificaciones de usuario en batch (más eficiente)
+ */
+export const eliminarNotificacionesUsuarioBatch = async (
+  notificacionUsuarioIds: string[]
+) => {
+  try {
+    const batch = writeBatch(db);
+    
+    notificacionUsuarioIds.forEach((id) => {
+      const notifUsuarioRef = doc(db, "notificacionesUsuario", id);
+      batch.update(notifUsuarioRef, {
+        eliminada: true,
+      });
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error("❌ Error al eliminar notificaciones en batch:", error);
+    throw error;
+  }
+};
+
+/**
  * Obtener contador de notificaciones no leídas
  */
 export const obtenerContadorNoLeidas = (
@@ -293,11 +346,6 @@ export const notificarUsuariosMateria = async (
   publicacionId: string
 ) => {
   try {
-    const settings = await getNotificationSettings();
-    if (!settings.newPublicationsEnabled) {
-      return;
-    }
-
     const usuariosRef = collection(db, "usuarios");
     const q = query(
       usuariosRef,
@@ -306,41 +354,59 @@ export const notificarUsuariosMateria = async (
     );
     const snapshot = await getDocs(q);
 
-    let userIds = snapshot.docs.map((doc) => doc.id);
-    let currentUserId = null;
-    try {
-      const { getAuth } = await import("firebase/auth");
-      const auth = getAuth();
-      currentUserId = auth.currentUser?.uid || null;
-    } catch {}
-
-    if (currentUserId) {
-      userIds = userIds.filter((id) => id !== currentUserId);
-    }
+    const userIds = snapshot.docs.map((doc) => doc.id);
 
     if (userIds.length === 0) {
-      console.log("No hay usuarios inscritos en esta materia");
       return;
     }
 
-    await crearNotificacionMasiva(userIds, titulo, descripcion, tipo, icono, {
-      materiaId,
-      materiaNombre,
-      accion: 'ver_publicacion',
-      publicacionId,
-    });
+    // Filtrar usuarios que tengan habilitadas las notificaciones de publicaciones
+    const usuariosConNotificacionesHabilitadas: string[] = [];
+    
+    for (const userId of userIds) {
+      const userSettings = await getNotificationSettings(userId);
+      if (userSettings.newPublicationsEnabled) {
+        usuariosConNotificacionesHabilitadas.push(userId);
+      }
+    }
 
-    try {
-      await enviarNotificacionLocal(titulo, descripcion, {
-        tipo: 'publicacion',
+    if (usuariosConNotificacionesHabilitadas.length === 0) {
+      return;
+    }
+
+    const notificacionRef = await addDoc(collection(db, "notificaciones"), {
+      titulo,
+      descripcion,
+      icono,
+      tipo,
+      creadoEn: serverTimestamp(),
+      metadata: {
         materiaId,
         materiaNombre,
-        publicacionId,
         accion: 'ver_publicacion',
+        publicacionId,
+      },
+    });
+
+    const batch = writeBatch(db);
+    const timestamp = serverTimestamp();
+
+    usuariosConNotificacionesHabilitadas.forEach((userId) => {
+      const refId = `${userId}_${notificacionRef.id}`;
+      const notifUsuarioRef = doc(db, "notificacionesUsuario", refId);
+
+      batch.set(notifUsuarioRef, {
+        notificacionId: notificacionRef.id,
+        userId,
+        leida: false,
+        creadoEn: timestamp,
       });
-    } catch (error) {
-      console.error('Error al enviar push:', error);
-    }
+    });
+
+    await batch.commit();
+
+    // Las notificaciones FCM se envían automáticamente por Cloud Functions
+    // cuando se crean los documentos en notificacionesUsuario
   } catch (error) {
     console.error("Error al notificar usuarios de materia:", error);
     throw error;
@@ -357,97 +423,84 @@ export const notificarCreacionMateria = async (
   materiaSemestre?: number
 ) => {
   try {
-    const settings = await getNotificationSettings();
-    if (!settings.newSubjectsEnabled) {
-      return;
-    }
-
-    console.log(`[NOTIF] Creando notificación para materia: ${materiaNombre} (Semestre ${materiaSemestre})`);
-    
     const usuariosRef = collection(db, "usuarios");
     const snapshot = await getDocs(usuariosRef);
-    
-    console.log(`[NOTIF] Total usuarios en BD: ${snapshot.docs.length}`);
 
     const usuariosActivos = snapshot.docs.filter((doc) => {
       const data = doc.data();
-      const nombre = data.nombre || 'Sin nombre';
-      const uid = doc.id;
       
       if (data.estado !== "activo") {
-        console.log(`[NOTIF] ❌ ${nombre} (${uid}): Estado ${data.estado}`);
         return false;
       }
       
       if (!materiaSemestre && materiaSemestre !== 0) {
-        console.log(`[NOTIF] ✅ ${nombre} (${uid}): Sin filtro de semestre`);
         return true;
       }
       
       if (materiaSemestre === 10) {
-        console.log(`[NOTIF] ✅ ${nombre} (${uid}): Materia electiva`);
         return true;
       }
       
       const semestresUsuario = data.semestres || [];
       if (semestresUsuario.length === 0) {
-        const resultado = materiaSemestre === 1;
-        console.log(`[NOTIF] ${resultado ? '✅' : '❌'} ${nombre} (${uid}): Sin semestres, materia es ${materiaSemestre}`);
-        return resultado;
+        return materiaSemestre === 1;
       }
       
-      const resultado = semestresUsuario.includes(materiaSemestre);
-      console.log(`[NOTIF] ${resultado ? '✅' : '❌'} ${nombre} (${uid}): Semestres [${semestresUsuario}], materia ${materiaSemestre}`);
-      return resultado;
+      return semestresUsuario.includes(materiaSemestre);
     });
 
-    let userIds = usuariosActivos.map((doc) => doc.id);
-    let currentUserId = null;
-    try {
-      const { getAuth } = await import("firebase/auth");
-      const auth = getAuth();
-      currentUserId = auth.currentUser?.uid || null;
-    } catch {}
-
-    if (currentUserId) {
-      console.log(`[NOTIF] Excluyendo usuario actual: ${currentUserId}`);
-      userIds = userIds.filter((id) => id !== currentUserId);
-    }
-
-    console.log(`[NOTIF] Total usuarios a notificar: ${userIds.length}`);
+    const userIds = usuariosActivos.map((doc) => doc.id);
 
     if (userIds.length === 0) {
-      console.log(`[NOTIF] No hay usuarios para notificar sobre materia de semestre ${materiaSemestre}`);
       return;
     }
 
-    await crearNotificacionMasiva(
-      userIds,
-      "Nueva materia disponible",
-      `Se ha creado la materia: ${materiaNombre}`,
-      "info",
-      "school",
-      {
+    // Filtrar usuarios que tengan habilitadas las notificaciones de nuevas materias
+    const usuariosConNotificacionesHabilitadas: string[] = [];
+    
+    for (const userId of userIds) {
+      const userSettings = await getNotificationSettings(userId);
+      if (userSettings.newSubjectsEnabled) {
+        usuariosConNotificacionesHabilitadas.push(userId);
+      }
+    }
+
+    if (usuariosConNotificacionesHabilitadas.length === 0) {
+      return;
+    }
+
+    const notificacionRef = await addDoc(collection(db, "notificaciones"), {
+      titulo: "Nueva materia disponible",
+      descripcion: `Se ha creado la materia: ${materiaNombre}`,
+      icono: "school",
+      tipo: "info",
+      creadoEn: serverTimestamp(),
+      metadata: {
         materiaId,
         materiaNombre,
         accion: "ver_materia",
-      }
-    );
+      },
+    });
 
-    try {
-      await enviarNotificacionLocal(
-        "Nueva materia disponible",
-        `Se ha creado la materia: ${materiaNombre}`,
-        {
-          tipo: "materia",
-          materiaId,
-          materiaNombre,
-          accion: "ver_materia",
-        }
-      );
-    } catch {
-      console.log("Push notification no disponible");
-    }
+    const batch = writeBatch(db);
+    const timestamp = serverTimestamp();
+
+    usuariosConNotificacionesHabilitadas.forEach((userId) => {
+      const refId = `${userId}_${notificacionRef.id}`;
+      const notifUsuarioRef = doc(db, "notificacionesUsuario", refId);
+
+      batch.set(notifUsuarioRef, {
+        notificacionId: notificacionRef.id,
+        userId,
+        leida: false,
+        creadoEn: timestamp,
+      });
+    });
+
+    await batch.commit();
+
+    // Las notificaciones FCM se envían automáticamente por Cloud Functions
+    // cuando se crean los documentos en notificacionesUsuario
   } catch (error) {
     console.error("Error al notificar creación de materia:", error);
     throw error;
@@ -467,11 +520,6 @@ export const notificarDecisionAdminAutor = async ({
   decision: string;
   tipoAccion: 'quitar' | 'strike' | 'ban';
 }) => {
-  const settings = await getNotificationSettings();
-  if (!settings.adminAlertsEnabled) {
-    return;
-  }
-
   let titulo = '';
   let descripcion = '';
   if (tipoAccion === 'quitar') {
@@ -492,6 +540,7 @@ export const notificarDecisionAdminAutor = async ({
     'account-alert',
     {
       tipo: 'admin_decision',
+      accion: 'admin_decision',
       publicacionTitulo,
       motivo,
       decision,
@@ -514,11 +563,6 @@ export const notificarDecisionAdminDenunciantes = async ({
   decision: string;
   tipoAccion: 'quitar' | 'strike' | 'ban';
 }) => {
-  const settings = await getNotificationSettings();
-  if (!settings.adminAlertsEnabled) {
-    return;
-  }
-
   let titulo = '';
   let descripcion = '';
   if (tipoAccion === 'quitar') {
@@ -531,16 +575,33 @@ export const notificarDecisionAdminDenunciantes = async ({
     titulo = 'Denuncia aceptada - usuario baneado';
     descripcion = `La publicación "${publicacionTitulo}" fue eliminada y el autor fue baneado. Motivo: ${motivo}`;
   }
+  
   const userIds = reportadores.map(r => r.uid).filter(Boolean) as string[];
   if (userIds.length === 0) return;
+  
+  // Filtrar usuarios que tengan habilitadas las alertas de admin
+  const usuariosConNotificacionesHabilitadas: string[] = [];
+  
+  for (const userId of userIds) {
+    const userSettings = await getNotificationSettings(userId);
+    if (userSettings.adminAlertsEnabled) {
+      usuariosConNotificacionesHabilitadas.push(userId);
+    }
+  }
+
+  if (usuariosConNotificacionesHabilitadas.length === 0) {
+    return;
+  }
+
   await crearNotificacionMasiva(
-    userIds,
+    usuariosConNotificacionesHabilitadas,
     titulo,
     descripcion,
     'info',
     'account-alert',
     {
       tipo: 'admin_decision',
+      accion: 'admin_decision',
       publicacionTitulo,
       motivo,
       decision,

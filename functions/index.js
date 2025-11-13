@@ -1,10 +1,7 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
-const serviceAccount = require('./mobile-1dae0-firebase-adminsdk-fbsvc-c0a0ef2f4e.json');
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+admin.initializeApp();
 
 exports.enviarPushNuevaNotificacion = functions.firestore
   .document('notificacionesUsuario/{notifUserId}')
@@ -53,16 +50,20 @@ exports.enviarPushNuevaNotificacion = functions.firestore
       return null;
     }
 
+    // Enviar notificación push
     const message = {
       notification: {
         title: notifData.titulo,
         body: notifData.descripcion,
       },
-      tokens: [tokens[0]],
       data: {
         materiaId: notifData.metadata?.materiaId || '',
         materiaNombre: notifData.metadata?.materiaNombre || '',
         accion: notifData.metadata?.accion || '',
+      },
+      tokens: [tokens[0]],
+      android: {
+        priority: 'high',
       },
     };
 
@@ -271,18 +272,22 @@ exports.enviarPushNuevaPublicacion = functions.firestore
     const materiaId = notifData.metadata?.materiaId || '';
     const publicacionId = notifData.metadata?.publicacionId || '';
 
+    // Enviar notificación push
     const message = {
       notification: {
         title: notifData.titulo,
         body: notifData.descripcion,
       },
-      tokens: [tokens[0]],
       data: {
         materiaId,
         materiaNombre: notifData.metadata?.materiaNombre || '',
         accion: 'ver_publicacion',
         publicacionId,
         deepLink: materiaId && publicacionId ? `informatica://materias/${materiaId}/publicaciones/${publicacionId}` : '',
+      },
+      tokens: [tokens[0]],
+      android: {
+        priority: 'high',
       },
     };
 

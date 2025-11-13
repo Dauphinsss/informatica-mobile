@@ -1,34 +1,34 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
 import { useCalcularSemestre } from "@/hooks/useCalcularSemestre";
-import { setModalVisible as setGlobalModalCallback } from "@/services/navigationService";
+import { setModalVisible as setGlobalModalCallback, setNewSubjectIds as setGlobalNewSubjectIds } from "@/services/navigationService";
 import { escucharNotificaciones, NotificacionCompleta } from "@/services/notifications";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  where
+    collection,
+    doc,
+    onSnapshot,
+    query,
+    where
 } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Image,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import {
-  Appbar,
-  Avatar,
-  Badge,
-  Card,
-  FAB,
-  IconButton,
-  Surface,
-  Text,
+    Appbar,
+    Avatar,
+    Badge,
+    Card,
+    FAB,
+    IconButton,
+    Surface,
+    Text,
 } from "react-native-paper";
 import SubjectCardSkeleton from "./components/SubjectCardSkeleton";
 import SubjectsModal from "./components/SubjectsModal";
@@ -125,6 +125,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     setGlobalModalCallback(setModalVisible);
+    setGlobalNewSubjectIds(setNewSubjectIds);
   }, []);
 
   useEffect(() => {

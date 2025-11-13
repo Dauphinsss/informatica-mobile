@@ -215,6 +215,13 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
       return;
     }
 
+    if (!navigation) {
+      console.warn('No hay navigation disponible en handleNotificationNavigation');
+      return;
+    }
+
+    const tabNavigation = navigation.getParent?.() || navigation;
+
     if (data?.publicacionId && data?.materiaId) {
       goTo(`/materias/${data.materiaId}/publicaciones/${data.publicacionId}`, data);
       return;
@@ -237,7 +244,23 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         
       case 'ver_materia':
       case 'notificacion_materia':
-        console.log('Ignorando ver_materia, manejado por configurarListenerNotificaciones');
+        if (data.materiaId) {
+          console.log('[Notificación] Abriendo modal de materias con materia:', data.materiaId);
+          
+          // Importar dinámicamente para evitar problemas de dependencias circulares
+          import('@/services/navigationService').then(({ openSubjectsModalWithMateria }) => {
+            // Primero navegar al tab Home
+            tabNavigation.navigate('Home', { screen: 'HomeMain' });
+            
+            // Pequeño delay para asegurar que el tab esté activo antes de abrir el modal
+            setTimeout(() => {
+              openSubjectsModalWithMateria(data.materiaId!);
+            }, 300);
+          });
+        } else {
+          console.log('[Notificación] Navegando a lista de materias (Home)');
+          tabNavigation.navigate('Home', { screen: 'HomeMain' });
+        }
         break;
         
       case 'admin_decision':

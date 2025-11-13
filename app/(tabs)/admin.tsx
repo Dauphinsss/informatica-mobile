@@ -1,16 +1,18 @@
+// src/screens/admin/AdminScreen.tsx
+import { ActivitySectionSkeleton, StatCardSkeleton } from "@/app/(tabs)/components/AdminSkeleton";
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
+import { ActivityLog } from "@/scripts/types/Activity.type";
+import { escucharActividadesRecientes } from "@/services/activity.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Appbar, Card, Divider, Text, ActivityIndicator, Button } from "react-native-paper";
+import { Appbar, Button, Card, Divider, Text } from "react-native-paper";
 import ActivityCard from "../admin/components/ActivityCard";
 import ActivityDetailModal from "../admin/components/ActivityDetailModal";
-import { obtenerActividadesPreview, escucharActividadesRecientes } from "@/services/activity.service";
-import { ActivityLog } from "@/scripts/types/Activity.type";
 
 // Definir el tipo de navegación para el stack de admin
 type AdminStackParamList = {
@@ -36,28 +38,50 @@ export default function AdminScreen() {
   const [totalDenuncias, setTotalDenuncias] = useState(0);
   const [denunciasPendientes, setDenunciasPendientes] = useState(0);
   const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
-  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLog | null>(null);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
 
   // Obtener estadísticas en tiempo real
   useEffect(() => {
+    let mounted = true;
+    let loadedCount = 0;
+    const totalLoads = 4; // materias, usuarios, denuncias, pendientes
+
+    const checkAllLoaded = () => {
+      loadedCount++;
+      if (loadedCount === totalLoads && mounted) {
+        // Pequeño delay para efecto visual suave
+        setTimeout(() => setLoadingStats(false), 300);
+      }
+    };
+
     // Contar materias
     const materiasRef = collection(db, "materias");
     const unsubMaterias = onSnapshot(materiasRef, (snapshot) => {
-      setTotalMaterias(snapshot.size);
+      if (mounted) {
+        setTotalMaterias(snapshot.size);
+        checkAllLoaded();
+      }
     });
 
     // Contar usuarios
     const usuariosRef = collection(db, "usuarios");
     const unsubUsuarios = onSnapshot(usuariosRef, (snapshot) => {
-      setTotalUsuarios(snapshot.size);
+      if (mounted) {
+        setTotalUsuarios(snapshot.size);
+        checkAllLoaded();
+      }
     });
 
     // Contar denuncias totales
     const denunciasRef = collection(db, "reportes");
     const unsubDenuncias = onSnapshot(denunciasRef, (snapshot) => {
-      setTotalDenuncias(snapshot.size);
+      if (mounted) {
+        setTotalDenuncias(snapshot.size);
+        checkAllLoaded();
+      }
     });
 
     // Contar denuncias pendientes
@@ -66,10 +90,14 @@ export default function AdminScreen() {
       where("estado", "==", "pendiente")
     );
     const unsubPendientes = onSnapshot(denunciasPendientesQuery, (snapshot) => {
-      setDenunciasPendientes(snapshot.size);
+      if (mounted) {
+        setDenunciasPendientes(snapshot.size);
+        checkAllLoaded();
+      }
     });
 
     return () => {
+      mounted = false;
       unsubMaterias();
       unsubUsuarios();
       unsubDenuncias();
@@ -87,7 +115,8 @@ export default function AdminScreen() {
         10,
         (activities) => {
           setRecentActivities(activities);
-          setLoadingActivities(false);
+          // Pequeño delay para transición suave
+          setTimeout(() => setLoadingActivities(false), 300);
         }
       );
     }, 500);
@@ -114,177 +143,191 @@ export default function AdminScreen() {
           Gestión del Sistema
         </Text>
 
-        {/* Grid de cards con estadísticas */}
-        <View style={styles.statsGrid}>
-          {/* Card de Materias */}
-          <TouchableOpacity
-            style={styles.statCard}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("ManageSubjects")}
-          >
-            <Card elevation={2} style={styles.card}>
-              <Card.Content style={styles.cardContent}>
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: theme.colors.surfaceVariant },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="book-open-variant"
-                    size={32}
-                    color={theme.colors.primary}
-                  />
-                </View>
-                <View style={styles.statContent}>
-                  <Text variant="displaySmall" style={styles.statNumber}>
-                    {totalMaterias}
-                  </Text>
-                  <Text
-                    variant="bodyLarge"
-                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+        {/* Grid de cards con estadísticas - Primera fila */}
+        {loadingStats ? (
+          <View style={styles.statsGrid}>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </View>
+        ) : (
+          <View style={styles.statsGrid}>
+            {/* Card de Materias */}
+            <TouchableOpacity
+              style={styles.statCard}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("ManageSubjects")}
+            >
+              <Card elevation={2} style={styles.card}>
+                <Card.Content style={styles.cardContent}>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: theme.colors.surfaceVariant },
+                    ]}
                   >
-                    Materias
-                  </Text>
-                </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                  style={styles.chevron}
-                />
-              </Card.Content>
-            </Card>
-          </TouchableOpacity>
+                    <MaterialCommunityIcons
+                      name="book-open-variant"
+                      size={32}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <View style={styles.statContent}>
+                    <Text variant="displaySmall" style={styles.statNumber}>
+                      {totalMaterias}
+                    </Text>
+                    <Text
+                      variant="bodyLarge"
+                      style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                    >
+                      Materias
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                    style={styles.chevron}
+                  />
+                </Card.Content>
+              </Card>
+            </TouchableOpacity>
 
-          {/* Card de Usuarios */}
-          <TouchableOpacity
-            style={styles.statCard}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("ManageUsers")}
-          >
-            <Card elevation={2} style={styles.card}>
-              <Card.Content style={styles.cardContent}>
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: theme.colors.surfaceVariant },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="account-group"
-                    size={32}
-                    color={theme.colors.primary}
-                  />
-                </View>
-                <View style={styles.statContent}>
-                  <Text variant="displaySmall" style={styles.statNumber}>
-                    {totalUsuarios}
-                  </Text>
-                  <Text
-                    variant="bodyLarge"
-                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+            {/* Card de Usuarios */}
+            <TouchableOpacity
+              style={styles.statCard}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("ManageUsers")}
+            >
+              <Card elevation={2} style={styles.card}>
+                <Card.Content style={styles.cardContent}>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: theme.colors.surfaceVariant },
+                    ]}
                   >
-                    Usuarios
-                  </Text>
-                </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                  style={styles.chevron}
-                />
-              </Card.Content>
-            </Card>
-          </TouchableOpacity>
-        </View>
+                    <MaterialCommunityIcons
+                      name="account-group"
+                      size={32}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <View style={styles.statContent}>
+                    <Text variant="displaySmall" style={styles.statNumber}>
+                      {totalUsuarios}
+                    </Text>
+                    <Text
+                      variant="bodyLarge"
+                      style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                    >
+                      Usuarios
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                    style={styles.chevron}
+                  />
+                </Card.Content>
+              </Card>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Segunda fila de cards */}
-        <View style={styles.statsGrid}>
-          {/* Card de Denuncias */}
-          <TouchableOpacity
-            style={styles.statCard}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("Reports")}
-          >
-            <Card elevation={2} style={styles.card}>
-              <Card.Content style={styles.cardContent}>
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: theme.colors.surfaceVariant },
-                  ]}
-                >
+        {loadingStats ? (
+          <View style={styles.statsGrid}>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </View>
+        ) : (
+          <View style={styles.statsGrid}>
+            {/* Card de Denuncias */}
+            <TouchableOpacity
+              style={styles.statCard}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("Reports")}
+            >
+              <Card elevation={2} style={styles.card}>
+                <Card.Content style={styles.cardContent}>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: theme.colors.surfaceVariant },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="alert-octagon"
+                      size={32}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <View style={styles.statContent}>
+                    <Text variant="displaySmall" style={styles.statNumber}>
+                      {denunciasPendientes}
+                    </Text>
+                    <Text
+                      variant="bodyLarge"
+                      style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                    >
+                      Denuncias
+                    </Text>
+                    <Text
+                      variant="bodySmall"
+                      style={[styles.subLabel, { color: theme.colors.onSurfaceVariant }]}
+                    >
+                      {totalDenuncias} total
+                    </Text>
+                  </View>
                   <MaterialCommunityIcons
-                    name="alert-octagon"
-                    size={32}
-                    color={theme.colors.primary}
+                    name="chevron-right"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                    style={styles.chevron}
                   />
-                </View>
-                <View style={styles.statContent}>
-                  <Text variant="displaySmall" style={styles.statNumber}>
-                    {denunciasPendientes}
-                  </Text>
-                  <Text
-                    variant="bodyLarge"
-                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
-                  >
-                    Denuncias
-                  </Text>
-                  <Text
-                    variant="bodySmall"
-                    style={[styles.subLabel, { color: theme.colors.onSurfaceVariant }]}
-                  >
-                    {totalDenuncias} total
-                  </Text>
-                </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                  style={styles.chevron}
-                />
-              </Card.Content>
-            </Card>
-          </TouchableOpacity>
+                </Card.Content>
+              </Card>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.statCard}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("Statistics")}
-          >
-            <Card elevation={2} style={styles.card}>
-              <Card.Content style={styles.cardContent}>
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: theme.colors.surfaceVariant },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="chart-bar"
-                    size={32}
-                    color={theme.colors.primary}
-                  />
-                </View>
-                <View style={styles.statContent}>
-                  <Text
-                    variant="bodyLarge"
-                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+            <TouchableOpacity
+              style={styles.statCard}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("Statistics")}
+            >
+              <Card elevation={2} style={styles.card}>
+                <Card.Content style={styles.cardContent}>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: theme.colors.surfaceVariant },
+                    ]}
                   >
-                    Estadísticas
-                  </Text>
-                </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                  style={styles.chevron}
-                />
-              </Card.Content>
-            </Card>
-          </TouchableOpacity>
-        </View>
+                    <MaterialCommunityIcons
+                      name="chart-bar"
+                      size={32}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <View style={styles.statContent}>
+                    <Text
+                      variant="bodyLarge"
+                      style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                    >
+                      Estadísticas
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                    style={styles.chevron}
+                  />
+                </Card.Content>
+              </Card>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Actividad Reciente */}
         <View style={styles.activitySection}>
@@ -302,19 +345,7 @@ export default function AdminScreen() {
           </View>
 
           {loadingActivities ? (
-            <Card elevation={1} style={styles.activityCard}>
-              <Card.Content>
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" />
-                  <Text
-                    variant="bodySmall"
-                    style={[styles.activityText, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}
-                  >
-                    Cargando actividad...
-                  </Text>
-                </View>
-              </Card.Content>
-            </Card>
+            <ActivitySectionSkeleton />
           ) : recentActivities.length > 0 ? (
             <Card 
               elevation={1} 
