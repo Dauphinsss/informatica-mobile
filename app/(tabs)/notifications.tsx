@@ -12,6 +12,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -217,11 +218,12 @@ export default function NotificationsScreen() {
     const fechaLimite = new Date(ahora);
     fechaLimite.setDate(fechaLimite.getDate() - dias);
 
+    // Eliminar notificaciones DENTRO del rango (desde hace X días hasta ahora)
     const notificacionesAEliminar = notificaciones.filter((notif) => {
       const fecha = notif.creadoEn?.toDate
         ? notif.creadoEn.toDate()
         : new Date(notif.creadoEn);
-      return fecha < fechaLimite;
+      return fecha >= fechaLimite; // Cambio: >= en lugar de <
     });
 
     if (notificacionesAEliminar.length === 0) {
@@ -239,22 +241,18 @@ export default function NotificationsScreen() {
     }
   };
 
-  const eliminarNotificacionesDeHoy = async () => {
+  const eliminarNotificacionesUltimas24Horas = async () => {
     setMenuVisible(false);
     setDeleting(true);
     
     const ahora = new Date();
-    const hoy = new Date(
-      ahora.getFullYear(),
-      ahora.getMonth(),
-      ahora.getDate()
-    );
+    const hace24Horas = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
 
     const notificacionesAEliminar = notificaciones.filter((notif) => {
       const fecha = notif.creadoEn?.toDate
         ? notif.creadoEn.toDate()
         : new Date(notif.creadoEn);
-      return fecha >= hoy;
+      return fecha >= hace24Horas;
     });
 
     if (notificacionesAEliminar.length === 0) {
@@ -266,7 +264,7 @@ export default function NotificationsScreen() {
       const ids = notificacionesAEliminar.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
-      console.error("Error al eliminar notificaciones de hoy:", error);
+      console.error("Error al eliminar notificaciones de últimas 24 horas:", error);
     } finally {
       setDeleting(false);
     }
@@ -301,6 +299,8 @@ export default function NotificationsScreen() {
         return "#ff9800";
       case "error":
         return "#f44336";
+      case "info":
+        return "#2196f3";
       default:
         return theme.colors.primary;
     }
@@ -351,24 +351,31 @@ export default function NotificationsScreen() {
           }
         >
           <Menu.Item
-            onPress={eliminarNotificacionesDeHoy}
-            title="Borrar de hoy"
-            leadingIcon="clock-remove"
+            onPress={() => {}}
+            title="Borrar Notificaciones"
+
+            titleStyle={{ color: theme.colors.primary }}
+          />
+          <Divider />
+          <Menu.Item
+            onPress={eliminarNotificacionesUltimas24Horas}
+            title="Últimas 24 horas"
+            leadingIcon="clock-time-four-outline"
           />
           <Menu.Item
             onPress={() => eliminarNotificacionesPorFecha(7)}
-            title="Borrar de +1 semana"
-            leadingIcon="calendar-clock"
+            title="Última semana"
+            leadingIcon="calendar-week"
           />
           <Menu.Item
             onPress={() => eliminarNotificacionesPorFecha(30)}
-            title="Borrar de +1 mes"
-            leadingIcon="calendar-month"
+            title="Últimos 30 días"
+            leadingIcon="calendar-range"
           />
           <Divider />
           <Menu.Item
             onPress={eliminarTodasLasNotificaciones}
-            title="Borrar todas"
+            title="Borrar todo"
             leadingIcon="delete-sweep"
             titleStyle={{ color: theme.colors.error }}
           />
