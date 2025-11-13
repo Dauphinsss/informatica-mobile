@@ -97,6 +97,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
     paddingHorizontal: 8,
+    minHeight: 44,
   },
   valueContainer: {
     flexDirection: "column",

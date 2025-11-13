@@ -1,24 +1,24 @@
 import { db } from "@/firebase";
 import {
-    ChartDataPoint,
-    GeneralStats,
-    PeriodComparison,
-    PostRanking,
-    PostSortType,
-    RankingStats,
-    SubjectRanking,
-    TimeFilter,
-    UserRanking,
+  ChartDataPoint,
+  GeneralStats,
+  PeriodComparison,
+  PostRanking,
+  PostSortType,
+  RankingStats,
+  SubjectRanking,
+  TimeFilter,
+  UserRanking,
 } from "@/scripts/types/Statistics.type";
 import {
-    collection,
-    doc,
-    getCountFromServer,
-    getDoc,
-    getDocs,
-    query,
-    Timestamp,
-    where
+  collection,
+  doc,
+  getCountFromServer,
+  getDoc,
+  getDocs,
+  query,
+  Timestamp,
+  where
 } from "firebase/firestore";
 
 const getTimeRange = (filter: TimeFilter): { startDate: Date; endDate: Date } => {
@@ -357,28 +357,30 @@ export const getHottestSubject = async (): Promise<SubjectRanking | null> => {
       }
     });
 
-    let maxCount = 0;
-    let topSubjectUid = "";
-    
-    subjectPublicationCount.forEach((count, uid) => {
-      if (count > maxCount) {
-        maxCount = count;
-        topSubjectUid = uid;
-      }
-    });
+    if (subjectPublicationCount.size === 0) {
+      return null;
+    }
 
-    if (!topSubjectUid) return null;
+    const sortedSubjects = Array.from(subjectPublicationCount.entries())
+      .sort((a, b) => b[1] - a[1]);
 
-    const subjectDoc = await getDoc(doc(db, "materias", topSubjectUid));
-    if (!subjectDoc.exists()) return null;
+    for (const [subjectUid, count] of sortedSubjects) {
+     const subjectDoc = await getDoc(doc(db, "materias", subjectUid));
+      
+      if (subjectDoc.exists()) {
+        const subjectData = subjectDoc.data();
+        const result = {
+          uid: subjectUid,
+          nombre: subjectData.nombre || "Materia desconocida",
+          descripcion: subjectData.descripcion,
+          value: count,
+        };
+        return result;
+      } else {
+        }
+    }
 
-    const subjectData = subjectDoc.data();
-    return {
-      uid: topSubjectUid,
-      nombre: subjectData.nombre || "Materia desconocida",
-      descripcion: subjectData.descripcion,
-      value: maxCount,
-    };
+    return null;
   } catch (error) {
     console.error("Error obteniendo materia más popular:", error);
     return null;

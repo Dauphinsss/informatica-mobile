@@ -199,6 +199,7 @@ export default function MisPublicacionesScreen() {
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [cargando, setCargando] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>('fecha');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const insets = useSafeAreaInsets();
@@ -404,28 +405,37 @@ export default function MisPublicacionesScreen() {
             <Appbar.Action icon="close" onPress={() => { setSelectionMode(false); setSelectedIds([]); }} />
           </>
         ) : (
-          <Appbar.Action
-            icon="select-multiple"
-            onPress={() => {
-              setSelectedIds([]);
-              setSelectionMode(true);
-            }}
-          />
+          <>
+            <Appbar.Action
+              icon="magnify"
+              onPress={() => setSearchOpen(!searchOpen)}
+            />
+            <Appbar.Action
+              icon="select-multiple"
+              onPress={() => {
+                setSelectedIds([]);
+                setSelectionMode(true);
+              }}
+            />
+          </>
         )}
       </Appbar.Header>
       <View style={{ flex: 1 }}>
-        <View style={styles.searchContainer}>
-          <View style={styles.searchbarWrapper}>
-            <Searchbar
-              placeholder="Buscar publicación..."
-              value={search}
-              onChangeText={setSearch}
-              style={styles.searchbar}
-              inputStyle={styles.searchbarInput}
-              iconColor={theme.colors.onBackground}
-            />
+        {searchOpen && (
+          <View style={styles.searchContainer}>
+            <View style={styles.searchbarWrapper}>
+              <Searchbar
+                placeholder="Buscar publicación..."
+                value={search}
+                onChangeText={setSearch}
+                style={styles.searchbar}
+                inputStyle={styles.searchbarInput}
+                iconColor={theme.colors.onBackground}
+                autoFocus
+              />
+            </View>
           </View>
-        </View>
+        )}
         {cargando ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator style={styles.loadingIndicator} />

@@ -2,12 +2,12 @@ import { CardSkeleton, ChartSkeleton, ListSkeleton } from "@/app/admin/component
 import { useTheme } from "@/contexts/ThemeContext";
 import { ChartDataPoint, PostSortType, TimeFilter } from "@/scripts/types/Statistics.type";
 import {
-    generateChartData,
-    getRankingStats,
-    getTopActiveUsers,
-    getTopPopularPosts,
-    getTopPopularSubjects,
-    getTopReportedUsers,
+  generateChartData,
+  getRankingStats,
+  getTopActiveUsers,
+  getTopPopularPosts,
+  getTopPopularSubjects,
+  getTopReportedUsers,
 } from "@/services/statistics.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
