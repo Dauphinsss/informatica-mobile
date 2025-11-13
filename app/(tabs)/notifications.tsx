@@ -7,6 +7,7 @@ import {
   marcarComoLeida,
   NotificacionCompleta,
 } from "@/services/notifications";
+import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ScrollView,
@@ -34,11 +35,11 @@ export default function NotificationsScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const user = auth.currentUser;
+  const navigation = useNavigation<any>();
   const [notificaciones, setNotificaciones] = useState<NotificacionCompleta[]>(
     []
   );
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [notifToDelete, setNotifToDelete] = useState<{ id: string; titulo: string } | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -62,20 +63,67 @@ export default function NotificationsScreen() {
     return () => unsubscribe();
   }, [user]);
 
-  const toggleExpand = async (notif: NotificacionCompleta) => {
-    if (expandedId === notif.id) {
-      setExpandedId(null);
-    } else {
-      setExpandedId(notif.id);
-    }
-
-    // Marcar como leída cuando se toca
+  const handleNotificationPress = async (notif: NotificacionCompleta) => {
+    // Marcar como leída
     if (!notif.leida) {
       try {
         await marcarComoLeida(notif.id);
       } catch (error) {
         console.error("Error al marcar como leída:", error);
       }
+    }
+
+    // Navegar según el tipo de notificación
+    const metadata = notif.metadata;
+    
+    if (!metadata) {
+      console.log('Notificación sin metadata, solo marcando como leída');
+      return;
+    }
+
+    try {
+      // Obtener la navegación del tab padre
+      const tabNavigation = navigation.getParent() || navigation;
+
+      switch (metadata.accion) {
+        case 'ver_publicacion':
+          if (metadata.materiaId && metadata.publicacionId) {
+            console.log('[Notificación] Navegando a publicación:', metadata.publicacionId);
+            tabNavigation.navigate('Home', {
+              screen: 'PublicationDetail',
+              params: {
+                publicacionId: metadata.publicacionId,
+                materiaNombre: metadata.materiaNombre || 'Publicación',
+              },
+            });
+          }
+          break;
+
+        case 'ver_materia':
+          if (metadata.materiaId) {
+            console.log('[Notificación] Navegando a materia:', metadata.materiaId);
+            tabNavigation.navigate('Home', {
+              screen: 'SubjectDetail',
+              params: {
+                id: metadata.materiaId,
+                materiaId: metadata.materiaId,
+                nombre: metadata.materiaNombre || 'Materia',
+              },
+            });
+          }
+          break;
+
+        case 'admin_decision':
+          console.log('[Notificación] Decisión de admin, permaneciendo en notificaciones');
+          // Ya estamos en la pantalla de notificaciones, no hacemos nada más
+          break;
+
+        default:
+          console.log('[Notificación] Acción no reconocida:', metadata.accion);
+          break;
+      }
+    } catch (error) {
+      console.error('Error al navegar desde notificación:', error);
     }
   };
 
@@ -366,7 +414,7 @@ export default function NotificationsScreen() {
                   >
                     <Animated.View>
                       <TouchableOpacity
-                        onPress={() => toggleExpand(notif)}
+                        onPress={() => handleNotificationPress(notif)}
                         activeOpacity={0.7}
                         style={[
                           styles.notifItem,

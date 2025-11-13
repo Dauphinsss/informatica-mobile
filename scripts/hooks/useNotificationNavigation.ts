@@ -215,6 +215,13 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
       return;
     }
 
+    if (!navigation) {
+      console.warn('No hay navigation disponible en handleNotificationNavigation');
+      return;
+    }
+
+    const tabNavigation = navigation.getParent?.() || navigation;
+
     if (data?.publicacionId && data?.materiaId) {
       goTo(`/materias/${data.materiaId}/publicaciones/${data.publicacionId}`, data);
       return;
@@ -237,7 +244,13 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         
       case 'ver_materia':
       case 'notificacion_materia':
-        console.log('Ignorando ver_materia, manejado por configurarListenerNotificaciones');
+        if (data.materiaId) {
+          console.log('[Notificación] Navegando a materia:', data.materiaId);
+          goTo(`/materias/${data.materiaId}`, data);
+        } else {
+          console.log('[Notificación] Navegando a lista de materias (Home)');
+          tabNavigation.navigate('Home', { screen: 'HomeMain' });
+        }
         break;
         
       case 'admin_decision':

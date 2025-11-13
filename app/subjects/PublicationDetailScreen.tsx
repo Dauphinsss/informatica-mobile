@@ -1,22 +1,23 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
-  eliminarArchivo,
-  guardarEnlaceExterno,
-  obtenerTiposArchivo,
-  seleccionarArchivo,
-  subirArchivo,
+    eliminarArchivo,
+    guardarEnlaceExterno,
+    obtenerTiposArchivo,
+    seleccionarArchivo,
+    subirArchivo,
 } from "@/scripts/services/Files";
 import {
-  incrementarVistas,
-  obtenerArchivosConTipo,
-  obtenerPublicacionPorId,
+    incrementarVistas,
+    obtenerArchivosConTipo,
+    obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
 import { eliminarPublicacionYArchivos } from "@/scripts/services/Reports";
 import {
-  ArchivoPublicacion,
-  Publicacion,
+    ArchivoPublicacion,
+    Publicacion,
 } from "@/scripts/types/Publication.type";
+import { registrarActividadCliente } from "@/services/activity.service";
 import { comentariosService } from "@/services/comments.service";
 import * as downloadsService from "@/services/downloads.service";
 import { likesService } from "@/services/likes.service";
@@ -24,48 +25,47 @@ import { compartirPublicacionMejorado } from "@/services/shareService";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getAuth } from "firebase/auth";
 import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  increment,
-  onSnapshot,
-  query,
-  setDoc,
-  Timestamp,
-  updateDoc,
-  where,
+    addDoc,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    increment,
+    onSnapshot,
+    query,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where,
 } from "firebase/firestore";
-import { registrarActividadCliente } from "@/services/activity.service";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Dimensions,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  ScrollView,
-  View,
+    Dimensions,
+    Image,
+    KeyboardAvoidingView,
+    Linking,
+    Platform,
+    ScrollView,
+    View,
 } from "react-native";
 import {
-  ActivityIndicator,
-  Appbar,
-  Avatar,
-  Button,
-  Card,
-  Chip,
-  Dialog,
-  Divider,
-  IconButton,
-  Portal,
-  Text,
-  TextInput,
+    ActivityIndicator,
+    Appbar,
+    Avatar,
+    Button,
+    Card,
+    Chip,
+    Dialog,
+    Divider,
+    IconButton,
+    Portal,
+    Text,
+    TextInput,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomAlert, {
-  CustomAlertButton,
-  CustomAlertType,
+    CustomAlertButton,
+    CustomAlertType,
 } from "../../components/ui/CustomAlert";
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import CommentsModal from "../components/comments/CommentsModal";

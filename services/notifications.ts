@@ -1,18 +1,18 @@
 import { db } from "@/firebase";
 import { getNotificationSettings } from "@/hooks/useNotificationSettings";
 import {
-    addDoc,
-    collection,
-    doc,
-    documentId,
-    getDocs,
-    limit,
-    onSnapshot,
-    query,
-    serverTimestamp,
-    updateDoc,
-    where,
-    writeBatch,
+  addDoc,
+  collection,
+  doc,
+  documentId,
+  getDocs,
+  limit,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
 } from "firebase/firestore";
 import { enviarNotificacionLocal } from "./pushNotifications";
 
@@ -26,7 +26,13 @@ export interface NotificacionBase {
   metadata?: {
     materiaId?: string;
     materiaNombre?: string;
+    publicacionId?: string;
     accion?: string;
+    tipo?: string;
+    publicacionTitulo?: string;
+    motivo?: string;
+    decision?: string;
+    tipoAccion?: string;
   };
 }
 
@@ -515,6 +521,7 @@ export const notificarDecisionAdminAutor = async ({
     'account-alert',
     {
       tipo: 'admin_decision',
+      accion: 'admin_decision',
       publicacionTitulo,
       motivo,
       decision,
@@ -564,6 +571,7 @@ export const notificarDecisionAdminDenunciantes = async ({
     'account-alert',
     {
       tipo: 'admin_decision',
+      accion: 'admin_decision',
       publicacionTitulo,
       motivo,
       decision,
