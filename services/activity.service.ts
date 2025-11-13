@@ -4,6 +4,7 @@ import {
     addDoc,
     collection,
     DocumentData,
+    getCountFromServer,
     getDocs,
     limit,
     onSnapshot,
@@ -108,4 +109,41 @@ export const escucharActividadesRecientes = (
     console.error("[Actividad] Error en listener:", error);
     callback([]);
   });
+};
+
+export const contarTotalActividades = async (): Promise<number> => {
+  try {
+    const actividadRef = collection(db, "actividad_reciente");
+    const snapshot = await getCountFromServer(actividadRef);
+    return snapshot.data().count;
+  } catch (error) {
+    console.error("[Actividad] Error contando actividades:", error);
+    return 0;
+  }
+};
+
+export const obtenerActividadesPorPagina = async (
+  page: number,
+  itemsPerPage: number = 20
+): Promise<{ activities: ActivityLog[]; totalCount: number }> => {
+  try {
+    const totalCount = await contarTotalActividades();
+    const offset = (page - 1) * itemsPerPage;
+    
+    const actividadRef = collection(db, "actividad_reciente");
+    const q = query(actividadRef, orderBy("timestamp", "desc"), limit(offset + itemsPerPage));
+    
+    const snapshot = await getDocs(q);
+    const allDocs = snapshot.docs.slice(offset, offset + itemsPerPage);
+    
+    const activities: ActivityLog[] = allDocs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    } as ActivityLog));
+
+    return { activities, totalCount };
+  } catch (error) {
+    console.error("[Actividad] Error obteniendo actividades por página:", error);
+    return { activities: [], totalCount: 0 };
+  }
 };

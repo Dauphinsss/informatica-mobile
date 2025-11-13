@@ -246,3 +246,104 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 });
+
+export function ActivityListSkeleton({ count = 5 }: { count?: number }) {
+  const { theme } = useTheme();
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [shimmerAnim]);
+
+  const opacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={activityStyles.container}>
+      {Array.from({ length: count }).map((_, index) => (
+        <View key={index} style={activityStyles.item}>
+          <Animated.View
+            style={[
+              activityStyles.iconPlaceholder,
+              { backgroundColor: theme.colors.surfaceVariant, opacity },
+            ]}
+          />
+          <View style={activityStyles.content}>
+            <Animated.View
+              style={[
+                activityStyles.titlePlaceholder,
+                { backgroundColor: theme.colors.surfaceVariant, opacity },
+              ]}
+            />
+            <Animated.View
+              style={[
+                activityStyles.subtitlePlaceholder,
+                { backgroundColor: theme.colors.surfaceVariant, opacity },
+              ]}
+            />
+            <Animated.View
+              style={[
+                activityStyles.timePlaceholder,
+                { backgroundColor: theme.colors.surfaceVariant, opacity },
+              ]}
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const activityStyles = StyleSheet.create({
+  container: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 12,
+  },
+  item: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    gap: 12,
+  },
+  iconPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  content: {
+    flex: 1,
+    gap: 8,
+  },
+  titlePlaceholder: {
+    width: "85%",
+    height: 16,
+    borderRadius: 4,
+  },
+  subtitlePlaceholder: {
+    width: "65%",
+    height: 14,
+    borderRadius: 4,
+  },
+  timePlaceholder: {
+    width: "40%",
+    height: 12,
+    borderRadius: 4,
+  },
+});

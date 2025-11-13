@@ -1,17 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, ScrollView, StyleSheet } from "react-native";
-import { Appbar, Text, ActivityIndicator, Divider, Button } from "react-native-paper";
+import { Appbar, Text, ActivityIndicator, Divider } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/ThemeContext";
 import ActivityCard from "./components/ActivityCard";
 import ActivityDetailModal from "./components/ActivityDetailModal";
-import { obtenerActividadesRecientes } from "@/services/activity.service";
+import Pagination from "./components/Pagination";
+import { ActivityListSkeleton } from "./components/SkeletonLoaders";
+import { obtenerActividadesPorPagina } from "@/services/activity.service";
 import { ActivityLog } from "@/scripts/types/Activity.type";
-import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 25;
 
 export default function AllActivityScreen() {
   const navigation = useNavigation();
@@ -19,23 +20,52 @@ export default function AllActivityScreen() {
   const insets = useSafeAreaInsets();
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLog | null>(null);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
+  const [pageCache, setPageCache] = useState<Map<number, ActivityLog[]>>(new Map());
+  const scrollRef = useRef<any>(null);
 
   useEffect(() => {
-    loadActivities();
-  }, []);
+    loadActivities(currentPage);
+    if (currentPage > 1) {
+      preloadPage(currentPage - 1);
+    }
+    if (currentPage < totalPages) {
+      preloadPage(currentPage + 1);
+    }
+  }, [currentPage, totalPages]);
 
-  const loadActivities = async () => {
+  const preloadPage = async (page: number) => {
+    if (pageCache.has(page)) return;
+
+    if (page < 1 || page > totalPages) return;
+    
+    try {
+      const { activities: newActivities } = await obtenerActividadesPorPagina(page, ITEMS_PER_PAGE);
+      setPageCache(prev => new Map(prev).set(page, newActivities));
+    } catch (error) {
+      console.error(`Error precargando página ${page}:`, error);
+    }
+  };
+
+  const loadActivities = async (page: number) => {
     try {
       setLoading(true);
-      const { activities: newActivities, lastVisible } = await obtenerActividadesRecientes(ITEMS_PER_PAGE);
+      
+      if (pageCache.has(page)) {
+        setActivities(pageCache.get(page)!);
+        setLoading(false);
+        return;
+      }
+      
+      const { activities: newActivities, totalCount: count } = await obtenerActividadesPorPagina(page, ITEMS_PER_PAGE);
       setActivities(newActivities);
-      setLastDoc(lastVisible);
-      setHasMore(newActivities.length === ITEMS_PER_PAGE);
+      setTotalCount(count);
+      setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
+      setPageCache(prev => new Map(prev).set(page, newActivities));
     } catch (error) {
       console.error("Error cargando actividades:", error);
     } finally {
@@ -43,20 +73,14 @@ export default function AllActivityScreen() {
     }
   };
 
-  const loadMore = async () => {
-    if (!hasMore || loadingMore || !lastDoc) return;
-
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
     try {
-      setLoadingMore(true);
-      const { activities: newActivities, lastVisible } = await obtenerActividadesRecientes(ITEMS_PER_PAGE, lastDoc);
-      
-      setActivities(prev => [...prev, ...newActivities]);
-      setLastDoc(lastVisible);
-      setHasMore(newActivities.length === ITEMS_PER_PAGE && activities.length + newActivities.length < 200);
-    } catch (error) {
-      console.error("Error cargando más actividades:", error);
-    } finally {
-      setLoadingMore(false);
+      scrollRef.current?.scrollTo({ 
+        y: 0, 
+        animated: true 
+      });
+    } catch (e) {
     }
   };
 
@@ -64,20 +88,22 @@ export default function AllActivityScreen() {
     <View style={[styles.container, { backgroundColor: theme.colors.background, paddingBottom: insets.bottom }]}>
       <Appbar.Header
         elevated
-        style={{ backgroundColor: theme.colors.surface, paddingTop: insets.top }}
+        style={{ backgroundColor: theme.colors.surface }}
       >
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Toda la Actividad" />
       </Appbar.Header>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
-            Cargando actividad...
-          </Text>
-        </View>
-      ) : activities.length === 0 ? (
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.activityContainer, { backgroundColor: theme.colors.elevation.level1 }]}>
+            <ActivityListSkeleton count={ITEMS_PER_PAGE} />
+          </View>
+        </ScrollView>
+      ) : totalCount === 0 ? (
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons
             name="history"
@@ -90,49 +116,39 @@ export default function AllActivityScreen() {
         </View>
       ) : (
         <ScrollView
+          ref={scrollRef}
           style={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.activityContainer, { backgroundColor: theme.colors.elevation.level1 }]}>
-            {activities.map((activity, index) => (
-              <React.Fragment key={activity.id}>
-                <ActivityCard
-                  activity={activity} 
-                  onPress={() => {
-                    setSelectedActivity(activity);
-                    setActivityModalVisible(true);
-                  }}
-                />
-                {index < activities.length - 1 && <Divider />}
-              </React.Fragment>
-            ))}
-          </View>
-
-          {hasMore && (
-            <View style={styles.loadMoreContainer}>
-              <Button
-                mode="outlined"
-                onPress={loadMore}
-                loading={loadingMore}
-                disabled={loadingMore}
-                icon="refresh"
-              >
-                {loadingMore ? 'Cargando...' : 'Cargar más'}
-              </Button>
+            <View style={[styles.activityContainer, { backgroundColor: theme.colors.elevation.level1 }]}>
+              {activities.map((activity, index) => (
+                <React.Fragment key={activity.id}>
+                  <ActivityCard
+                    activity={activity} 
+                    onPress={() => {
+                      setSelectedActivity(activity);
+                      setActivityModalVisible(true);
+                    }}
+                  />
+                  {index < activities.length - 1 && <Divider />}
+                </React.Fragment>
+              ))}
             </View>
-          )}
 
-          {!hasMore && activities.length > 0 && (
-            <View style={styles.endContainer}>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {activities.length >= 200 
-                  ? 'Has alcanzado el límite de 200 registros'
-                  : 'No hay más actividad para mostrar'}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              disabled={loading}
+            />
+
+            <View style={styles.resultsInfoBottom}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} de {totalCount} actividades
               </Text>
             </View>
-          )}
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 20 }} />
         </ScrollView>
       )}
       <ActivityDetailModal
@@ -171,18 +187,19 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
   },
+  resultsInfo: {
+    marginBottom: 12,
+    alignItems: 'center',
+  },
   activityContainer: {
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 16,
     paddingHorizontal: 12,
   },
-  loadMoreContainer: {
+  resultsInfoBottom: {
+    marginTop: 4,
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  endContainer: {
-    alignItems: 'center',
-    paddingVertical: 16,
+    marginBottom: 8,
   },
 });
