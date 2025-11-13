@@ -274,3 +274,5 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
+
+{/* No habrán configuración de sonido y vibración debido a la complejidad del mismo y los bugs que ocasiona */}
