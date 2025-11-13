@@ -1,6 +1,7 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth } from "@/firebase";
 import {
+  eliminarNotificacionesUsuarioBatch,
   eliminarNotificacionUsuario,
   escucharNotificaciones,
   marcarComoLeida,
@@ -22,6 +23,7 @@ import {
   Divider,
   IconButton,
   List,
+  Menu,
   Portal,
   Text,
 } from "react-native-paper";
@@ -39,6 +41,8 @@ export default function NotificationsScreen() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [notifToDelete, setNotifToDelete] = useState<{ id: string; titulo: string } | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -155,6 +159,88 @@ export default function NotificationsScreen() {
     <View style={[styles.swipeBackground, { backgroundColor: theme.colors.background }]} />
   );
 
+  const eliminarNotificacionesPorFecha = async (dias: number) => {
+    setMenuVisible(false);
+    setDeleting(true);
+    
+    const ahora = new Date();
+    const fechaLimite = new Date(ahora);
+    fechaLimite.setDate(fechaLimite.getDate() - dias);
+
+    const notificacionesAEliminar = notificaciones.filter((notif) => {
+      const fecha = notif.creadoEn?.toDate
+        ? notif.creadoEn.toDate()
+        : new Date(notif.creadoEn);
+      return fecha < fechaLimite;
+    });
+
+    if (notificacionesAEliminar.length === 0) {
+      setDeleting(false);
+      return;
+    }
+
+    try {
+      const ids = notificacionesAEliminar.map((notif) => notif.id);
+      await eliminarNotificacionesUsuarioBatch(ids);
+    } catch (error) {
+      console.error("Error al eliminar notificaciones:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const eliminarNotificacionesDeHoy = async () => {
+    setMenuVisible(false);
+    setDeleting(true);
+    
+    const ahora = new Date();
+    const hoy = new Date(
+      ahora.getFullYear(),
+      ahora.getMonth(),
+      ahora.getDate()
+    );
+
+    const notificacionesAEliminar = notificaciones.filter((notif) => {
+      const fecha = notif.creadoEn?.toDate
+        ? notif.creadoEn.toDate()
+        : new Date(notif.creadoEn);
+      return fecha >= hoy;
+    });
+
+    if (notificacionesAEliminar.length === 0) {
+      setDeleting(false);
+      return;
+    }
+
+    try {
+      const ids = notificacionesAEliminar.map((notif) => notif.id);
+      await eliminarNotificacionesUsuarioBatch(ids);
+    } catch (error) {
+      console.error("Error al eliminar notificaciones de hoy:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const eliminarTodasLasNotificaciones = async () => {
+    setMenuVisible(false);
+    setDeleting(true);
+    
+    if (notificaciones.length === 0) {
+      setDeleting(false);
+      return;
+    }
+
+    try {
+      const ids = notificaciones.map((notif) => notif.id);
+      await eliminarNotificacionesUsuarioBatch(ids);
+    } catch (error) {
+      console.error("Error al eliminar todas las notificaciones:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getIconColor = (tipo: string, leida: boolean) => {
     if (leida) return theme.colors.outline;
 
@@ -202,6 +288,40 @@ export default function NotificationsScreen() {
     >
       <Appbar.Header>
         <Appbar.Content title="Notificaciones" />
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={
+            <Appbar.Action
+              icon="dots-vertical"
+              onPress={() => setMenuVisible(true)}
+              disabled={deleting}
+            />
+          }
+        >
+          <Menu.Item
+            onPress={eliminarNotificacionesDeHoy}
+            title="Borrar de hoy"
+            leadingIcon="clock-remove"
+          />
+          <Menu.Item
+            onPress={() => eliminarNotificacionesPorFecha(7)}
+            title="Borrar de +1 semana"
+            leadingIcon="calendar-clock"
+          />
+          <Menu.Item
+            onPress={() => eliminarNotificacionesPorFecha(30)}
+            title="Borrar de +1 mes"
+            leadingIcon="calendar-month"
+          />
+          <Divider />
+          <Menu.Item
+            onPress={eliminarTodasLasNotificaciones}
+            title="Borrar todas"
+            leadingIcon="delete-sweep"
+            titleStyle={{ color: theme.colors.error }}
+          />
+        </Menu>
       </Appbar.Header>
 
       {loading ? (
@@ -378,6 +498,17 @@ export default function NotificationsScreen() {
               Eliminar
             </Button>
           </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <Portal>
+        <Dialog visible={deleting} dismissable={false}>
+          <Dialog.Content style={{ alignItems: 'center', paddingVertical: 30 }}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text variant="bodyLarge" style={{ marginTop: 20, color: theme.colors.onSurface }}>
+              Eliminando notificaciones...
+            </Text>
+          </Dialog.Content>
         </Dialog>
       </Portal>
     </View>

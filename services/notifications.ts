@@ -256,6 +256,29 @@ export const eliminarNotificacionUsuario = async (
 };
 
 /**
+ * Eliminar múltiples notificaciones de usuario en batch (más eficiente)
+ */
+export const eliminarNotificacionesUsuarioBatch = async (
+  notificacionUsuarioIds: string[]
+) => {
+  try {
+    const batch = writeBatch(db);
+    
+    notificacionUsuarioIds.forEach((id) => {
+      const notifUsuarioRef = doc(db, "notificacionesUsuario", id);
+      batch.update(notifUsuarioRef, {
+        eliminada: true,
+      });
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error("❌ Error al eliminar notificaciones en batch:", error);
+    throw error;
+  }
+};
+
+/**
  * Obtener contador de notificaciones no leídas
  */
 export const obtenerContadorNoLeidas = (
