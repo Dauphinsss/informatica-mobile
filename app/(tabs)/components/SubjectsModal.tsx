@@ -65,6 +65,7 @@ export default function SubjectsModal({
   const [subjectMaterials, setSubjectMaterials] = useState<Record<string, number>>({});
   const scrollViewRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const subjectLayouts = useRef<Map<string, { y: number; height: number }>>(new Map());
 
   const handleDismiss = () => {
     onDismiss();
@@ -172,7 +173,7 @@ export default function SubjectsModal({
     };
   }, [visible, subjects]);
 
-  // Auto-abrir el acordeón del semestre con materias nuevas
+  // Auto-abrir el acordeón del semestre con materias nuevas y hacer scroll
   useEffect(() => {
     if (visible && subjects.length > 0 && newSubjectIds.length > 0) {
       const newSubject = subjects.find(s => newSubjectIds.includes(s.id));
@@ -180,6 +181,28 @@ export default function SubjectsModal({
         const semestreLabel = formatSemestre(newSubject.semestre);
         
         setExpandedAccordions(new Set([semestreLabel]));
+        
+        setTimeout(() => {
+          if (scrollViewRef.current) {
+            const semestreIndex = groupedSubjects.findIndex(g => g.label === semestreLabel);
+            
+            if (semestreIndex !== -1) {
+              const accordionHeaderHeight = 60;
+              const estimatedY = semestreIndex * accordionHeaderHeight;
+              
+              const materiaIndex = groupedSubjects[semestreIndex].subjects.findIndex(s => s.id === newSubject.id);
+              const materiaHeight = 65;
+              const materiaY = estimatedY + accordionHeaderHeight + (materiaIndex * materiaHeight);
+              
+              const scrollY = Math.max(0, materiaY - 200);
+              
+              scrollViewRef.current.scrollTo({
+                y: scrollY,
+                animated: true,
+              });
+            }
+          }
+        }, 700);
         
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -199,7 +222,7 @@ export default function SubjectsModal({
     } else if (visible && subjects.length > 0 && newSubjectIds.length === 0) {
       setExpandedAccordions(new Set([groupedSubjects[0]?.label].filter(Boolean)));
     }
-  }, [visible, subjects, newSubjectIds]);
+  }, [visible, subjects, newSubjectIds, groupedSubjects]);
 
   const fetchSubjects = async () => {
     setLoadingSubjects(true);
@@ -295,7 +318,7 @@ export default function SubjectsModal({
         </View>
         <Divider />
 
-        <ScrollView style={styles.modalContent}>
+        <ScrollView ref={scrollViewRef} style={styles.modalContent}>
           {loadingSubjects ? (
             <SubjectsModalSkeleton />
           ) : subjects.length === 0 ? (
@@ -351,7 +374,13 @@ export default function SubjectsModal({
                       };
                       
                       return (
-                        <View key={subject.id}>
+                        <View 
+                          key={subject.id}
+                          onLayout={(event) => {
+                            const { y, height } = event.nativeEvent.layout;
+                            subjectLayouts.current.set(subject.id, { y, height });
+                          }}
+                        >
                           <List.Item
                             style={styles.listItemNoMargin}
                             title={

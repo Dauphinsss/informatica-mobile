@@ -335,6 +335,7 @@ export default function NotificationsScreen() {
       ]}
     >
       <Appbar.Header>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Notificaciones" />
         <Menu
           visible={menuVisible}

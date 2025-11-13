@@ -1,69 +1,77 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useState } from "react";
-
-const NOTIFICATION_SETTINGS_KEY = "notificationSettings";
+import { db } from "@/firebase";
+import { getAuth } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export interface NotificationSettings {
-  fcmEnabled: boolean;
-  localNotificationsEnabled: boolean;
   newPublicationsEnabled: boolean;
   newSubjectsEnabled: boolean;
-  commentsEnabled: boolean;
-  likesEnabled: boolean;
   adminAlertsEnabled: boolean;
-  sound: boolean;
-  vibration: boolean;
 }
 
 export const DEFAULT_SETTINGS: NotificationSettings = {
-  fcmEnabled: true,
-  localNotificationsEnabled: true,
   newPublicationsEnabled: true,
   newSubjectsEnabled: true,
-  commentsEnabled: true,
-  likesEnabled: true,
   adminAlertsEnabled: true,
-  sound: true,
-  vibration: true,
 };
 
-export function useNotificationSettings() {
-  const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = useCallback(async () => {
-    try {
-      const saved = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
-      if (saved) {
-        setSettings(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.error("Error loading notification settings:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  return { settings, isLoading };
-}
-
-export async function getNotificationSettings(): Promise<NotificationSettings> {
+/**
+ * Obtiene las configuraciones de notificaciones desde Firestore
+ * Si no existen, retorna DEFAULT_SETTINGS
+ */
+export async function getNotificationSettings(userId?: string): Promise<NotificationSettings> {
   try {
-    const saved = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
-    if (saved) {
-      return JSON.parse(saved);
+    let uid = userId;
+    
+    // Si no se proporciona userId, obtenerlo del usuario actual
+    if (!uid) {
+      const auth = getAuth();
+      uid = auth.currentUser?.uid;
     }
+    
+    if (!uid) {
+      return DEFAULT_SETTINGS;
+    }
+
+    const settingsRef = doc(db, 'notificationSettings', uid);
+    const settingsSnap = await getDoc(settingsRef);
+
+    if (settingsSnap.exists()) {
+      const data = settingsSnap.data() as NotificationSettings;
+      return data;
+    }
+
+    // Si no existen configuraciones, retornar defaults SIN crear el documento
+    // (el documento se creará cuando el usuario entre a configuración)
     return DEFAULT_SETTINGS;
   } catch (error) {
-    console.error("Error loading notification settings:", error);
+    // En caso de error de permisos u otro, retornar defaults
     return DEFAULT_SETTINGS;
   }
 }
 
-export function shouldSendNotification(type: 'publication' | 'subject' | 'comment' | 'like' | 'adminAlert'): boolean | undefined {
-  return undefined;
+/**
+ * Guarda las configuraciones de notificaciones en Firestore
+ */
+export async function saveNotificationSettings(
+  settings: NotificationSettings,
+  userId?: string
+): Promise<void> {
+  try {
+    let uid = userId;
+    
+    if (!uid) {
+      const auth = getAuth();
+      uid = auth.currentUser?.uid;
+    }
+    
+    if (!uid) {
+      return;
+    }
+
+    const settingsRef = doc(db, 'notificationSettings', uid);
+    await setDoc(settingsRef, settings, { merge: true });
+  } catch (error) {
+    console.error("[Settings] Error saving notification settings:", error);
+    throw error;
+  }
 }

@@ -245,8 +245,18 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
       case 'ver_materia':
       case 'notificacion_materia':
         if (data.materiaId) {
-          console.log('[Notificación] Navegando a materia:', data.materiaId);
-          goTo(`/materias/${data.materiaId}`, data);
+          console.log('[Notificación] Abriendo modal de materias con materia:', data.materiaId);
+          
+          // Importar dinámicamente para evitar problemas de dependencias circulares
+          import('@/services/navigationService').then(({ openSubjectsModalWithMateria }) => {
+            // Primero navegar al tab Home
+            tabNavigation.navigate('Home', { screen: 'HomeMain' });
+            
+            // Pequeño delay para asegurar que el tab esté activo antes de abrir el modal
+            setTimeout(() => {
+              openSubjectsModalWithMateria(data.materiaId!);
+            }, 300);
+          });
         } else {
           console.log('[Notificación] Navegando a lista de materias (Home)');
           tabNavigation.navigate('Home', { screen: 'HomeMain' });
