@@ -1,12 +1,9 @@
 import SuspendedModal from "@/components/ui/suspended-modal";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import {
-    configurarCanalAndroid,
-    configurarListenerNotificaciones,
-    registrarTokens,
-    solicitarPermisosNotificaciones,
+  configurarCanalAndroid,
+  solicitarPermisosNotificaciones,
 } from "@/services/pushNotifications";
-import * as Notificacions from 'expo-notifications';
 import { StatusBar } from "expo-status-bar";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -30,7 +27,6 @@ function AppContent() {
     const inicializarNotificaciones = async () => {
       await configurarCanalAndroid();
       await solicitarPermisosNotificaciones();
-      configurarListenerNotificaciones();
     };
     inicializarNotificaciones();
   }, []);
@@ -65,10 +61,14 @@ function AppContent() {
   useEffect(() => {
     const registerTokens = async () => {
       if (user) {
-        const expoToken = (await Notificacions.getExpoPushTokenAsync({ projectId: '7c7b0c2f-b147-414d-90e9-e80c65c42571' })).data;
-        const { data: fcmToken } = await Notificacions.getDevicePushTokenAsync();
-        console.log("Registrando tokens:", { expoToken, fcmToken });
-        registrarTokens(user.uid, expoToken, fcmToken);
+        try {
+          const { regenerarTokens } = await import("@/services/pushNotifications");
+          // Regenerar tokens cada vez que se abre la app
+          await regenerarTokens(user.uid);
+          console.log("Tokens regenerados exitosamente");
+        } catch (err) {
+          console.warn("Error regenerando tokens:", err);
+        }
       }
     };
     registerTokens();

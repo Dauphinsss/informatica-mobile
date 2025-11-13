@@ -202,6 +202,38 @@ export async function registrarTokens(uid: string, expoToken: string, fcmToken: 
   }
 }
 
+/**
+ * Limpia todos los tokens antiguos y registra nuevos tokens
+ * Se ejecuta cada vez que se abre la app para evitar tokens huérfanos
+ */
+export async function regenerarTokens(uid: string) {
+  try {
+    console.log('[Tokens] Regenerando tokens para usuario:', uid);
+    
+    // 1. Obtener nuevos tokens
+    const expoToken = await obtenerExpoPushToken();
+    const fcmToken = await obtenerFCMToken();
+
+    if (!expoToken || !fcmToken) {
+      console.warn('[Tokens] No se pudieron obtener tokens');
+      return;
+    }
+
+    console.log('[Tokens] Nuevos tokens obtenidos');
+
+    // 2. Limpiar tokens antiguos y registrar los nuevos
+    const userRef = doc(db, 'usuarios', uid);
+    await updateDoc(userRef, {
+      tokens: [expoToken],      // Reemplaza el array completo
+      pushTokens: [fcmToken],   // Reemplaza el array completo
+    });
+
+    console.log('[Tokens] Tokens regenerados exitosamente');
+  } catch (error) {
+    console.error('[Tokens] Error al regenerar tokens:', error);
+  }
+}
+
 export async function registrarTokensUsuario(uid: string) {
   const expoToken = await obtenerExpoPushToken();
   const fcmToken = await obtenerFCMToken();
