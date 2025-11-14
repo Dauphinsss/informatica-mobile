@@ -573,6 +573,7 @@ const styles = {
   },
   searchbar: {
     marginBottom: 16,
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,

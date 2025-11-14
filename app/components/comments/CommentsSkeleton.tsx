@@ -20,6 +20,7 @@ const SkeletonElement: React.FC<{
   style?: any;
 }> = ({ width = '100%', height = 16, borderRadius = 4, style }) => {
   const pulseAnim = useRef(new Animated.Value(0.5)).current;
+  const theme = useTheme();
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -47,7 +48,7 @@ const SkeletonElement: React.FC<{
           width,
           height,
           borderRadius,
-          backgroundColor: '#E1E9EE',
+          backgroundColor: theme.colors.surfaceVariant,
           opacity: pulseAnim,
         },
         style,
@@ -153,7 +154,6 @@ export const CommentsModalSkeleton: React.FC = () => {
     handle: {
       width: 40,
       height: 4,
-      backgroundColor: '#E1E9EE',
       borderRadius: 2,
       alignSelf: 'center',
       marginVertical: 12,
@@ -165,7 +165,7 @@ export const CommentsModalSkeleton: React.FC = () => {
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: '#E1E9EE',
+      borderBottomColor: theme.colors.surfaceVariant,
     },
     content: {
       flex: 1,
@@ -180,7 +180,7 @@ export const CommentsModalSkeleton: React.FC = () => {
       paddingTop: 12,
       paddingBottom: 16,
       borderTopWidth: 1,
-      borderTopColor: '#E1E9EE',
+      borderTopColor: theme.colors.surfaceVariant,
     },
     inputRow: {
       flexDirection: 'row',
@@ -200,7 +200,7 @@ export const CommentsModalSkeleton: React.FC = () => {
       
       <View style={styles.modalContainer}>
         {/* Handle */}
-        <View style={styles.handle} />
+        <View style={[styles.handle, { backgroundColor: theme.colors.surfaceVariant }]} />
         
         {/* Header */}
         <View style={styles.header}>

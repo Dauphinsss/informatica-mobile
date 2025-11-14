@@ -13,6 +13,7 @@ const SkeletonElement: React.FC<{
   style?: any;
 }> = ({ width = '100%', height = 16, borderRadius = 4, style }) => {
   const pulseAnim = useRef(new Animated.Value(0.5)).current;
+  const theme = useTheme();
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -40,7 +41,7 @@ const SkeletonElement: React.FC<{
           width,
           height,
           borderRadius,
-          backgroundColor: '#E1E9EE',
+          backgroundColor: theme.colors.surfaceVariant,
           opacity: pulseAnim,
         },
         style,
@@ -65,7 +66,7 @@ const PublicationHeaderSkeleton: React.FC = () => {
       </View>
 
       {/* Divider */}
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: theme.colors.surfaceVariant }]} />
 
       {/* Título y descripción */}
       <SkeletonElement height={28} borderRadius={6} />
@@ -184,7 +185,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E1E9EE',
     marginVertical: 16,
   },
   statsContainer: {

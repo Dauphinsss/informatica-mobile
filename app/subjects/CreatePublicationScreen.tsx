@@ -475,7 +475,6 @@ export default function CreatePublicationScreen() {
               value={descripcion}
               onChangeText={setDescripcion}
               mode="outlined"
-              multiline
               numberOfLines={6}
               style={styles.input}
               disabled={publicando}

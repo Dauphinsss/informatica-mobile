@@ -3,10 +3,8 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { Card, Divider, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const SHIMMER_BG = "rgba(200,200,200,0.32)";
-
-const Shimmer = ({ style }: { style?: any }) => (
-  <View style={[styles.shimmer, style]} />
+const Shimmer = ({ style, color }: { style?: any; color?: string }) => (
+  <View style={[styles.shimmer, style, color ? { backgroundColor: color } : {}]} />
 );
 
 // Skeleton de una tarjeta de actividad usando Card de Paper
@@ -16,14 +14,14 @@ const ActivityCardSkeleton = () => {
     <Card mode="elevated" style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <Card.Content style={styles.cardContent}>
         {/* Ícono Skeleton */}
-        <View style={[styles.iconSkeleton, { backgroundColor: SHIMMER_BG }]} />
+        <View style={[styles.iconSkeleton, { backgroundColor: theme.colors.surfaceVariant }]} />
         {/* Contenido Skeleton */}
         <View style={styles.textsColumn}>
-          <Shimmer style={[styles.titleSkeleton, { backgroundColor: SHIMMER_BG }]} />
-          <Shimmer style={[styles.descSkeleton, { backgroundColor: SHIMMER_BG }]} />
+          <Shimmer style={[styles.titleSkeleton]} color={theme.colors.surfaceVariant} />
+          <Shimmer style={[styles.descSkeleton]} color={theme.colors.surfaceVariant} />
           <View style={styles.timeRow}>
-            <Shimmer style={[styles.timeSkeleton, { backgroundColor: SHIMMER_BG }]} />
-            <Shimmer style={[styles.buttonSkeleton, { backgroundColor: SHIMMER_BG }]} />
+            <Shimmer style={[styles.timeSkeleton]} color={theme.colors.surfaceVariant} />
+            <Shimmer style={[styles.buttonSkeleton]} color={theme.colors.surfaceVariant} />
           </View>
         </View>
       </Card.Content>
@@ -43,6 +41,8 @@ export default function ActivityListSkeleton() {
 
   if (!shown) return null;
 
+  const shimmerColor = theme.colors.surfaceVariant;
+
   return (
     <ScrollView
       style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16, backgroundColor: theme.colors.background }}
@@ -52,7 +52,7 @@ export default function ActivityListSkeleton() {
     >
       {/* Ejemplo de sección: Hoy */}
       <View style={styles.section}>
-        <Shimmer style={[styles.sectionTitle, { backgroundColor: SHIMMER_BG }]} />
+        <Shimmer style={[styles.sectionTitle, { width: 82 }]} color={shimmerColor} />
         {[...Array(3)].map((_, i) => (
           <React.Fragment key={i}>
             <ActivityCardSkeleton />
@@ -63,7 +63,7 @@ export default function ActivityListSkeleton() {
       <View style={{ height: 24 }} />
       {/* Ejemplo de sección: Ayer */}
       <View style={styles.section}>
-        <Shimmer style={[styles.sectionTitle, { backgroundColor: SHIMMER_BG, width: 62 }]} />
+        <Shimmer style={[styles.sectionTitle, { width: 62 }]} color={shimmerColor} />
         {[...Array(2)].map((_, i) => (
           <React.Fragment key={i}>
             <ActivityCardSkeleton />

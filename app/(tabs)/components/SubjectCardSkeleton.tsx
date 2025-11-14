@@ -8,7 +8,7 @@ export default function SubjectCardSkeleton() {
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(shimmerAnim, {
           toValue: 1,
@@ -21,7 +21,10 @@ export default function SubjectCardSkeleton() {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+
+    anim.start();
+    return () => anim.stop();
   }, [shimmerAnim]);
 
   const opacity = shimmerAnim.interpolate({
@@ -30,12 +33,12 @@ export default function SubjectCardSkeleton() {
   });
 
   return (
-    <Card style={styles.card} elevation={2}>
+    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]} elevation={2}>
       <View style={styles.cardHeader}>
         <Animated.View
           style={[
             styles.headerBackground,
-            { backgroundColor: theme.colors.surfaceVariant, opacity },
+                { backgroundColor: theme.colors.surface, opacity },
           ]}
         />
         <View style={styles.cardHeaderContent}>
@@ -43,7 +46,7 @@ export default function SubjectCardSkeleton() {
             <Animated.View
               style={[
                 styles.badgeSkeleton,
-                { backgroundColor: theme.colors.surface, opacity },
+                { backgroundColor: theme.colors.surfaceVariant, opacity },
               ]}
             />
           </View>
@@ -51,13 +54,13 @@ export default function SubjectCardSkeleton() {
             <Animated.View
               style={[
                 styles.titleSkeleton,
-                { backgroundColor: theme.colors.surface, opacity },
+                { backgroundColor: theme.colors.surfaceVariant, opacity },
               ]}
             />
             <Animated.View
               style={[
                 styles.subtitleSkeleton,
-                { backgroundColor: theme.colors.surface, opacity },
+                { backgroundColor: theme.colors.surfaceVariant, opacity },
               ]}
             />
           </View>

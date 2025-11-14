@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { collection, doc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
+import { ActivityListSkeleton } from "./components/SkeletonLoaders";
 import {
   Animated,
   ScrollView,
@@ -41,6 +42,7 @@ const ManageUsers = () => {
   const [actionType, setActionType] = useState<"activate" | "suspend">(
     "suspend"
   );
+  const [loading, setLoading] = useState(true);
   const [expandAnimations, setExpandAnimations] = useState<{
     [key: string]: Animated.Value;
   }>({});
@@ -179,9 +181,11 @@ const ManageUsers = () => {
           uid: doc.id,
         }));
         setUsers(usersList);
+        setLoading(false);
       },
       (error) => {
         console.error("Error al escuchar cambios de usuarios:", error);
+        setLoading(false);
       }
     );
 
@@ -252,7 +256,9 @@ const ManageUsers = () => {
           </View>
 
           {/* Lista Unificada de Usuarios */}
-          {filteredUsers.length > 0 && (
+          {loading ? (
+            <ActivityListSkeleton count={5} />
+          ) : filteredUsers.length > 0 ? (
             <View style={styles.userSection}>
               <Text variant="titleMedium" style={styles.sectionTitle}>
                 {filter === "all"
@@ -476,6 +482,12 @@ const ManageUsers = () => {
                 );
               })}
             </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                No se encontraron usuarios.
+              </Text>
+            </View>
           )}
         </ScrollView>
 
@@ -521,6 +533,7 @@ const styles = StyleSheet.create({
   },
   searchbar: {
     marginBottom: 16,
+    backgroundColor: 'transparent',
   },
   userSection: {
     marginBottom: 16,
@@ -638,6 +651,10 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     paddingVertical: 8,
+  },
+  emptyContainer: {
+    padding: 24,
+    alignItems: 'center',
   },
 });
 
