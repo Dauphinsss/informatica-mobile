@@ -28,6 +28,7 @@ import {
   List,
   Menu,
   Portal,
+  Snackbar,
   Text,
 } from "react-native-paper";
 import Animated from "react-native-reanimated";
@@ -46,6 +47,8 @@ export default function NotificationsScreen() {
   const [notifToDelete, setNotifToDelete] = useState<{ id: string; titulo: string } | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -183,22 +186,34 @@ export default function NotificationsScreen() {
   };
 
   const eliminarDirecto = async (notifUsuarioId: string) => {
+    const notificacionesBackup = notificaciones;
+    setNotificaciones(prev => prev.filter(n => n.id !== notifUsuarioId));
+
     try {
       await eliminarNotificacionUsuario(notifUsuarioId);
     } catch (error) {
       console.error("Error al eliminar notificación:", error);
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudo eliminar la notificación");
+      setSnackbarVisible(true);
     }
   };
 
   const confirmarEliminacion = async () => {
     if (!notifToDelete) return;
     
+    const notificacionesBackup = notificaciones;
+    setNotificaciones(prev => prev.filter(n => n.id !== notifToDelete.id));
+    setDialogVisible(false);
+    setNotifToDelete(null);
+
     try {
       await eliminarNotificacionUsuario(notifToDelete.id);
-      setDialogVisible(false);
-      setNotifToDelete(null);
     } catch (error) {
       console.error("Error al eliminar notificación:", error);
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudo eliminar la notificación");
+      setSnackbarVisible(true);
     }
   };
 
@@ -212,38 +227,38 @@ export default function NotificationsScreen() {
 
   const eliminarNotificacionesPorFecha = async (dias: number) => {
     setMenuVisible(false);
-    setDeleting(true);
     
     const ahora = new Date();
     const fechaLimite = new Date(ahora);
     fechaLimite.setDate(fechaLimite.getDate() - dias);
 
-    // Eliminar notificaciones DENTRO del rango (desde hace X días hasta ahora)
     const notificacionesAEliminar = notificaciones.filter((notif) => {
       const fecha = notif.creadoEn?.toDate
         ? notif.creadoEn.toDate()
         : new Date(notif.creadoEn);
-      return fecha >= fechaLimite; // Cambio: >= en lugar de <
+      return fecha >= fechaLimite;
     });
 
     if (notificacionesAEliminar.length === 0) {
-      setDeleting(false);
       return;
     }
+
+    const notificacionesBackup = notificaciones;
+    setNotificaciones(prev => prev.filter(notif => !notificacionesAEliminar.find(n => n.id === notif.id)));
 
     try {
       const ids = notificacionesAEliminar.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar notificaciones:", error);
-    } finally {
-      setDeleting(false);
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudieron eliminar las notificaciones");
+      setSnackbarVisible(true);
     }
   };
 
   const eliminarNotificacionesUltimas24Horas = async () => {
     setMenuVisible(false);
-    setDeleting(true);
     
     const ahora = new Date();
     const hace24Horas = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
@@ -256,36 +271,41 @@ export default function NotificationsScreen() {
     });
 
     if (notificacionesAEliminar.length === 0) {
-      setDeleting(false);
       return;
     }
+
+    const notificacionesBackup = notificaciones;
+    setNotificaciones(prev => prev.filter(notif => !notificacionesAEliminar.find(n => n.id === notif.id)));
 
     try {
       const ids = notificacionesAEliminar.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar notificaciones de últimas 24 horas:", error);
-    } finally {
-      setDeleting(false);
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudieron eliminar las notificaciones");
+      setSnackbarVisible(true);
     }
   };
 
   const eliminarTodasLasNotificaciones = async () => {
     setMenuVisible(false);
-    setDeleting(true);
     
     if (notificaciones.length === 0) {
-      setDeleting(false);
       return;
     }
 
+    const notificacionesBackup = notificaciones;
+    setNotificaciones([]);
+
     try {
-      const ids = notificaciones.map((notif) => notif.id);
+      const ids = notificacionesBackup.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar todas las notificaciones:", error);
-    } finally {
-      setDeleting(false);
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudieron eliminar las notificaciones");
+      setSnackbarVisible(true);
     }
   };
 
@@ -346,7 +366,6 @@ export default function NotificationsScreen() {
             <Appbar.Action
               icon="dots-vertical"
               onPress={() => setMenuVisible(true)}
-              disabled={deleting}
             />
           }
         >
@@ -570,6 +589,15 @@ export default function NotificationsScreen() {
           </Dialog.Content>
         </Dialog>
       </Portal>
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={{ backgroundColor: theme.colors.error }}
+      >
+        <Text style={{ color: theme.colors.onError }}>{snackbarMessage}</Text>
+      </Snackbar>
     </View>
   );
 }
