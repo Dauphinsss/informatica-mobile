@@ -9,7 +9,7 @@ import {
   marcarComoLeida,
   NotificacionCompleta,
 } from "@/services/notifications";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -49,6 +49,8 @@ export default function NotificationsScreen() {
   const [deleting, setDeleting] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [menuKey, setMenuKey] = useState(0);
+  const pendingDeletesRef = React.useRef(new Set<string>());
 
   useEffect(() => {
     if (!user) return;
@@ -56,8 +58,8 @@ export default function NotificationsScreen() {
     const unsubscribe = escucharNotificaciones(
       user.uid,
       (notifs) => {
-        setNotificaciones(notifs);
-        // Pequeño delay para transición suave
+        const filtradas = notifs.filter(n => !pendingDeletesRef.current.has(n.id));
+        setNotificaciones(filtradas);
         setTimeout(() => setLoading(false), 300);
       },
       (error) => {
@@ -66,8 +68,20 @@ export default function NotificationsScreen() {
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      pendingDeletesRef.current.clear();
+    };
   }, [user]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        setMenuVisible(false);
+        setMenuKey(prev => prev + 1);
+      };
+    }, [])
+  );
 
   const handleNotificationPress = async (notif: NotificacionCompleta) => {
     // Marcar como leída
@@ -187,12 +201,14 @@ export default function NotificationsScreen() {
 
   const eliminarDirecto = async (notifUsuarioId: string) => {
     const notificacionesBackup = notificaciones;
+    pendingDeletesRef.current.add(notifUsuarioId);
     setNotificaciones(prev => prev.filter(n => n.id !== notifUsuarioId));
 
     try {
       await eliminarNotificacionUsuario(notifUsuarioId);
     } catch (error) {
       console.error("Error al eliminar notificación:", error);
+      pendingDeletesRef.current.delete(notifUsuarioId);
       setNotificaciones(notificacionesBackup);
       setSnackbarMessage("No se pudo eliminar la notificación");
       setSnackbarVisible(true);
@@ -203,6 +219,7 @@ export default function NotificationsScreen() {
     if (!notifToDelete) return;
     
     const notificacionesBackup = notificaciones;
+    pendingDeletesRef.current.add(notifToDelete.id);
     setNotificaciones(prev => prev.filter(n => n.id !== notifToDelete.id));
     setDialogVisible(false);
     setNotifToDelete(null);
@@ -211,6 +228,7 @@ export default function NotificationsScreen() {
       await eliminarNotificacionUsuario(notifToDelete.id);
     } catch (error) {
       console.error("Error al eliminar notificación:", error);
+      pendingDeletesRef.current.delete(notifToDelete.id);
       setNotificaciones(notificacionesBackup);
       setSnackbarMessage("No se pudo eliminar la notificación");
       setSnackbarVisible(true);
@@ -244,6 +262,7 @@ export default function NotificationsScreen() {
     }
 
     const notificacionesBackup = notificaciones;
+    notificacionesAEliminar.forEach(n => pendingDeletesRef.current.add(n.id));
     setNotificaciones(prev => prev.filter(notif => !notificacionesAEliminar.find(n => n.id === notif.id)));
 
     try {
@@ -251,6 +270,7 @@ export default function NotificationsScreen() {
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar notificaciones:", error);
+      notificacionesAEliminar.forEach(n => pendingDeletesRef.current.delete(n.id));
       setNotificaciones(notificacionesBackup);
       setSnackbarMessage("No se pudieron eliminar las notificaciones");
       setSnackbarVisible(true);
@@ -275,6 +295,7 @@ export default function NotificationsScreen() {
     }
 
     const notificacionesBackup = notificaciones;
+    notificacionesAEliminar.forEach(n => pendingDeletesRef.current.add(n.id));
     setNotificaciones(prev => prev.filter(notif => !notificacionesAEliminar.find(n => n.id === notif.id)));
 
     try {
@@ -282,6 +303,7 @@ export default function NotificationsScreen() {
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar notificaciones de últimas 24 horas:", error);
+      notificacionesAEliminar.forEach(n => pendingDeletesRef.current.delete(n.id));
       setNotificaciones(notificacionesBackup);
       setSnackbarMessage("No se pudieron eliminar las notificaciones");
       setSnackbarVisible(true);
@@ -296,6 +318,7 @@ export default function NotificationsScreen() {
     }
 
     const notificacionesBackup = notificaciones;
+    notificaciones.forEach(n => pendingDeletesRef.current.add(n.id));
     setNotificaciones([]);
 
     try {
@@ -303,6 +326,7 @@ export default function NotificationsScreen() {
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar todas las notificaciones:", error);
+      notificacionesBackup.forEach(n => pendingDeletesRef.current.delete(n.id));
       setNotificaciones(notificacionesBackup);
       setSnackbarMessage("No se pudieron eliminar las notificaciones");
       setSnackbarVisible(true);
@@ -320,7 +344,7 @@ export default function NotificationsScreen() {
       case "error":
         return "#f44336";
       case "info":
-        return "#2196f3";
+        return theme.colors.primary;
       default:
         return theme.colors.primary;
     }
@@ -361,13 +385,17 @@ export default function NotificationsScreen() {
         <Appbar.Content title="Notificaciones" />
         <Menu
           visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
+          onDismiss={() => {
+            setMenuVisible(false);
+            setMenuKey(prev => prev + 1);
+          }}
           anchor={
             <Appbar.Action
               icon="dots-vertical"
               onPress={() => setMenuVisible(true)}
             />
           }
+          key={menuKey}
         >
           <Menu.Item
             onPress={() => {}}
