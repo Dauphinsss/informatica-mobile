@@ -279,7 +279,7 @@ export function ActivityListSkeleton({ count = 5 }: { count?: number }) {
         <View key={index} style={activityStyles.item}>
           <Animated.View
             style={[
-              activityStyles.iconPlaceholder,
+              activityStyles.iconSquarePlaceholder,
               { backgroundColor: theme.colors.surfaceVariant, opacity },
             ]}
           />
@@ -322,27 +322,27 @@ const activityStyles = StyleSheet.create({
     paddingHorizontal: 8,
     gap: 12,
   },
-  iconPlaceholder: {
+  iconSquarePlaceholder: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
   },
   content: {
     flex: 1,
     gap: 8,
   },
   titlePlaceholder: {
-    width: "85%",
+    width: "100%",
     height: 16,
     borderRadius: 4,
   },
   subtitlePlaceholder: {
-    width: "65%",
+    width: "85%",
     height: 14,
     borderRadius: 4,
   },
   timePlaceholder: {
-    width: "40%",
+    width: "65%",
     height: 12,
     borderRadius: 4,
   },

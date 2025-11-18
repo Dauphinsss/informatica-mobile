@@ -99,7 +99,7 @@ export default function AllActivityScreen() {
           style={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.activityContainer, { backgroundColor: theme.colors.elevation.level1 }]}>
+          <View style={[styles.activityContainer, { backgroundColor: 'transparent' }]}>
             <ActivityListSkeleton count={ITEMS_PER_PAGE} />
           </View>
         </ScrollView>
