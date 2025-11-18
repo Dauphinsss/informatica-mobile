@@ -2,7 +2,9 @@ import { Dimensions, StyleSheet } from "react-native";
 import { MD3Theme } from "react-native-paper";
 
 const { width } = Dimensions.get("window");
-const cardWidth = (width - 48) / 2;
+const H_MARGIN = 16;
+const GAP = 12;
+const cardWidth = (width - (H_MARGIN * 2) - GAP) / 2;
 
 export const getStyles = (theme: MD3Theme) =>
   StyleSheet.create({
@@ -76,7 +78,7 @@ export const getStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
     },
     archivosContainer: {
-      marginHorizontal: "4%",
+      marginHorizontal: H_MARGIN,
       marginBottom: 12,
     },
     archivosTitle: {

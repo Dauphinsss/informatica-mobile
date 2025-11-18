@@ -32,7 +32,7 @@ export default function PublicationCardSkeleton() {
 
   return (
     <View style={styles.card}>
-      <Card>
+      <Card style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }}>
         <Card.Content>
           {/* Header con avatar y fecha */}
           <View style={styles.cardContent}>

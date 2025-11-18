@@ -55,7 +55,7 @@ const PublicationHeaderSkeleton: React.FC = () => {
   const theme = useTheme();
   
   return (
-    <View style={[styles.headerCard, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.headerCard, { backgroundColor: 'transparent', shadowColor: 'transparent' }]}>
       {/* Autor info */}
       <View style={styles.autorContainer}>
         <SkeletonElement width={48} height={48} borderRadius={24} />
@@ -73,7 +73,6 @@ const PublicationHeaderSkeleton: React.FC = () => {
       <SkeletonElement height={18} style={{ marginTop: 12 }} />
       <SkeletonElement width="90%" height={18} style={{ marginTop: 4 }} />
       <SkeletonElement width="80%" height={18} style={{ marginTop: 4 }} />
-      <SkeletonElement width="60%" height={18} style={{ marginTop: 4 }} />
 
       {/* Stats */}
       <View style={styles.statsContainer}>
@@ -108,7 +107,7 @@ const FileCardSkeleton: React.FC = () => {
       <View style={styles.fileInfo}>
         <View style={styles.fileIconRow}>
           <SkeletonElement width={16} height={16} borderRadius={8} />
-          <SkeletonElement width="80%" height={14} style={{ marginLeft: 6 }} />
+          <SkeletonElement width="70%" height={14} style={{ marginLeft: 6 }} />
         </View>
       </View>
     </View>
@@ -123,8 +122,8 @@ const FilesSectionSkeleton: React.FC = () => {
     <View style={styles.filesSection}>
       {/* Header de archivos */}
       <View style={styles.filesHeader}>
-        <SkeletonElement width="40%" height={24} />
-        <SkeletonElement width={120} height={36} borderRadius={18} />
+        <SkeletonElement width="40%" height={30} borderRadius={12} style={{marginLeft: '3%'}}/>
+        <SkeletonElement width={120} height={30} borderRadius={6} style={{marginRight: '3%'}} />
       </View>
 
       {/* Grid de archivos */}
@@ -197,7 +196,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filesSection: {
-    marginTop: 8,
+    marginTop: 2,
   },
   filesHeader: {
     flexDirection: 'row',
@@ -231,6 +230,7 @@ const styles = StyleSheet.create({
   },
   fileIconRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   addFileButtonSpace: {
