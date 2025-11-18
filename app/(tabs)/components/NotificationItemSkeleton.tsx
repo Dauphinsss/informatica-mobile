@@ -70,18 +70,7 @@ export default function NotificationItemSkeleton() {
             ]}
           />
         </View>
-
-        {/* Acciones */}
-        <View style={styles.notifActions}>
-          <Animated.View
-            style={[
-              styles.actionButton,
-              { backgroundColor: theme.colors.surfaceVariant, opacity },
-            ]}
-          />
-        </View>
       </View>
-      <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
     </View>
   );
 }
@@ -123,7 +112,6 @@ export function NotificationSectionSkeleton() {
           ]}
         />
       </View>
-      <Divider />
 
       {/* Items de notificación */}
       <NotificationItemSkeleton />
