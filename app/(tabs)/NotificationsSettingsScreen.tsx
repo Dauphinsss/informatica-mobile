@@ -1,8 +1,8 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  getNotificationSettings,
-  saveNotificationSettings,
-  type NotificationSettings
+    getNotificationSettings,
+    saveNotificationSettings,
+    type NotificationSettings
 } from "@/hooks/useNotificationSettings";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -10,12 +10,12 @@ import { getAuth } from "firebase/auth";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import {
-  Appbar,
-  Card,
-  Divider,
-  Surface,
-  Switch,
-  Text,
+    Appbar,
+    Card,
+    Divider,
+    Surface,
+    Switch,
+    Text,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -28,6 +28,8 @@ export default function NotificationsSettingsScreen() {
     adminAlertsEnabled: true,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const settingsBackupRef = useRef<NotificationSettings>(settings);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim1 = useRef(new Animated.Value(50)).current;
@@ -69,8 +71,9 @@ export default function NotificationsSettingsScreen() {
       }
 
       const savedSettings = await getNotificationSettings(userId);
-      // Asegurar que adminAlertsEnabled siempre esté en true
-      setSettings({ ...savedSettings, adminAlertsEnabled: true });
+      const settingsWithAdmin = { ...savedSettings, adminAlertsEnabled: true };
+      setSettings(settingsWithAdmin);
+      settingsBackupRef.current = settingsWithAdmin;
     } catch (error) {
       console.error("Error loading notification settings:", error);
     } finally {
@@ -88,18 +91,27 @@ export default function NotificationsSettingsScreen() {
         return;
       }
 
-      // Asegurar que adminAlertsEnabled siempre esté en true
       const settingsToSave = { ...newSettings, adminAlertsEnabled: true };
       await saveNotificationSettings(settingsToSave, userId);
-      setSettings(settingsToSave);
+      settingsBackupRef.current = settingsToSave;
     } catch (error) {
       console.error("Error saving notification settings:", error);
+      setSettings(settingsBackupRef.current);
     }
   };
 
   const toggleSetting = (key: keyof NotificationSettings) => {
     const newSettings = { ...settings, [key]: !settings[key] };
-    saveSettings(newSettings);
+    setSettings(newSettings);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      saveSettings(newSettings);
+      debounceTimerRef.current = null;
+    }, 500);
   };
 
   if (isLoading) {

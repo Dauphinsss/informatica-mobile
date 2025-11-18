@@ -91,6 +91,7 @@ export default function PublicationDetailScreen() {
   const materiaNombre = params?.materiaNombre || "Materia";
 
   const [publicacion, setPublicacion] = useState<Publicacion | null>(null);
+  const [displayedMateriaNombre, setDisplayedMateriaNombre] = useState(materiaNombre);
   const [archivos, setArchivos] = useState<ArchivoPublicacion[]>([]);
   const [cargando, setCargando] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -396,6 +397,23 @@ export default function PublicationDetailScreen() {
   useEffect(() => {
     cargarPublicacion();
   }, [cargarPublicacion]);
+
+  useEffect(() => {
+    if (publicacion && (materiaNombre === "Materia" || materiaNombre === "Publicación compartida")) {
+      const obtenerNombreMateria = async () => {
+        try {
+          const materiaDoc = await getDoc(doc(db, "materias", publicacion.materiaId));
+          if (materiaDoc.exists()) {
+            const nombreMateria = materiaDoc.data().nombre;
+            setDisplayedMateriaNombre(nombreMateria);
+          }
+        } catch (error) {
+          console.error("Error obteniendo nombre de materia:", error);
+        }
+      };
+      obtenerNombreMateria();
+    }
+  }, [publicacion]);
 
   const toggleLike = async () => {
     if (!usuario) {
@@ -1147,7 +1165,7 @@ export default function PublicationDetailScreen() {
     <View style={{ flex: 1 }}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={materiaNombre} />
+        <Appbar.Content title={displayedMateriaNombre} />
 
         {publicacion && (
           <Appbar.Action

@@ -9,7 +9,7 @@ import {
   marcarComoLeida,
   NotificacionCompleta,
 } from "@/services/notifications";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -28,6 +28,7 @@ import {
   List,
   Menu,
   Portal,
+  Snackbar,
   Text,
 } from "react-native-paper";
 import Animated from "react-native-reanimated";
@@ -46,6 +47,10 @@ export default function NotificationsScreen() {
   const [notifToDelete, setNotifToDelete] = useState<{ id: string; titulo: string } | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [menuKey, setMenuKey] = useState(0);
+  const pendingDeletesRef = React.useRef(new Set<string>());
 
   useEffect(() => {
     if (!user) return;
@@ -53,8 +58,8 @@ export default function NotificationsScreen() {
     const unsubscribe = escucharNotificaciones(
       user.uid,
       (notifs) => {
-        setNotificaciones(notifs);
-        // Pequeño delay para transición suave
+        const filtradas = notifs.filter(n => !pendingDeletesRef.current.has(n.id));
+        setNotificaciones(filtradas);
         setTimeout(() => setLoading(false), 300);
       },
       (error) => {
@@ -63,8 +68,20 @@ export default function NotificationsScreen() {
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      pendingDeletesRef.current.clear();
+    };
   }, [user]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        setMenuVisible(false);
+        setMenuKey(prev => prev + 1);
+      };
+    }, [])
+  );
 
   const handleNotificationPress = async (notif: NotificacionCompleta) => {
     // Marcar como leída
@@ -183,22 +200,38 @@ export default function NotificationsScreen() {
   };
 
   const eliminarDirecto = async (notifUsuarioId: string) => {
+    const notificacionesBackup = notificaciones;
+    pendingDeletesRef.current.add(notifUsuarioId);
+    setNotificaciones(prev => prev.filter(n => n.id !== notifUsuarioId));
+
     try {
       await eliminarNotificacionUsuario(notifUsuarioId);
     } catch (error) {
       console.error("Error al eliminar notificación:", error);
+      pendingDeletesRef.current.delete(notifUsuarioId);
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudo eliminar la notificación");
+      setSnackbarVisible(true);
     }
   };
 
   const confirmarEliminacion = async () => {
     if (!notifToDelete) return;
     
+    const notificacionesBackup = notificaciones;
+    pendingDeletesRef.current.add(notifToDelete.id);
+    setNotificaciones(prev => prev.filter(n => n.id !== notifToDelete.id));
+    setDialogVisible(false);
+    setNotifToDelete(null);
+
     try {
       await eliminarNotificacionUsuario(notifToDelete.id);
-      setDialogVisible(false);
-      setNotifToDelete(null);
     } catch (error) {
       console.error("Error al eliminar notificación:", error);
+      pendingDeletesRef.current.delete(notifToDelete.id);
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudo eliminar la notificación");
+      setSnackbarVisible(true);
     }
   };
 
@@ -212,38 +245,40 @@ export default function NotificationsScreen() {
 
   const eliminarNotificacionesPorFecha = async (dias: number) => {
     setMenuVisible(false);
-    setDeleting(true);
     
     const ahora = new Date();
     const fechaLimite = new Date(ahora);
     fechaLimite.setDate(fechaLimite.getDate() - dias);
 
-    // Eliminar notificaciones DENTRO del rango (desde hace X días hasta ahora)
     const notificacionesAEliminar = notificaciones.filter((notif) => {
       const fecha = notif.creadoEn?.toDate
         ? notif.creadoEn.toDate()
         : new Date(notif.creadoEn);
-      return fecha >= fechaLimite; // Cambio: >= en lugar de <
+      return fecha >= fechaLimite;
     });
 
     if (notificacionesAEliminar.length === 0) {
-      setDeleting(false);
       return;
     }
+
+    const notificacionesBackup = notificaciones;
+    notificacionesAEliminar.forEach(n => pendingDeletesRef.current.add(n.id));
+    setNotificaciones(prev => prev.filter(notif => !notificacionesAEliminar.find(n => n.id === notif.id)));
 
     try {
       const ids = notificacionesAEliminar.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar notificaciones:", error);
-    } finally {
-      setDeleting(false);
+      notificacionesAEliminar.forEach(n => pendingDeletesRef.current.delete(n.id));
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudieron eliminar las notificaciones");
+      setSnackbarVisible(true);
     }
   };
 
   const eliminarNotificacionesUltimas24Horas = async () => {
     setMenuVisible(false);
-    setDeleting(true);
     
     const ahora = new Date();
     const hace24Horas = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
@@ -256,36 +291,45 @@ export default function NotificationsScreen() {
     });
 
     if (notificacionesAEliminar.length === 0) {
-      setDeleting(false);
       return;
     }
+
+    const notificacionesBackup = notificaciones;
+    notificacionesAEliminar.forEach(n => pendingDeletesRef.current.add(n.id));
+    setNotificaciones(prev => prev.filter(notif => !notificacionesAEliminar.find(n => n.id === notif.id)));
 
     try {
       const ids = notificacionesAEliminar.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar notificaciones de últimas 24 horas:", error);
-    } finally {
-      setDeleting(false);
+      notificacionesAEliminar.forEach(n => pendingDeletesRef.current.delete(n.id));
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudieron eliminar las notificaciones");
+      setSnackbarVisible(true);
     }
   };
 
   const eliminarTodasLasNotificaciones = async () => {
     setMenuVisible(false);
-    setDeleting(true);
     
     if (notificaciones.length === 0) {
-      setDeleting(false);
       return;
     }
 
+    const notificacionesBackup = notificaciones;
+    notificaciones.forEach(n => pendingDeletesRef.current.add(n.id));
+    setNotificaciones([]);
+
     try {
-      const ids = notificaciones.map((notif) => notif.id);
+      const ids = notificacionesBackup.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar todas las notificaciones:", error);
-    } finally {
-      setDeleting(false);
+      notificacionesBackup.forEach(n => pendingDeletesRef.current.delete(n.id));
+      setNotificaciones(notificacionesBackup);
+      setSnackbarMessage("No se pudieron eliminar las notificaciones");
+      setSnackbarVisible(true);
     }
   };
 
@@ -300,7 +344,7 @@ export default function NotificationsScreen() {
       case "error":
         return "#f44336";
       case "info":
-        return "#2196f3";
+        return theme.colors.primary;
       default:
         return theme.colors.primary;
     }
@@ -341,14 +385,17 @@ export default function NotificationsScreen() {
         <Appbar.Content title="Notificaciones" />
         <Menu
           visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
+          onDismiss={() => {
+            setMenuVisible(false);
+            setMenuKey(prev => prev + 1);
+          }}
           anchor={
             <Appbar.Action
               icon="dots-vertical"
               onPress={() => setMenuVisible(true)}
-              disabled={deleting}
             />
           }
+          key={menuKey}
         >
           <Menu.Item
             onPress={() => {}}
@@ -570,6 +617,15 @@ export default function NotificationsScreen() {
           </Dialog.Content>
         </Dialog>
       </Portal>
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={{ backgroundColor: theme.colors.error }}
+      >
+        <Text style={{ color: theme.colors.onError }}>{snackbarMessage}</Text>
+      </Snackbar>
     </View>
   );
 }
