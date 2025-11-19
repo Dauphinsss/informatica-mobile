@@ -131,16 +131,17 @@ export const getStyles = (theme: MD3Theme) =>
     archivosGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
+      justifyContent: "space-between",
       gap: 8,
       marginTop: 8,
     },
     miniArchivoCard: {
-      width: (width * 0.8) / 3 - 8,
-      minWidth: 90,
+      width: (width * 0.9) / 2.7 - 4,
+      minWidth: 110,
     },
     miniArchivoPreview: {
       width: "100%",
-      height: 80,
+      height: 120,
       borderRadius: 8,
       overflow: "hidden",
       backgroundColor: theme.colors.surfaceVariant,

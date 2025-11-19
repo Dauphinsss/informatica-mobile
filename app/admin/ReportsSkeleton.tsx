@@ -63,12 +63,12 @@ export const ReportCardSkeleton: React.FC = () => {
 
   return (
     <View style={styles.cardSkeleton}>
-      <ReportsSkeleton height={24} style={styles.titleSkeleton} />
-      <ReportsSkeleton width="60%" height={16} style={styles.authorSkeleton} />
-      <ReportsSkeleton width="40%" height={14} style={styles.dateSkeleton} />
+      <ReportsSkeleton height={20} style={styles.titleSkeleton} />
+      <ReportsSkeleton width="60%" height={12} style={styles.authorSkeleton} />
+      <ReportsSkeleton width="20%" height={12} style={styles.dateSkeleton} />
       <View style={styles.chipContainerSkeleton}>
-        <ReportsSkeleton width={80} height={32} borderRadius={16} />
-        <ReportsSkeleton width={60} height={32} borderRadius={16} />
+        <ReportsSkeleton width={"30%"} height={26} borderRadius={10} />
+        <ReportsSkeleton width={"25%"} height={26} borderRadius={10} />
       </View>
     </View>
   );
@@ -85,8 +85,11 @@ export const ReportDetailSkeleton: React.FC = () => {
         <View style={styles.archivosGridSkeleton}>
           {[1, 2, 3].map((item) => (
             <View key={item} style={styles.archivoSkeleton}>
-              <ReportsSkeleton height={80} borderRadius={8} />
-              <ReportsSkeleton width="80%" height={16} style={styles.archivoText} />
+              <ReportsSkeleton height={100} borderRadius={8} />
+              <View style={styles.row}>
+                <ReportsSkeleton width={16} height={16} borderRadius={16} />
+                <ReportsSkeleton width="70%" height={16} />
+              </View>
             </View>
           ))}
         </View>
@@ -112,13 +115,13 @@ export const ReportsListSkeleton: React.FC = () => {
 
 const getSkeletonStyles = (theme: any) => StyleSheet.create({
   cardSkeleton: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'transparent',
     borderRadius: 12,
     padding: 16,
     marginVertical: 4,
-    marginHorizontal: 16,
+    marginHorizontal: 2,
     elevation: 2,
-    shadowColor: theme.colors.shadow,
+    shadowColor: 'transparent',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -134,6 +137,7 @@ const getSkeletonStyles = (theme: any) => StyleSheet.create({
   },
   chipContainerSkeleton: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 8,
   },
   listContainer: {
@@ -179,11 +183,18 @@ const getSkeletonStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginTop: 12,
   },
   archivoSkeleton: {
-    width: '30%',
+    width: '45%',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  row: {
+    width: '100%',
+    flexDirection: 'row',
+    marginTop: 6,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   archivoText: {
     marginTop: 8,
