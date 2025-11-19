@@ -70,7 +70,7 @@ export const StatCardSkeleton: React.FC = () => {
   const theme = useTheme();
 
   return (
-    <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.statCard, { backgroundColor: 'transparent', shadowColor: 'transparent' }]}>
       <View style={styles.statCardContent}>
         {/* Ícono */}
         <View

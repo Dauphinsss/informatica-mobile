@@ -493,6 +493,7 @@ export default function MisPublicacionesScreen() {
           title="Eliminando..."
           message={`Eliminando ${selectedIds.length} publicación${selectedIds.length !== 1 ? 'es' : ''}. Por favor espere...`}
           type="info"
+          buttons={[]}
         />
         <CustomAlert
           visible={successDeleteVisible}

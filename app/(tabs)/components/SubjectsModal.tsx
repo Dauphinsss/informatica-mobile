@@ -383,33 +383,32 @@ export default function SubjectsModal({
                         >
                           <List.Item
                             style={styles.listItemNoMargin}
-                            title={
-                              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                                <Text style={{ color: theme.colors.onSurface }}>
-                                  {subject.nombre}
-                                </Text>
-                                {isNew && (
-                                  <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                                    <Badge 
-                                      size={18} 
-                                      style={{ 
-                                        backgroundColor: theme.colors.primary,
-                                        color: theme.colors.onPrimary
-                                      }}
-                                    >
-                                      Nuevo
-                                    </Badge>
-                                  </Animated.View>
-                                )}
-                              </View>
-                            }
-                            description={
-                              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
-                                {materialsLabel}
-                              </Text>
-                            }
+                            title={subject.nombre}
+                            titleNumberOfLines={2}
+                            titleStyle={{ color: theme.colors.onSurface }}
+                            description={materialsLabel}
+                            descriptionNumberOfLines={1}
+                            descriptionStyle={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}
                             onPress={handleSubjectPress}
                             disabled={isSaving}
+                            left={() => isNew ? (
+                              <Animated.View style={{ 
+                                transform: [{ scale: pulseAnim }],
+                                marginLeft: 8,
+                                marginRight: 4,
+                                justifyContent: 'center'
+                              }}>
+                                <Badge 
+                                  size={18} 
+                                  style={{ 
+                                    backgroundColor: theme.colors.primary,
+                                    color: theme.colors.onPrimary
+                                  }}
+                                >
+                                  Nuevo
+                                </Badge>
+                              </Animated.View>
+                            ) : null}
                             right={() =>
                               isSaving ? (
                                 <ActivityIndicator

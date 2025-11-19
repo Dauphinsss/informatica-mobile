@@ -1465,9 +1465,10 @@ export default function PublicationDetailScreen() {
                                   color: theme.colors.error,
                                   fontSize: 12,
                                   marginTop: 4,
+                                  textAlign: 'center',
                                 }}
                               >
-                                Marcado para eliminar (se eliminará al guardar)
+                                Se eliminará al guardar
                               </Text>
                             )}
                           </View>

@@ -109,7 +109,9 @@ const styles = StyleSheet.create({
   cardContent: {
     flexDirection: "row",
     alignItems: "flex-start",
+    justifyContent: 'space-between',
     marginBottom: 12,
+    position: "relative",
   },
   avatar: {
     width: 44,
@@ -127,6 +129,7 @@ const styles = StyleSheet.create({
   autorContainer: {
     flex: 1,
     marginLeft: 12,
+    marginRight: 100,
     gap: 8,
   },
   titulo: {
