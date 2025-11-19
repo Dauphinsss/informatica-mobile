@@ -1,3 +1,4 @@
+import { ActivityListSkeleton } from "@/app/admin/components/SkeletonLoaders";
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -67,7 +68,7 @@ export default function HelpCenterScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: isDark ? theme.colors.surface : theme.colors.background }]}>
+    <View style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: isDark ? theme.colors.surface : theme.colors.background }]}>
       <Appbar.Header>
         <Appbar.Content title="Centro de Contactos" />
       </Appbar.Header>
@@ -83,56 +84,60 @@ export default function HelpCenterScreen() {
             Conecta con Nosotros
           </Text>
           <Text variant="bodyMedium" style={[styles.descriptionText, { color: theme.colors.onSurfaceVariant }]}>
-            Contacta a cualquiera de nuestros administradores
+            Contacta a cualquiera de nuestros administradores 
           </Text>
         </View>
 
         <View style={styles.adminsList}>
-          {admins.map((admin, index) => (
-            <Surface
-              key={index}
-              elevation={2}
-              style={styles.adminCard}
-            >
-              <Pressable
-                onPress={() => handleEmailPress(admin.email)}
-                style={({ pressed }) => [
-                  styles.adminPressable,
-                  {
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
+          {loading ? (
+            <ActivityListSkeleton count={4} />
+          ) : (
+            admins.map((admin, index) => (
+              <Surface
+                key={index}
+                elevation={2}
+                style={styles.adminCard}
               >
-                <View style={styles.adminContent}>
-                  {admin.photo ? (
-                    <Avatar.Image
-                      size={48}
-                      source={{ uri: admin.photo }}
+                <Pressable
+                  onPress={() => handleEmailPress(admin.email)}
+                  style={({ pressed }) => [
+                    styles.adminPressable,
+                    {
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.adminContent}>
+                    {admin.photo ? (
+                      <Avatar.Image
+                        size={48}
+                        source={{ uri: admin.photo }}
+                      />
+                    ) : (
+                      <Avatar.Icon
+                        size={48}
+                        icon="account"
+                        style={{ backgroundColor: theme.colors.primaryContainer }}
+                      />
+                    )}
+                    <View style={styles.adminInfo}>
+                      <Text variant="titleMedium" style={[styles.adminName, { color: theme.colors.onSurface }]}>
+                        {admin.name}
+                      </Text>
+                      <Text variant="bodySmall" style={[styles.adminEmail, { color: theme.colors.onSurfaceVariant }]}>
+                        {admin.email}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={24}
+                      color={theme.colors.onSurfaceVariant}
                     />
-                  ) : (
-                    <Avatar.Icon
-                      size={48}
-                      icon="account"
-                      style={{ backgroundColor: theme.colors.primaryContainer }}
-                    />
-                  )}
-                  <View style={styles.adminInfo}>
-                    <Text variant="titleMedium" style={[styles.adminName, { color: theme.colors.onSurface }]}>
-                      {admin.name}
-                    </Text>
-                    <Text variant="bodySmall" style={[styles.adminEmail, { color: theme.colors.onSurfaceVariant }]}>
-                      {admin.email}
-                    </Text>
                   </View>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={24}
-                    color={theme.colors.onSurfaceVariant}
-                  />
-                </View>
-              </Pressable>
-            </Surface>
-          ))}
+                </Pressable>
+              </Surface>
+            ))
+          )}
         </View>
       </ScrollView>
     </View>
