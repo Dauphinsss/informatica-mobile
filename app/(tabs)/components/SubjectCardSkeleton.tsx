@@ -33,7 +33,7 @@ export default function SubjectCardSkeleton() {
   });
 
   return (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]} elevation={2}>
+    <Card style={[styles.card, { backgroundColor: 'transparent', shadowColor: 'transparent' }]} elevation={2}>
       <View style={styles.cardHeader}>
         <Animated.View
           style={[
