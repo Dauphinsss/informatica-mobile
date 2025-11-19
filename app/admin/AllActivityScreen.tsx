@@ -100,7 +100,7 @@ export default function AllActivityScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={[styles.activityContainer, { backgroundColor: 'transparent' }]}>
-            <ActivityListSkeleton count={ITEMS_PER_PAGE} />
+            <ActivityListSkeleton count={ITEMS_PER_PAGE} fullWidth />
           </View>
         </ScrollView>
       ) : totalCount === 0 ? (

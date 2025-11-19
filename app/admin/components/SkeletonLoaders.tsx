@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ActivityListSkeleton({ count = 5 }: { count?: number }) {
+export function ActivityListSkeleton({ count = 5, fullWidth = false }: { count?: number; fullWidth?: boolean }) {
   const { theme } = useTheme();
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
@@ -274,9 +274,9 @@ export function ActivityListSkeleton({ count = 5 }: { count?: number }) {
   });
 
   return (
-    <View style={activityStyles.container}>
+    <View style={[activityStyles.container, { paddingHorizontal: fullWidth ? 0 : 12 }]}>
       {Array.from({ length: count }).map((_, index) => (
-        <View key={index} style={activityStyles.item}>
+        <View key={index} style={[activityStyles.item, { paddingHorizontal: fullWidth ? 0 : 8 }]}>
           <Animated.View
             style={[
               activityStyles.iconSquarePlaceholder,

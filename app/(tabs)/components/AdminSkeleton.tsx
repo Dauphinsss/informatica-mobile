@@ -104,7 +104,7 @@ export const ActivityItemSkeleton: React.FC = () => {
   return (
     <View style={styles.activityItem}>
       {/* Ícono izquierdo */}
-      <Skeleton width={40} height={40} borderRadius={20} />
+      <Skeleton width={40} height={40} borderRadius={10} />
 
       {/* Contenido */}
       <View style={styles.activityContent}>
@@ -125,12 +125,10 @@ export const ActivitySectionSkeleton: React.FC = () => {
   const theme = useTheme();
 
   return (
-    <View style={[styles.activityCard, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.activityCard, { backgroundColor: 'transparent', shadowColor: 'transparent' }]}>
       <View style={{ padding: 16 }}>
         <ActivityItemSkeleton />
-        <View style={{ height: 1, backgroundColor: theme.colors.surfaceVariant, marginVertical: 12 }} />
         <ActivityItemSkeleton />
-        <View style={{ height: 1, backgroundColor: theme.colors.surfaceVariant, marginVertical: 12 }} />
         <ActivityItemSkeleton />
       </View>
     </View>
@@ -174,6 +172,7 @@ const styles = StyleSheet.create({
     right: 12,
   },
   activityItem: {
+    marginVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
