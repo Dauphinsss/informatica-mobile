@@ -6,11 +6,12 @@ import {
   collection,
   doc,
   getDocs,
+  onSnapshot,
   updateDoc,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import React, { useCallback, useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
 import {
   Appbar,
   FAB,
@@ -18,7 +19,7 @@ import {
   Searchbar,
   Snackbar,
   Text,
-  useTheme
+  useTheme,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth, db, storage } from "../../firebase";
@@ -56,13 +57,14 @@ export default function ManageSubjectsScreen() {
   const [updateLoading, setUpdateLoading] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [updatingSubjectId, setUpdatingSubjectId] = useState<string | null>(
-    null
+    null,
   );
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarType, setSnackbarType] = useState<"success" | "error">(
-    "success"
+    "success",
   );
+  const [refreshing, setRefreshing] = useState(false);
 
   // Estado del formulario de CREACIÓN
   const [formData, setFormData] = useState({
@@ -108,41 +110,60 @@ export default function ManageSubjectsScreen() {
     }
   };
 
-  // Función para obtener materias de Firebase
-  const fetchSubjects = useCallback(async () => {
+  // Pull to refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setRefreshing(false);
+  }, []);
+
+  // Listener en tiempo real para materias
+  useEffect(() => {
     setLoadingSubjects(true);
-    try {
-      const subjectsCollection = collection(db, "materias");
-      const subjectSnapshot = await getDocs(subjectsCollection);
-      const subjectsList = subjectSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as any),
-        createdAt: (doc.data() as any).createdAt?.toDate
-          ? (doc.data() as any).createdAt.toDate()
-          : (doc.data() as any).createdAt || new Date(),
-      })) as Subject[];
+    const subjectsCollection = collection(db, "materias");
+    const unsubscribe = onSnapshot(
+      subjectsCollection,
+      (snapshot) => {
+        const subjectsList = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as any),
+          createdAt: (docSnap.data() as any).createdAt?.toDate
+            ? (docSnap.data() as any).createdAt.toDate()
+            : (docSnap.data() as any).createdAt || new Date(),
+        })) as Subject[];
 
-      // Ordenar por semestre (numérico) y luego por nombre
-      subjectsList.sort((a, b) => {
-        const sa = Number(a.semestre ?? 0);
-        const sb = Number(b.semestre ?? 0);
-        if (!Number.isNaN(sa) && !Number.isNaN(sb) && sa !== sb) return sa - sb;
-        return (a.nombre || "").localeCompare(b.nombre || "");
-      });
+        // Ordenar por semestre (numérico) y luego por nombre
+        subjectsList.sort((a, b) => {
+          const sa = Number(a.semestre ?? 0);
+          const sb = Number(b.semestre ?? 0);
+          if (!Number.isNaN(sa) && !Number.isNaN(sb) && sa !== sb)
+            return sa - sb;
+          return (a.nombre || "").localeCompare(b.nombre || "");
+        });
 
-      setSubjects(subjectsList);
-    } catch (error) {
-      console.error("Error fetching subjects:", error);
-      showSnackbar("Error al cargar las materias", "error");
-    } finally {
-      setLoadingSubjects(false);
-    }
+        setSubjects(subjectsList);
+        setLoadingSubjects(false);
+      },
+      (error) => {
+        console.error("Error listening subjects:", error);
+        showSnackbar("Error al cargar las materias", "error");
+        setLoadingSubjects(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Mantener fetchSubjects para uso tras crear materia (compatibilidad)
+  const fetchSubjects = useCallback(async () => {
+    // Ya no es necesario, el onSnapshot se encarga,
+    // pero mantenemos la referencia para no romper otros usos
   }, []);
 
   // Verificar duplicados (excluir id opcional)
   const checkDuplicateSubject = async (
     nombre: string,
-    excludeId?: string
+    excludeId?: string,
   ): Promise<boolean> => {
     try {
       const subjectsCollection = collection(db, "materias");
@@ -221,14 +242,13 @@ export default function ManageSubjectsScreen() {
 
       // Notificación (opcional)
       try {
-        const { notificarCreacionMateria } = await import(
-          "@/services/notifications"
-        );
+        const { notificarCreacionMateria } =
+          await import("@/services/notifications");
         await notificarCreacionMateria(
           docRef.id,
           nombreNormalizado,
           (data.descripcion || "").trim(),
-          semestreNum
+          semestreNum,
         );
       } catch (error) {
         console.error("Error al enviar notificación:", error);
@@ -272,7 +292,7 @@ export default function ManageSubjectsScreen() {
 
       const exists = await checkDuplicateSubject(
         nombreNormalizado,
-        editingSubject.id
+        editingSubject.id,
       );
       if (exists) {
         setEditErrors((prev) => ({
@@ -310,7 +330,7 @@ export default function ManageSubjectsScreen() {
       console.error("Error updating subject:", error);
       showSnackbar(
         "No se pudo actualizar la materia, intente nuevamente",
-        "error"
+        "error",
       );
     } finally {
       setUpdateLoading(false);
@@ -359,7 +379,7 @@ export default function ManageSubjectsScreen() {
 
   const toggleSubjectStatus = async (
     subjectId: string,
-    currentStatus: "active" | "inactive"
+    currentStatus: "active" | "inactive",
   ) => {
     setUpdatingSubjectId(subjectId);
 
@@ -370,13 +390,15 @@ export default function ManageSubjectsScreen() {
 
       setSubjects((prevSubjects) =>
         prevSubjects.map((subject) =>
-          subject.id === subjectId ? { ...subject, estado: newStatus } : subject
-        )
+          subject.id === subjectId
+            ? { ...subject, estado: newStatus }
+            : subject,
+        ),
       );
 
       showSnackbar(
         `Materia ${newStatus === "active" ? "activada" : "desactivada"}`,
-        "success"
+        "success",
       );
     } catch (error) {
       console.error("Error updating subject status:", error);
@@ -398,10 +420,6 @@ export default function ManageSubjectsScreen() {
     );
   });
 
-  useEffect(() => {
-    fetchSubjects();
-  }, [fetchSubjects]);
-
   const isSaveDisabled =
     !formData.nombre.trim() ||
     !formData.descripcion.trim() ||
@@ -417,10 +435,10 @@ export default function ManageSubjectsScreen() {
     <View
       style={[
         styles.container,
-        { 
+        {
           backgroundColor: theme.colors.background,
           paddingBottom: insets.bottom,
-        }
+        },
       ]}
     >
       <Appbar.Header>
@@ -436,6 +454,15 @@ export default function ManageSubjectsScreen() {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 80 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+            progressBackgroundColor={theme.colors.elevation.level2}
+          />
+        }
       >
         {searchOpen && (
           <Searchbar
@@ -449,11 +476,11 @@ export default function ManageSubjectsScreen() {
 
         {loadingSubjects ? (
           <>
-          <SubjectCardSkeleton />
-          <SubjectCardSkeleton />
-          <SubjectCardSkeleton />
-          <SubjectCardSkeleton />
-          <SubjectCardSkeleton />
+            <SubjectCardSkeleton />
+            <SubjectCardSkeleton />
+            <SubjectCardSkeleton />
+            <SubjectCardSkeleton />
+            <SubjectCardSkeleton />
           </>
         ) : (
           <>
@@ -526,9 +553,9 @@ export default function ManageSubjectsScreen() {
         icon="plus"
         style={[
           styles.fab,
-          { 
-            bottom: insets.bottom 
-          }
+          {
+            bottom: insets.bottom,
+          },
         ]}
         onPress={() => navigation.navigate("CreateSubject")}
       />
@@ -573,7 +600,7 @@ const styles = {
   },
   searchbar: {
     marginBottom: 16,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   loadingContainer: {
     flex: 1,

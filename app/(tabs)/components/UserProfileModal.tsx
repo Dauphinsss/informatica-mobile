@@ -1,11 +1,21 @@
+import { AdminBadge } from "@/components/ui/AdminBadge";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { useNavigation } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
-import { Avatar, Button, Surface, Text } from "react-native-paper";
+import {
+  Avatar,
+  Button,
+  Chip,
+  Divider,
+  Surface,
+  Text,
+} from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface UserProfileModalProps {
@@ -19,11 +29,23 @@ export default function UserProfileModal({
 }: UserProfileModalProps) {
   const { theme } = useTheme();
   const user = auth.currentUser;
+  const navigation = useNavigation<any>();
   const [isMounted, setIsMounted] = useState(visible);
+  const [userRole, setUserRole] = useState<string>("usuario");
 
   const slideAnim = useRef(new Animated.Value(500)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = onSnapshot(doc(db, "usuarios", user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        setUserRole(docSnap.data()?.rol || "usuario");
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     if (visible) {
@@ -103,20 +125,33 @@ export default function UserProfileModal({
               elevation={5}
             >
               <View style={styles.currentAccount}>
-                {user.photoURL ? (
-                  <Avatar.Image size={72} source={{ uri: user.photoURL }} />
-                ) : (
-                  <Avatar.Text
-                    size={72}
-                    label={user.displayName?.charAt(0).toUpperCase() || "?"}
-                  />
-                )}
+                <View style={{ position: "relative" }}>
+                  {user.photoURL ? (
+                    <Avatar.Image size={72} source={{ uri: user.photoURL }} />
+                  ) : (
+                    <Avatar.Text
+                      size={72}
+                      label={user.displayName?.charAt(0).toUpperCase() || "?"}
+                    />
+                  )}
+                  <AdminBadge size={72} isAdmin={userRole === "admin"} />
+                </View>
                 <Text
                   variant="titleLarge"
                   style={[styles.userName, { color: theme.colors.onSurface }]}
                 >
                   {user.displayName || "Usuario"}
                 </Text>
+                {userRole === "admin" && (
+                  <Chip
+                    icon="shield-check"
+                    compact
+                    style={{ backgroundColor: theme.colors.primaryContainer }}
+                    textStyle={{ fontSize: 11, color: theme.colors.primary }}
+                  >
+                    Administrador
+                  </Chip>
+                )}
                 <Text
                   variant="bodyMedium"
                   style={[
@@ -127,6 +162,43 @@ export default function UserProfileModal({
                   {user.email}
                 </Text>
               </View>
+
+              <Divider style={{ marginVertical: 16 }} />
+
+              <Pressable
+                onPress={() => {
+                  onDismiss();
+                  navigation.navigate("MisPublicacionesScreen");
+                }}
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  {
+                    backgroundColor: pressed
+                      ? theme.colors.surfaceVariant
+                      : "transparent",
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="folder-account-outline"
+                  size={22}
+                  color={theme.colors.primary}
+                />
+                <Text
+                  variant="bodyLarge"
+                  style={{ color: theme.colors.onSurface, marginLeft: 12 }}
+                >
+                  Mis Materiales
+                </Text>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={22}
+                  color={theme.colors.onSurfaceVariant}
+                  style={{ marginLeft: "auto" }}
+                />
+              </Pressable>
+
+              <View style={{ height: 12 }} />
 
               <Button
                 mode="contained"
@@ -203,5 +275,12 @@ const styles = StyleSheet.create({
   },
   cancelButtonContent: {
     paddingVertical: 0,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
   },
 });

@@ -21,7 +21,7 @@ import {
 export const comentariosService = {
   async actualizarEstadisticasUsuario(
     usuarioUid: string,
-    cambios: Record<string, number>
+    cambios: Record<string, number>,
   ) {
     try {
       if (!usuarioUid) return;
@@ -36,20 +36,20 @@ export const comentariosService = {
     } catch (error) {
       console.error(
         "Error actualizando estadisticasUsuario (comentariosService):",
-        error
+        error,
       );
     }
   },
 
   async obtenerComentariosPorPublicacion(
-    publicacionId: string
+    publicacionId: string,
   ): Promise<Comment[]> {
     try {
       const q = query(
         collection(db, "comentarios"),
         where("publicacionId", "==", publicacionId),
         where("estado", "==", "activo"),
-        orderBy("fechaCreacion", "asc")
+        orderBy("fechaCreacion", "asc"),
       );
 
       const querySnapshot = await getDocs(q);
@@ -97,7 +97,7 @@ export const comentariosService = {
   },
 
   async crearComentario(
-    comentario: Omit<Comment, "id" | "fechaCreacion">
+    comentario: Omit<Comment, "id" | "fechaCreacion">,
   ): Promise<string> {
     try {
       const comentarioData = {
@@ -111,7 +111,7 @@ export const comentariosService = {
 
       const docRef = await addDoc(
         collection(db, "comentarios"),
-        comentarioData
+        comentarioData,
       );
 
       await updateDoc(doc(db, "publicaciones", comentario.publicacionId), {
@@ -139,7 +139,7 @@ export const comentariosService = {
 
   async eliminarComentario(
     comentarioId: string,
-    publicacionId: string
+    publicacionId: string,
   ): Promise<void> {
     try {
       const comentarioSnap = await getDoc(doc(db, "comentarios", comentarioId));
@@ -176,14 +176,14 @@ export const comentariosService = {
 
   async darLikeComentario(
     commentId: string,
-    usuarioUid: string
+    usuarioUid: string,
   ): Promise<void> {
     try {
       const likeRef = collection(db, "likes");
       const q = query(
         likeRef,
         where("comentarioId", "==", commentId),
-        where("autorUid", "==", usuarioUid)
+        where("autorUid", "==", usuarioUid),
       );
 
       const snapshot = await getDocs(q);
@@ -213,20 +213,20 @@ export const comentariosService = {
 
   async quitarLikeComentario(
     commentId: string,
-    usuarioUid: string
+    usuarioUid: string,
   ): Promise<void> {
     try {
       const likeRef = collection(db, "likes");
       const q = query(
         likeRef,
         where("comentarioId", "==", commentId),
-        where("autorUid", "==", usuarioUid)
+        where("autorUid", "==", usuarioUid),
       );
 
       const snapshot = await getDocs(q);
 
       const deletePromises = snapshot.docs.map((docSnap) =>
-        deleteDoc(docSnap.ref)
+        deleteDoc(docSnap.ref),
       );
 
       await Promise.all(deletePromises);
@@ -246,13 +246,13 @@ export const comentariosService = {
 
   suscribirseALikesComentario(
     commentId: string,
-    callback: (likes: number, userLiked: boolean) => void
+    callback: (likes: number, userLiked: boolean) => void,
   ) {
     const usuarioUid = getAuth().currentUser?.uid;
 
     const likesQuery = query(
       collection(db, "likes"),
-      where("comentarioId", "==", commentId)
+      where("comentarioId", "==", commentId),
     );
 
     return onSnapshot(likesQuery, (snapshot) => {
@@ -267,14 +267,14 @@ export const comentariosService = {
 
   suscribirseAComentarios(
     publicacionId: string,
-    callback: (comentarios: Comment[]) => void
+    callback: (comentarios: Comment[]) => void,
   ): () => void {
     try {
       const q = query(
         collection(db, "comentarios"),
         where("publicacionId", "==", publicacionId),
         where("estado", "==", "activo"),
-        orderBy("fechaCreacion", "asc")
+        orderBy("fechaCreacion", "asc"),
       );
 
       return onSnapshot(q, (querySnapshot) => {
@@ -285,6 +285,7 @@ export const comentariosService = {
           comentarios.push({
             id: doc.id,
             ...data,
+            autorRol: data.autorRol || "usuario",
             fechaCreacion: data.fechaCreacion.toDate(),
           } as Comment);
         });
@@ -300,7 +301,7 @@ export const comentariosService = {
 
   suscribirseAComentario(
     comentarioId: string,
-    callback: (comentario: Comment | null) => void
+    callback: (comentario: Comment | null) => void,
   ): () => void {
     try {
       return onSnapshot(doc(db, "comentarios", comentarioId), (docSnapshot) => {
@@ -324,13 +325,13 @@ export const comentariosService = {
 
   suscribirseAContadorComentarios(
     publicacionId: string,
-    callback: (count: number) => void
+    callback: (count: number) => void,
   ): () => void {
     try {
       const q = query(
         collection(db, "comentarios"),
         where("publicacionId", "==", publicacionId),
-        where("estado", "==", "activo")
+        where("estado", "==", "activo"),
       );
 
       return onSnapshot(q, (querySnapshot) => {

@@ -1,10 +1,11 @@
+import { AdminBadge } from "@/components/ui/AdminBadge";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useNavigation } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import {
@@ -26,6 +27,7 @@ export default function ProfileScreen() {
   const user = auth.currentUser;
   const { themeMode, setThemeMode, theme } = useTheme();
   const [themeDialogVisible, setThemeDialogVisible] = useState(false);
+  const [userRole, setUserRole] = useState<string>("usuario");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -69,6 +71,16 @@ export default function ProfileScreen() {
     ]).start();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = onSnapshot(doc(db, "usuarios", user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        setUserRole(docSnap.data()?.rol || "usuario");
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
+
   if (!user) return null;
 
   const handleLogout = async () => {
@@ -76,9 +88,9 @@ export default function ProfileScreen() {
       console.log("🚪 Cerrando sesión...");
       const uid = auth.currentUser?.uid;
       if (uid) {
-        await updateDoc(doc(db, "usuarios", uid), { 
+        await updateDoc(doc(db, "usuarios", uid), {
           pushTokens: [],
-          tokens: [], 
+          tokens: [],
         });
         console.log("🔑 tokens borrados en Firestore");
       }
@@ -128,19 +140,22 @@ export default function ProfileScreen() {
           <Surface style={styles.surface} elevation={2}>
             <View style={styles.profileSection}>
               <View style={styles.avatarContainer}>
-                {user.photoURL ? (
-                  <Avatar.Image
-                    size={90}
-                    source={{ uri: user.photoURL }}
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <Avatar.Icon
-                    size={90}
-                    icon="account"
-                    style={styles.avatar}
-                  />
-                )}
+                <View style={{ position: "relative" }}>
+                  {user.photoURL ? (
+                    <Avatar.Image
+                      size={90}
+                      source={{ uri: user.photoURL }}
+                      style={styles.avatar}
+                    />
+                  ) : (
+                    <Avatar.Icon
+                      size={90}
+                      icon="account"
+                      style={styles.avatar}
+                    />
+                  )}
+                  <AdminBadge size={90} isAdmin={userRole === "admin"} />
+                </View>
                 <View
                   style={[
                     styles.statusDot,
@@ -151,6 +166,28 @@ export default function ProfileScreen() {
               <Text variant="headlineSmall" style={styles.name}>
                 {user.displayName || "Usuario"}
               </Text>
+              {userRole === "admin" && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    marginTop: 2,
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="shield-check"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    variant="labelSmall"
+                    style={{ color: theme.colors.primary }}
+                  >
+                    Administrador
+                  </Text>
+                </View>
+              )}
               <Text variant="bodyMedium" style={styles.email}>
                 {user.email}
               </Text>
@@ -211,6 +248,40 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </Card.Content>
+          </Card>
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim1 }],
+            },
+          ]}
+        >
+          <Card elevation={1} style={styles.card}>
+            <List.Item
+              title="Mis Materiales"
+              description="Tus publicaciones"
+              left={(props) => (
+                <View style={styles.iconWrapper}>
+                  <MaterialCommunityIcons
+                    name="folder-account-outline"
+                    size={24}
+                    color={theme.colors.primary}
+                  />
+                </View>
+              )}
+              right={(props) => (
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              )}
+              onPress={() => navigation.navigate("MisPublicacionesScreen")}
+            />
           </Card>
         </Animated.View>
 

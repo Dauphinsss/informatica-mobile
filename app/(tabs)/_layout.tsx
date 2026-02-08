@@ -28,7 +28,7 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
   state.routes.forEach((route, index) => {
     if (!animatedValuesRef.current[route.key]) {
       animatedValuesRef.current[route.key] = new Animated.Value(
-        state.index === index ? 1 : 0
+        state.index === index ? 1 : 0,
       );
     }
   });
@@ -54,7 +54,7 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
 
   const paddingBottom = useMemo(
     () => Math.max(insets.bottom, 12),
-    [insets.bottom]
+    [insets.bottom],
   );
 
   return (
@@ -109,8 +109,8 @@ const AnimatedTabBar: React.FC<AnimatedTabBarProps> = ({
           routeOptions.tabBarLabel !== undefined
             ? routeOptions.tabBarLabel
             : routeOptions.title !== undefined
-            ? routeOptions.title
-            : route.name;
+              ? routeOptions.title
+              : route.name;
 
         const iconElement =
           routeOptions.tabBarIcon?.({
@@ -203,7 +203,7 @@ export default function TabLayout() {
       if (auth.currentUser) {
         try {
           const userDoc = await getDoc(
-            doc(db, "usuarios", auth.currentUser.uid)
+            doc(db, "usuarios", auth.currentUser.uid),
           );
           if (userDoc.exists()) {
             setUserRole(userDoc.data().rol);

@@ -1,23 +1,31 @@
+import { AdminBadge } from "@/components/ui/AdminBadge";
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
-    eliminarArchivo,
-    guardarEnlaceExterno,
-    obtenerTiposArchivo,
-    seleccionarArchivo,
-    subirArchivo,
+  eliminarArchivo,
+  guardarEnlaceExterno,
+  obtenerTiposArchivo,
+  seleccionarArchivo,
+  subirArchivo,
 } from "@/scripts/services/Files";
 import {
-    incrementarVistas,
-    obtenerArchivosConTipo,
-    obtenerPublicacionPorId,
+  incrementarVistas,
+  obtenerArchivosConTipo,
+  obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
 import { eliminarPublicacionYArchivos } from "@/scripts/services/Reports";
 import {
-    ArchivoPublicacion,
-    Publicacion,
+  ArchivoPublicacion,
+  Publicacion,
 } from "@/scripts/types/Publication.type";
 import { registrarActividadCliente } from "@/services/activity.service";
+import {
+  CACHE_KEYS,
+  downloadAndCachePdf,
+  getCache,
+  getPdfFromCache,
+  setCache,
+} from "@/services/cache.service";
 import { comentariosService } from "@/services/comments.service";
 import * as downloadsService from "@/services/downloads.service";
 import { likesService } from "@/services/likes.service";
@@ -25,47 +33,48 @@ import { compartirPublicacionMejorado } from "@/services/shareService";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getAuth } from "firebase/auth";
 import {
-    addDoc,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    increment,
-    onSnapshot,
-    query,
-    setDoc,
-    Timestamp,
-    updateDoc,
-    where,
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  increment,
+  onSnapshot,
+  query,
+  setDoc,
+  Timestamp,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Dimensions,
-    Image,
-    KeyboardAvoidingView,
-    Linking,
-    Platform,
-    ScrollView,
-    View,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  ScrollView,
+  View,
 } from "react-native";
+import ReactNativeBlobUtil from "react-native-blob-util";
 import {
-    ActivityIndicator,
-    Appbar,
-    Avatar,
-    Button,
-    Card,
-    Chip,
-    Dialog,
-    Divider,
-    IconButton,
-    Portal,
-    Text,
-    TextInput,
+  ActivityIndicator,
+  Appbar,
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Dialog,
+  Divider,
+  IconButton,
+  Portal,
+  Text,
+  TextInput,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomAlert, {
-    CustomAlertButton,
-    CustomAlertType,
+  CustomAlertButton,
+  CustomAlertType,
 } from "../../components/ui/CustomAlert";
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import CommentsModal from "../components/comments/CommentsModal";
@@ -91,7 +100,8 @@ export default function PublicationDetailScreen() {
   const materiaNombre = params?.materiaNombre || "Materia";
 
   const [publicacion, setPublicacion] = useState<Publicacion | null>(null);
-  const [displayedMateriaNombre, setDisplayedMateriaNombre] = useState(materiaNombre);
+  const [displayedMateriaNombre, setDisplayedMateriaNombre] =
+    useState(materiaNombre);
   const [archivos, setArchivos] = useState<ArchivoPublicacion[]>([]);
   const [cargando, setCargando] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -103,7 +113,7 @@ export default function PublicationDetailScreen() {
     useState(false);
   const [fileToDeleteId, setFileToDeleteId] = useState<string | null>(null);
   const [filesMarkedForDelete, setFilesMarkedForDelete] = useState<string[]>(
-    []
+    [],
   );
   const [stagedAdds, setStagedAdds] = useState<
     {
@@ -144,7 +154,7 @@ export default function PublicationDetailScreen() {
   >(null);
   const [savedMotivo, setSavedMotivo] = useState<string>("");
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(
-    null
+    null,
   );
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [downloadingAll, setDownloadingAll] = useState(false);
@@ -154,6 +164,13 @@ export default function PublicationDetailScreen() {
     fileName: string;
   } | null>(null);
   const [sharingPublication, setSharingPublication] = useState(false);
+  const [userRole, setUserRole] = useState<string>("usuario");
+
+  const isOwner =
+    publicacion && usuario && publicacion.autorUid === usuario.uid;
+  const isAdmin = userRole === "admin";
+  const canEdit = isOwner;
+  const canDelete = isOwner || isAdmin;
 
   const pedirMotivoYContinuar = (accion: (motivo: string) => Promise<void>) => {
     accionPendiente.current = accion;
@@ -173,11 +190,20 @@ export default function PublicationDetailScreen() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!usuario) return;
+    getDoc(doc(db, "usuarios", usuario.uid))
+      .then((snap) => {
+        if (snap.exists()) setUserRole(snap.data()?.rol || "usuario");
+      })
+      .catch(() => {});
+  }, [usuario]);
+
   const showAlert = (
     title: string | undefined,
     message: string,
     type: CustomAlertType = "info",
-    buttons?: CustomAlertButton[]
+    buttons?: CustomAlertButton[],
   ) => {
     setAlertTitle(title);
     setAlertMessage(message);
@@ -189,13 +215,13 @@ export default function PublicationDetailScreen() {
           onPress: () => {},
           mode: "contained",
         },
-      ]
+      ],
     );
     setAlertVisible(true);
   };
   const actualizarEstadisticasUsuario = async (
     usuarioUid: string,
-    cambios: Record<string, number>
+    cambios: Record<string, number>,
   ): Promise<void> => {
     if (!usuarioUid) return;
     const data: Record<string, any> = {};
@@ -213,7 +239,7 @@ export default function PublicationDetailScreen() {
   };
   const reportarPublicacion = async (
     publicacionId: string,
-    motivo: string
+    motivo: string,
   ): Promise<boolean> => {
     try {
       const usuarioLocal = auth.currentUser;
@@ -227,15 +253,15 @@ export default function PublicationDetailScreen() {
         query(
           collection(db, "reportes"),
           where("publicacionUid", "==", publicacionId),
-          where("autorUid", "==", usuarioLocal.uid)
-        )
+          where("autorUid", "==", usuarioLocal.uid),
+        ),
       );
 
       if (!reportesExistentes.empty) {
         showAlert(
           "Ya reportaste esta publicación",
           "No puedes reportar la misma publicación más de una vez",
-          "info"
+          "info",
         );
         return false;
       }
@@ -261,7 +287,7 @@ export default function PublicationDetailScreen() {
       } catch (err) {
         console.warn(
           "No se pudo obtener autor de la publicación (solo para estadísticas):",
-          err
+          err,
         );
       }
 
@@ -276,8 +302,8 @@ export default function PublicationDetailScreen() {
             autorPublicacionNombre
               ? ` del autor ${autorPublicacionNombre}`
               : autorPublicacionUid
-              ? ` del autor ${autorPublicacionUid}`
-              : ""
+                ? ` del autor ${autorPublicacionUid}`
+                : ""
           } por motivo: ${motivo}`;
 
           await registrarActividadCliente(
@@ -291,7 +317,7 @@ export default function PublicationDetailScreen() {
               motivo,
               autorPublicacionUid: autorPublicacionUid || undefined,
               autorPublicacionNombre: autorPublicacionNombre || undefined,
-            }
+            },
           );
         } catch (err) {
           console.warn("No se pudo registrar actividad de reporte:", err);
@@ -301,14 +327,14 @@ export default function PublicationDetailScreen() {
       actualizarEstadisticasUsuario(usuarioLocal.uid, {
         publicacionesReportadas: 1,
       }).catch((err) =>
-        console.error("Error actualizando publicacionesReportadas:", err)
+        console.error("Error actualizando publicacionesReportadas:", err),
       );
 
       if (autorPublicacionUid && autorPublicacionUid !== usuarioLocal.uid) {
         actualizarEstadisticasUsuario(autorPublicacionUid, {
           reportesRecibidos: 1,
         }).catch((err) =>
-          console.error("Error actualizando reportesRecibidos:", err)
+          console.error("Error actualizando reportesRecibidos:", err),
         );
       }
 
@@ -322,17 +348,59 @@ export default function PublicationDetailScreen() {
   const cargarPublicacion = useCallback(async () => {
     setCargando(true);
     try {
+      // Intentar cargar del cache primero
+      const cachedPub = await getCache<any>(
+        CACHE_KEYS.publicationDetail(publicacionId),
+      );
+      const cachedFiles = await getCache<any[]>(
+        CACHE_KEYS.publicationFiles(publicacionId),
+      );
+      if (cachedPub) {
+        setPublicacion({
+          ...cachedPub,
+          fechaPublicacion: new Date(cachedPub.fechaPublicacion),
+        });
+        setCargando(false);
+      }
+      if (cachedFiles && cachedFiles.length > 0) {
+        setArchivos(
+          cachedFiles.map((a: any) => ({
+            ...a,
+            fechaSubida: a.fechaSubida ? new Date(a.fechaSubida) : undefined,
+          })),
+        );
+      }
+
+      // Luego cargar datos frescos de la red
       const pub = await obtenerPublicacionPorId(publicacionId);
       if (pub) {
         setPublicacion(pub);
+        // Cachear publicación
+        setCache(CACHE_KEYS.publicationDetail(publicacionId), {
+          ...pub,
+          fechaPublicacion: pub.fechaPublicacion.toISOString(),
+        });
+
         await incrementarVistas(publicacionId);
         const archivosData = await obtenerArchivosConTipo(publicacionId);
         setArchivos(archivosData);
+        // Cachear archivos
+        setCache(
+          CACHE_KEYS.publicationFiles(publicacionId),
+          archivosData.map((a) => ({
+            ...a,
+            fechaSubida:
+              a.fechaSubida instanceof Date
+                ? a.fechaSubida.toISOString()
+                : a.fechaSubida,
+          })),
+        );
+
         if (usuario) {
           const likeQuery = query(
             collection(db, "likes"),
             where("publicacionId", "==", publicacionId),
-            where("autorUid", "==", usuario.uid)
+            where("autorUid", "==", usuario.uid),
           );
           const likeSnapshot = await getDocs(likeQuery);
           setUserLiked(!likeSnapshot.empty);
@@ -358,7 +426,7 @@ export default function PublicationDetailScreen() {
             fechaPublicacion: data.fechaPublicacion.toDate(),
           } as Publicacion);
         }
-      }
+      },
     );
     return () => unsubscribe();
   }, [publicacionId]);
@@ -368,7 +436,7 @@ export default function PublicationDetailScreen() {
     const q = query(
       collection(db, "archivos"),
       where("publicacionId", "==", publicacionId),
-      where("activo", "==", true)
+      where("activo", "==", true),
     );
     const unsub = onSnapshot(q, async () => {
       try {
@@ -386,7 +454,7 @@ export default function PublicationDetailScreen() {
     const likeQuery = query(
       collection(db, "likes"),
       where("publicacionId", "==", publicacionId),
-      where("autorUid", "==", usuario.uid)
+      where("autorUid", "==", usuario.uid),
     );
     const unsubscribe = onSnapshot(likeQuery, (snapshot) => {
       setUserLiked(!snapshot.empty);
@@ -399,10 +467,16 @@ export default function PublicationDetailScreen() {
   }, [cargarPublicacion]);
 
   useEffect(() => {
-    if (publicacion && (materiaNombre === "Materia" || materiaNombre === "Publicación compartida")) {
+    if (
+      publicacion &&
+      (materiaNombre === "Materia" ||
+        materiaNombre === "Publicación compartida")
+    ) {
       const obtenerNombreMateria = async () => {
         try {
-          const materiaDoc = await getDoc(doc(db, "materias", publicacion.materiaId));
+          const materiaDoc = await getDoc(
+            doc(db, "materias", publicacion.materiaId),
+          );
           if (materiaDoc.exists()) {
             const nombreMateria = materiaDoc.data().nombre;
             setDisplayedMateriaNombre(nombreMateria);
@@ -437,7 +511,7 @@ export default function PublicationDetailScreen() {
 
     const likesCountQuery = query(
       collection(db, "likes"),
-      where("publicacionId", "==", publicacionId)
+      where("publicacionId", "==", publicacionId),
     );
 
     const unsubscribe = onSnapshot(likesCountQuery, (snapshot) => {
@@ -459,7 +533,7 @@ export default function PublicationDetailScreen() {
       publicacionId,
       (count) => {
         setRealTimeCommentCount(count);
-      }
+      },
     );
 
     return unsubscribe;
@@ -496,7 +570,6 @@ export default function PublicationDetailScreen() {
 
     const tipo = archivo.tipoNombre.toLowerCase();
     return (
-      tipo.includes("pdf") ||
       tipo.includes("imagen") ||
       tipo.includes("video") ||
       tipo.includes("audio") ||
@@ -505,6 +578,10 @@ export default function PublicationDetailScreen() {
       tipo.includes("powerpoint") ||
       tipo.includes("texto")
     );
+  };
+
+  const esPdf = (archivo: ArchivoPublicacion): boolean => {
+    return archivo.tipoNombre.toLowerCase().includes("pdf");
   };
 
   const abrirArchivo = async (archivo: ArchivoPublicacion) => {
@@ -519,6 +596,65 @@ export default function PublicationDetailScreen() {
       } catch (error) {
         console.error("Error al abrir enlace:", error);
         showAlert("Error", "No se pudo abrir el enlace", "error");
+      }
+      return;
+    }
+
+    // PDFs: usar cache persistente, solo descargar la 1ra vez
+    if (esPdf(archivo)) {
+      try {
+        // Verificar si ya está en cache
+        const cachedPath = await getPdfFromCache(
+          archivo.webUrl,
+          archivo.titulo,
+        );
+
+        if (cachedPath) {
+          // Ya está en cache: abrir instantáneo
+          const filePath = cachedPath.replace("file://", "");
+          if (Platform.OS === "android") {
+            await ReactNativeBlobUtil.android.actionViewIntent(
+              filePath,
+              "application/pdf",
+            );
+          } else {
+            await Linking.openURL(`file://${filePath}`);
+          }
+        } else {
+          // No está en cache: descargar y guardar
+          showAlert(undefined, "Descargando PDF...", "info");
+          const downloadedPath = await downloadAndCachePdf(
+            archivo.webUrl,
+            archivo.titulo,
+          );
+          setAlertVisible(false);
+
+          const filePath = downloadedPath.replace("file://", "");
+          if (Platform.OS === "android") {
+            await ReactNativeBlobUtil.android.actionViewIntent(
+              filePath,
+              "application/pdf",
+            );
+          } else {
+            await Linking.openURL(`file://${filePath}`);
+          }
+        }
+      } catch (error) {
+        console.error("Error al abrir PDF:", error);
+        setAlertVisible(false);
+        showAlert(
+          "Error",
+          "No se pudo abrir el PDF. ¿Deseas descargarlo?",
+          "confirm",
+          [
+            { text: "Cancelar", onPress: () => {}, mode: "text" },
+            {
+              text: "Descargar",
+              onPress: () => descargarArchivo(archivo),
+              mode: "contained",
+            },
+          ],
+        );
       }
       return;
     }
@@ -551,14 +687,14 @@ export default function PublicationDetailScreen() {
             onPress: () => descargarArchivo(archivo),
             mode: "contained",
           },
-        ]
+        ],
       );
     }
   };
 
   const detectarTipoArchivoLocal = (
     mimeType: string,
-    nombre: string
+    nombre: string,
   ): string | null => {
     for (const tipo of tiposArchivo) {
       if (tipo.mimetype.some((m: string) => mimeType && mimeType.includes(m))) {
@@ -586,13 +722,13 @@ export default function PublicationDetailScreen() {
 
       const tipoId = detectarTipoArchivoLocal(
         archivo.mimeType || "",
-        archivo.name
+        archivo.name,
       );
       if (!tipoId) {
         showAlert(
           "Tipo no soportado",
           "El tipo de archivo seleccionado no está soportado.",
-          "error"
+          "error",
         );
         return;
       }
@@ -640,20 +776,20 @@ export default function PublicationDetailScreen() {
       showAlert(
         "Error",
         "La URL no es válida. Debe incluir http:// o https://",
-        "error"
+        "error",
       );
       return;
     }
 
     const tipoEnlace = tiposArchivo.find(
-      (t) => t.nombre.toLowerCase() === "enlace"
+      (t) => t.nombre.toLowerCase() === "enlace",
     );
 
     if (!tipoEnlace) {
       showAlert(
         "Error",
         "No se encontró el tipo de archivo 'Enlace' en la base de datos",
-        "error"
+        "error",
       );
       return;
     }
@@ -712,7 +848,7 @@ export default function PublicationDetailScreen() {
 
       if (filesMarkedForDelete.length > 0) {
         await Promise.all(
-          filesMarkedForDelete.map((id) => eliminarArchivo(id))
+          filesMarkedForDelete.map((id) => eliminarArchivo(id)),
         );
         setFilesMarkedForDelete([]);
       }
@@ -723,8 +859,8 @@ export default function PublicationDetailScreen() {
 
           setStagedAdds((prev) =>
             prev.map((item, idx) =>
-              idx === i ? { ...item, subiendo: true, progreso: 0 } : item
-            )
+              idx === i ? { ...item, subiendo: true, progreso: 0 } : item,
+            ),
           );
 
           try {
@@ -735,7 +871,7 @@ export default function PublicationDetailScreen() {
                 publicacionId,
                 tipoParaGuardar,
                 nombreParaGuardar,
-                s.url
+                s.url,
               );
             } else if (s.file) {
               await subirArchivo(
@@ -747,24 +883,24 @@ export default function PublicationDetailScreen() {
                 (prog) => {
                   setStagedAdds((prev) =>
                     prev.map((item, idx) =>
-                      idx === i ? { ...item, progreso: prog } : item
-                    )
+                      idx === i ? { ...item, progreso: prog } : item,
+                    ),
                   );
-                }
+                },
               );
             }
           } catch (err) {
             showAlert(
               "Error",
               `No se pudo subir ${s.name || s.nombreEnlace || "archivo"}`,
-              "error"
+              "error",
             );
           }
 
           setStagedAdds((prev) =>
             prev.map((item, idx) =>
-              idx === i ? { ...item, subiendo: false, progreso: 100 } : item
-            )
+              idx === i ? { ...item, subiendo: false, progreso: 100 } : item,
+            ),
           );
         }
         setStagedAdds([]);
@@ -799,7 +935,32 @@ export default function PublicationDetailScreen() {
 
   const handleDeletePublication = async () => {
     try {
+      const deletedTitle = publicacion?.titulo || "";
+      const deletedAuthor = publicacion?.autorNombre || "";
+      const deletedAuthorUid = publicacion?.autorUid || "";
+      const wasAdminDelete = isAdmin && !isOwner;
+
       await eliminarPublicacionYArchivos(publicacionId);
+
+      // Registrar actividad si un admin borró publicación de otro usuario
+      if (wasAdminDelete && usuario) {
+        registrarActividadCliente(
+          "publicacion_eliminada",
+          `Publicación eliminada por admin`,
+          `${usuario.displayName || usuario.email} eliminó la publicación "${deletedTitle}" de ${deletedAuthor}`,
+          usuario.uid,
+          usuario.displayName || usuario.email || undefined,
+          deletedAuthorUid,
+          {
+            publicacionId,
+            tituloPublicacion: deletedTitle,
+            autorOriginal: deletedAuthor,
+            autorOriginalUid: deletedAuthorUid,
+            accion: "eliminacion_admin",
+          },
+        ).catch((err) => console.warn("Error registrando actividad:", err));
+      }
+
       showAlert("Eliminada", "La publicación fue eliminada", "success", [
         { text: "OK", onPress: () => navigation.goBack(), mode: "contained" },
       ]);
@@ -837,7 +998,7 @@ export default function PublicationDetailScreen() {
             archivo,
             (progress: any) => {
               setDownloadProgress(Math.round(progress.progress * 100));
-            }
+            },
           );
 
           setDownloadingFileId(null);
@@ -851,7 +1012,7 @@ export default function PublicationDetailScreen() {
             showAlert(
               "Error al descargar",
               result.error || "No se pudo descargar el archivo",
-              "error"
+              "error",
             );
           }
         },
@@ -872,7 +1033,7 @@ export default function PublicationDetailScreen() {
       showAlert(
         "Sin archivos",
         "No hay archivos disponibles para descargar",
-        "info"
+        "info",
       );
       return;
     }
@@ -904,7 +1065,7 @@ export default function PublicationDetailScreen() {
                   total,
                   fileName,
                 });
-              }
+              },
             );
 
             setDownloadingAll(false);
@@ -934,7 +1095,7 @@ export default function PublicationDetailScreen() {
                         onPress: async () => {
                           for (const doc of result.pendingShare!) {
                             await downloadsService.compartirArchivo(
-                              doc.shareUri
+                              doc.shareUri,
                             );
                           }
                         },
@@ -953,19 +1114,19 @@ export default function PublicationDetailScreen() {
                 "Descarga completada",
                 message,
                 result.failedCount > 0 ? "error" : "success",
-                buttons
+                buttons,
               );
             } else {
               showAlert(
                 "Error",
                 "No se pudo descargar ningún archivo. Verifica los permisos y tu conexión.",
-                "error"
+                "error",
               );
             }
           },
           mode: "contained",
         },
-      ]
+      ],
     );
   };
 
@@ -982,14 +1143,14 @@ export default function PublicationDetailScreen() {
         showAlert(
           "Reporte enviado",
           "Gracias por tu reporte. Lo revisaremos pronto.",
-          "success"
+          "success",
         );
       }
     } catch (error) {
       showAlert(
         "Error",
         "No se pudo enviar el reporte. Intenta de nuevo más tarde.",
-        "error"
+        "error",
       );
     }
   };
@@ -1067,7 +1228,7 @@ export default function PublicationDetailScreen() {
   const LinkPreview = ({ url }: { url: string }) => {
     const apiKey = "459ba3";
     const screenshotUrl = `https://api.screenshotmachine.com/?key=${apiKey}&url=${encodeURIComponent(
-      url
+      url,
     )}&dimension=1024x768&format=jpg`;
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -1089,7 +1250,7 @@ export default function PublicationDetailScreen() {
               onError={(e) => {
                 console.error(
                   "[PublicationDetail] LinkPreview image onError:",
-                  e
+                  e,
                 );
                 setError("Error");
               }}
@@ -1116,7 +1277,7 @@ export default function PublicationDetailScreen() {
 
   const renderArchivoPreview = (
     archivo: ArchivoPublicacion,
-    isDownloading: boolean = false
+    isDownloading: boolean = false,
   ) => {
     const tipo = archivo.tipoNombre.toLowerCase();
     const icono = obtenerIconoPorTipo(archivo.tipoNombre || "");
@@ -1176,46 +1337,53 @@ export default function PublicationDetailScreen() {
           />
         )}
 
-        {publicacion && usuario && publicacion.autorUid !== usuario.uid && (
-          <Appbar.Action
-            icon="flag"
-            onPress={mostrarDialogoReporte}
-            style={{ marginHorizontal: 4 }}
-          />
-        )}
-
-        {publicacion && usuario && publicacion.autorUid === usuario.uid && (
-          <View style={{ flexDirection: "row" }}>
-            {!editMode ? (
-              <Appbar.Action
-                icon="pencil"
-                onPress={() => {
-                  setEditMode(true);
-                  setEditTitle(publicacion.titulo);
-                  setEditDescription(publicacion.descripcion || "");
-                }}
-                style={{ marginHorizontal: 4 }}
-              />
-            ) : (
-              <View style={{ flexDirection: "row" }}>
-                <Appbar.Action
-                  icon="close"
-                  onPress={handleCancelEdit}
-                  style={{ marginHorizontal: 4 }}
-                />
-                <Appbar.Action
-                  icon="content-save"
-                  onPress={handleSaveEdits}
-                  style={{ marginHorizontal: 4 }}
-                />
-              </View>
-            )}
-
+        {publicacion &&
+          usuario &&
+          !canEdit &&
+          !canDelete &&
+          publicacion.autorUid !== usuario.uid && (
             <Appbar.Action
-              icon="trash-can"
-              onPress={() => setConfirmDeletePubVisible(true)}
+              icon="flag"
+              onPress={mostrarDialogoReporte}
               style={{ marginHorizontal: 4 }}
             />
+          )}
+
+        {publicacion && usuario && (canEdit || canDelete) && (
+          <View style={{ flexDirection: "row" }}>
+            {canEdit &&
+              (!editMode ? (
+                <Appbar.Action
+                  icon="pencil"
+                  onPress={() => {
+                    setEditMode(true);
+                    setEditTitle(publicacion.titulo);
+                    setEditDescription(publicacion.descripcion || "");
+                  }}
+                  style={{ marginHorizontal: 4 }}
+                />
+              ) : (
+                <View style={{ flexDirection: "row" }}>
+                  <Appbar.Action
+                    icon="close"
+                    onPress={handleCancelEdit}
+                    style={{ marginHorizontal: 4 }}
+                  />
+                  <Appbar.Action
+                    icon="content-save"
+                    onPress={handleSaveEdits}
+                    style={{ marginHorizontal: 4 }}
+                  />
+                </View>
+              ))}
+
+            {canDelete && (
+              <Appbar.Action
+                icon="trash-can"
+                onPress={() => setConfirmDeletePubVisible(true)}
+                style={{ marginHorizontal: 4 }}
+              />
+            )}
           </View>
         )}
       </Appbar.Header>
@@ -1255,20 +1423,26 @@ export default function PublicationDetailScreen() {
               <Card style={styles.headerCard}>
                 <Card.Content>
                   <View style={styles.autorContainer}>
-                    {publicacion.autorFoto ? (
-                      <Avatar.Image
+                    <View style={{ position: "relative" }}>
+                      {publicacion.autorFoto ? (
+                        <Avatar.Image
+                          size={48}
+                          source={{ uri: publicacion.autorFoto }}
+                        />
+                      ) : (
+                        <Avatar.Text
+                          size={48}
+                          label={
+                            publicacion.autorNombre?.charAt(0).toUpperCase() ||
+                            "?"
+                          }
+                        />
+                      )}
+                      <AdminBadge
                         size={48}
-                        source={{ uri: publicacion.autorFoto }}
+                        isAdmin={publicacion.autorRol === "admin"}
                       />
-                    ) : (
-                      <Avatar.Text
-                        size={48}
-                        label={
-                          publicacion.autorNombre?.charAt(0).toUpperCase() ||
-                          "?"
-                        }
-                      />
-                    )}
+                    </View>
                     <View style={styles.autorInfo}>
                       <Text variant="titleMedium" style={styles.autorNombre}>
                         {publicacion.autorNombre}
@@ -1373,7 +1547,7 @@ export default function PublicationDetailScreen() {
                   <View style={styles.archivosGrid}>
                     {archivos.map((archivo) => {
                       const isMarked = filesMarkedForDelete.includes(
-                        archivo.id
+                        archivo.id,
                       );
                       const isDownloading = downloadingFileId === archivo.id;
                       return (
@@ -1445,7 +1619,7 @@ export default function PublicationDetailScreen() {
                             <View style={styles.archivoInfoRow}>
                               <IconButton
                                 icon={obtenerIconoPorTipo(
-                                  archivo.tipoNombre || ""
+                                  archivo.tipoNombre || "",
                                 )}
                                 size={20}
                                 iconColor={theme.colors.primary}
@@ -1465,7 +1639,7 @@ export default function PublicationDetailScreen() {
                                   color: theme.colors.error,
                                   fontSize: 12,
                                   marginTop: 4,
-                                  textAlign: 'center',
+                                  textAlign: "center",
                                 }}
                               >
                                 Se eliminará al guardar
@@ -1490,7 +1664,7 @@ export default function PublicationDetailScreen() {
                               size={16}
                               onPress={() =>
                                 setStagedAdds((prev) =>
-                                  prev.filter((x) => x.id !== s.id)
+                                  prev.filter((x) => x.id !== s.id),
                                 )
                               }
                               style={{
@@ -1696,7 +1870,11 @@ export default function PublicationDetailScreen() {
           visible={confirmDeletePubVisible}
           onDismiss={() => setConfirmDeletePubVisible(false)}
           title="Eliminar publicación"
-          message="¿Estás seguro que quieres eliminar esta publicación y todos sus archivos? Esta acción no se puede deshacer."
+          message={
+            isAdmin && !isOwner
+              ? `Como administrador, vas a eliminar la publicación "${publicacion?.titulo || ""}" de ${publicacion?.autorNombre || "otro usuario"}. Esta acción no se puede deshacer.`
+              : "¿Estás seguro que quieres eliminar esta publicación y todos sus archivos? Esta acción no se puede deshacer."
+          }
           type="confirm"
           buttons={[
             {

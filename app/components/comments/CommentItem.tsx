@@ -1,12 +1,22 @@
 import { Comment } from "@/app/subjects/types/comment.type";
+import { AdminBadge } from "@/components/ui/AdminBadge";
 import { getAuth } from "firebase/auth";
 import React, { useState } from "react";
-import { LayoutAnimation, Platform, StyleSheet, UIManager, View } from "react-native";
+import {
+  LayoutAnimation,
+  Platform,
+  StyleSheet,
+  UIManager,
+  View,
+} from "react-native";
 import { Avatar, IconButton, Menu, Text, useTheme } from "react-native-paper";
 import { LikeButton } from "./LikeButton";
 
 // Habilitar LayoutAnimation en Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -161,11 +171,14 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.commentContainer}>
-        <Avatar.Image
-          size={36}
-          source={{ uri: comment.autorFoto || undefined }}
-          style={{ backgroundColor: theme.colors.outline }}
-        />
+        <View style={{ position: "relative" }}>
+          <Avatar.Image
+            size={36}
+            source={{ uri: comment.autorFoto || undefined }}
+            style={{ backgroundColor: theme.colors.outline }}
+          />
+          <AdminBadge size={36} isAdmin={comment.autorRol === "admin"} />
+        </View>
 
         <View style={styles.contentContainer}>
           <View style={styles.header}>
@@ -205,7 +218,13 @@ export const CommentItem: React.FC<CommentItemProps> = ({
 
           <View style={styles.actions}>
             {!readOnly && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: -12 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginLeft: -12,
+                }}
+              >
                 <LikeButton
                   comentarioId={comment.id}
                   initialLikes={comment.likes || 0}
@@ -236,11 +255,9 @@ export const CommentItem: React.FC<CommentItemProps> = ({
       {comment.respuestas && comment.respuestas.length > 0 && (
         <View style={styles.repliesContainer}>
           {!showReplies ? (
-            <Text
-              style={styles.viewRepliesText}
-              onPress={toggleReplies}
-            >
-              ──── Ver {comment.respuestas.length} respuesta{comment.respuestas.length !== 1 ? "s" : ""}
+            <Text style={styles.viewRepliesText} onPress={toggleReplies}>
+              ──── Ver {comment.respuestas.length} respuesta
+              {comment.respuestas.length !== 1 ? "s" : ""}
             </Text>
           ) : (
             <View>
@@ -257,10 +274,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
                   />
                 ))}
               </View>
-              <Text
-                style={styles.hideRepliesText}
-                onPress={toggleReplies}
-              >
+              <Text style={styles.hideRepliesText} onPress={toggleReplies}>
                 Ocultar respuestas
               </Text>
             </View>

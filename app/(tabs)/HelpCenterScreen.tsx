@@ -1,16 +1,12 @@
 import { ActivityListSkeleton } from "@/app/admin/components/SkeletonLoaders";
+import { AdminBadge } from "@/components/ui/AdminBadge";
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import {
-  Appbar,
-  Avatar,
-  Surface,
-  Text
-} from "react-native-paper";
+import { Appbar, Avatar, Surface, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Admin {
@@ -29,15 +25,15 @@ export default function HelpCenterScreen() {
     const fetchAdmins = async () => {
       try {
         const adminEmails = [
-          'marcosvelasquezvela20020509@gmail.com',
-          'steven18122004@gmail.com',
-          'victorterrazasc05@gmail.com',
-          'virreiradaniel@gmail.com',
+          "marcosvelasquezvela20020509@gmail.com",
+          "steven18122004@gmail.com",
+          "victorterrazasc05@gmail.com",
+          "virreiradaniel@gmail.com",
         ];
 
         const q = query(
-          collection(db, 'usuarios'),
-          where('correo', 'in', adminEmails)
+          collection(db, "usuarios"),
+          where("correo", "in", adminEmails),
         );
 
         const snapshot = await getDocs(q);
@@ -46,15 +42,15 @@ export default function HelpCenterScreen() {
         snapshot.forEach((doc) => {
           const data = doc.data();
           adminData.push({
-            name: data.nombre || 'Admin',
+            name: data.nombre || "Admin",
             email: data.correo,
-            photo: data.foto || '',
+            photo: data.foto || "",
           });
         });
 
         setAdmins(adminData);
       } catch (error) {
-        console.error('Error cargando admins:', error);
+        console.error("Error cargando admins:", error);
       } finally {
         setLoading(false);
       }
@@ -68,23 +64,42 @@ export default function HelpCenterScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: isDark ? theme.colors.surface : theme.colors.background }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          paddingBottom: insets.bottom,
+          backgroundColor: isDark
+            ? theme.colors.surface
+            : theme.colors.background,
+        },
+      ]}
+    >
       <Appbar.Header>
         <Appbar.Content title="Centro de Contactos" />
       </Appbar.Header>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerSection}>
-          <MaterialCommunityIcons 
-            name="email-multiple" 
-            size={48} 
+          <MaterialCommunityIcons
+            name="email-multiple"
+            size={48}
             color={theme.colors.primary}
             style={styles.headerIcon}
           />
-          <Text variant="headlineSmall" style={[styles.headerText, { color: theme.colors.primary }]}>
+          <Text
+            variant="headlineSmall"
+            style={[styles.headerText, { color: theme.colors.primary }]}
+          >
             Conecta con Nosotros
           </Text>
-          <Text variant="bodyMedium" style={[styles.descriptionText, { color: theme.colors.onSurfaceVariant }]}>
-            Contacta a cualquiera de nuestros administradores 
+          <Text
+            variant="bodyMedium"
+            style={[
+              styles.descriptionText,
+              { color: theme.colors.onSurfaceVariant },
+            ]}
+          >
+            Contacta a cualquiera de nuestros administradores
           </Text>
         </View>
 
@@ -93,11 +108,7 @@ export default function HelpCenterScreen() {
             <ActivityListSkeleton count={4} />
           ) : (
             admins.map((admin, index) => (
-              <Surface
-                key={index}
-                elevation={2}
-                style={styles.adminCard}
-              >
+              <Surface key={index} elevation={2} style={styles.adminCard}>
                 <Pressable
                   onPress={() => handleEmailPress(admin.email)}
                   style={({ pressed }) => [
@@ -108,23 +119,37 @@ export default function HelpCenterScreen() {
                   ]}
                 >
                   <View style={styles.adminContent}>
-                    {admin.photo ? (
-                      <Avatar.Image
-                        size={48}
-                        source={{ uri: admin.photo }}
-                      />
-                    ) : (
-                      <Avatar.Icon
-                        size={48}
-                        icon="account"
-                        style={{ backgroundColor: theme.colors.primaryContainer }}
-                      />
-                    )}
+                    <View style={{ position: "relative" }}>
+                      {admin.photo ? (
+                        <Avatar.Image size={48} source={{ uri: admin.photo }} />
+                      ) : (
+                        <Avatar.Icon
+                          size={48}
+                          icon="account"
+                          style={{
+                            backgroundColor: theme.colors.primaryContainer,
+                          }}
+                        />
+                      )}
+                      <AdminBadge size={48} isAdmin={true} />
+                    </View>
                     <View style={styles.adminInfo}>
-                      <Text variant="titleMedium" style={[styles.adminName, { color: theme.colors.onSurface }]}>
+                      <Text
+                        variant="titleMedium"
+                        style={[
+                          styles.adminName,
+                          { color: theme.colors.onSurface },
+                        ]}
+                      >
                         {admin.name}
                       </Text>
-                      <Text variant="bodySmall" style={[styles.adminEmail, { color: theme.colors.onSurfaceVariant }]}>
+                      <Text
+                        variant="bodySmall"
+                        style={[
+                          styles.adminEmail,
+                          { color: theme.colors.onSurfaceVariant },
+                        ]}
+                      >
                         {admin.email}
                       </Text>
                     </View>
@@ -152,7 +177,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   headerSection: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: 24,
     marginBottom: 32,
   },
@@ -161,10 +186,10 @@ const styles = StyleSheet.create({
   },
   headerText: {
     marginBottom: 8,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   descriptionText: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   adminsList: {
     paddingHorizontal: 16,
@@ -174,28 +199,28 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 8,
     marginBottom: 1,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   adminPressable: {
     padding: 16,
   },
   adminContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   iconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   adminInfo: {
     flex: 1,
   },
   adminName: {
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 4,
   },
   adminEmail: {

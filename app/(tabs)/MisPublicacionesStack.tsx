@@ -1,8 +1,8 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
-import MisPublicacionesScreen from "../profile/MisPublicacionesScreen";
-import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
 import FileGalleryScreen from "../subjects/FileGalleryScreen";
+import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
+import UltimasPublicacionesScreen from "./UltimasPublicacionesScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -13,20 +13,20 @@ export default function MisPublicacionesStack() {
         headerShown: false,
       }}
     >
-      <Stack.Screen 
-        name="MisPublicacionesMain" 
-        component={MisPublicacionesScreen} 
+      <Stack.Screen
+        name="MisPublicacionesMain"
+        component={UltimasPublicacionesScreen}
       />
-      <Stack.Screen 
-        name="PublicationDetail" 
-        component={PublicationDetailScreen} 
+      <Stack.Screen
+        name="PublicationDetail"
+        component={PublicationDetailScreen}
       />
-      <Stack.Screen 
-        name="FileGallery" 
+      <Stack.Screen
+        name="FileGallery"
         component={FileGalleryScreen}
         options={{
           headerShown: false,
-          animation: 'slide_from_bottom',
+          animation: "slide_from_bottom",
         }}
       />
     </Stack.Navigator>

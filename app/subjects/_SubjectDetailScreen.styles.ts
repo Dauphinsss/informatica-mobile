@@ -13,8 +13,22 @@ export const getStyles = (theme: MD3Theme) =>
       paddingBottom: 16,
     },
     card: {
+      borderRadius: 16,
       marginBottom: 12,
-      elevation: 1,
+      overflow: "hidden",
+    },
+    cardContent: {
+      paddingVertical: 16,
+      gap: 12,
+    },
+    topRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    infoBlock: {
+      flex: 1,
+      gap: 2,
     },
     cardHeader: {
       flexDirection: "row",
@@ -45,19 +59,37 @@ export const getStyles = (theme: MD3Theme) =>
       marginBottom: 12,
       color: theme.colors.onSurface,
     },
-    statsContainer: {
+    statsRow: {
       flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      flexShrink: 0,
+    },
+    statItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+    },
+    bottomRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       gap: 8,
+    },
+    fileTypesRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      flexShrink: 1,
       flexWrap: "wrap",
-      justifyContent:"space-between"
     },
-    statChip: {
-      backgroundColor: "transparent",
-      borderWidth: 0,
-      elevation: 0,
-    },
-    statText: {
-      color: theme.colors.onSurfaceVariant,
+    fileTypeTag: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 12,
+      gap: 4,
     },
     emptyContainer: {
       flex: 1,
@@ -86,18 +118,18 @@ export const getStyles = (theme: MD3Theme) =>
       backgroundColor: theme.colors.primaryContainer,
     },
     searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       paddingHorizontal: 16,
       paddingTop: 12,
       backgroundColor: theme.colors.background,
-      position: 'relative',
+      position: "relative",
     },
     searchbarWrapper: {
       flex: 1,
     },
     filtroContainer: {
-      position: 'relative',
+      position: "relative",
       marginLeft: 2,
     },
     filtroButton: {
@@ -107,17 +139,17 @@ export const getStyles = (theme: MD3Theme) =>
       borderWidth: 0,
     },
     filtroMenu: {
-      position: 'absolute',
-      top: '100%',
+      position: "absolute",
+      top: "100%",
       right: 0,
       backgroundColor: theme.colors.background,
       borderRadius: 12,
       minWidth: 160,
       zIndex: 100,
       borderWidth: 1,
-      borderColor: theme.colors.outlineVariant || '#e0e0e0',
-      overflow: 'hidden',
-      shadowColor: '#000',
+      borderColor: theme.colors.outlineVariant || "#e0e0e0",
+      overflow: "hidden",
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 8,
@@ -127,32 +159,32 @@ export const getStyles = (theme: MD3Theme) =>
       borderRadius: 0,
     },
     filtroItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       paddingVertical: 10,
       paddingHorizontal: 18,
     },
     filtroItemActive: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       paddingVertical: 10,
       paddingHorizontal: 18,
-      backgroundColor: theme.colors.secondaryContainer + '22',
+      backgroundColor: theme.colors.secondaryContainer + "22",
     },
     filtroText: {
       fontSize: 15,
-      fontWeight: '400',
+      fontWeight: "400",
       color: theme.colors.onBackground,
     },
     filtroTextActive: {
       fontSize: 15,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.onBackground,
     },
     actionButton: {
       borderRadius: 16,
-      overflow: 'hidden',
-    }
+      overflow: "hidden",
+    },
   });
 
 export default getStyles;

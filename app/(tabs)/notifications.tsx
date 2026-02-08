@@ -16,7 +16,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import {
@@ -26,10 +26,10 @@ import {
   Divider,
   IconButton,
   List,
-  Menu,
   Portal,
   Snackbar,
   Text,
+  TouchableRipple,
 } from "react-native-paper";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,16 +40,18 @@ export default function NotificationsScreen() {
   const user = auth.currentUser;
   const navigation = useNavigation<any>();
   const [notificaciones, setNotificaciones] = useState<NotificacionCompleta[]>(
-    []
+    [],
   );
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
-  const [notifToDelete, setNotifToDelete] = useState<{ id: string; titulo: string } | null>(null);
+  const [notifToDelete, setNotifToDelete] = useState<{
+    id: string;
+    titulo: string;
+  } | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [menuKey, setMenuKey] = useState(0);
   const pendingDeletesRef = React.useRef(new Set<string>());
 
   useEffect(() => {
@@ -58,14 +60,16 @@ export default function NotificationsScreen() {
     const unsubscribe = escucharNotificaciones(
       user.uid,
       (notifs) => {
-        const filtradas = notifs.filter(n => !pendingDeletesRef.current.has(n.id));
+        const filtradas = notifs.filter(
+          (n) => !pendingDeletesRef.current.has(n.id),
+        );
         setNotificaciones(filtradas);
         setTimeout(() => setLoading(false), 300);
       },
       (error) => {
         console.error("Error al cargar notificaciones:", error);
         setLoading(false);
-      }
+      },
     );
 
     return () => {
@@ -78,9 +82,8 @@ export default function NotificationsScreen() {
     React.useCallback(() => {
       return () => {
         setMenuVisible(false);
-        setMenuKey(prev => prev + 1);
       };
-    }, [])
+    }, []),
   );
 
   const handleNotificationPress = async (notif: NotificacionCompleta) => {
@@ -95,9 +98,9 @@ export default function NotificationsScreen() {
 
     // Navegar según el tipo de notificación
     const metadata = notif.metadata;
-    
+
     if (!metadata) {
-      console.log('Notificación sin metadata, solo marcando como leída');
+      console.log("Notificación sin metadata, solo marcando como leída");
       return;
     }
 
@@ -106,44 +109,52 @@ export default function NotificationsScreen() {
       const tabNavigation = navigation.getParent() || navigation;
 
       switch (metadata.accion) {
-        case 'ver_publicacion':
+        case "ver_publicacion":
           if (metadata.materiaId && metadata.publicacionId) {
-            console.log('[Notificación] Navegando a publicación:', metadata.publicacionId);
-            tabNavigation.navigate('Home', {
-              screen: 'PublicationDetail',
+            console.log(
+              "[Notificación] Navegando a publicación:",
+              metadata.publicacionId,
+            );
+            tabNavigation.navigate("Home", {
+              screen: "PublicationDetail",
               params: {
                 publicacionId: metadata.publicacionId,
-                materiaNombre: metadata.materiaNombre || 'Publicación',
+                materiaNombre: metadata.materiaNombre || "Publicación",
               },
             });
           }
           break;
 
-        case 'ver_materia':
+        case "ver_materia":
           if (metadata.materiaId) {
-            console.log('[Notificación] Navegando a materia:', metadata.materiaId);
-            tabNavigation.navigate('Home', {
-              screen: 'SubjectDetail',
+            console.log(
+              "[Notificación] Navegando a materia:",
+              metadata.materiaId,
+            );
+            tabNavigation.navigate("Home", {
+              screen: "SubjectDetail",
               params: {
                 id: metadata.materiaId,
                 materiaId: metadata.materiaId,
-                nombre: metadata.materiaNombre || 'Materia',
+                nombre: metadata.materiaNombre || "Materia",
               },
             });
           }
           break;
 
-        case 'admin_decision':
-          console.log('[Notificación] Decisión de admin, permaneciendo en notificaciones');
+        case "admin_decision":
+          console.log(
+            "[Notificación] Decisión de admin, permaneciendo en notificaciones",
+          );
           // Ya estamos en la pantalla de notificaciones, no hacemos nada más
           break;
 
         default:
-          console.log('[Notificación] Acción no reconocida:', metadata.accion);
+          console.log("[Notificación] Acción no reconocida:", metadata.accion);
           break;
       }
     } catch (error) {
-      console.error('Error al navegar desde notificación:', error);
+      console.error("Error al navegar desde notificación:", error);
     }
   };
 
@@ -153,7 +164,7 @@ export default function NotificationsScreen() {
     const hoy = new Date(
       ahora.getFullYear(),
       ahora.getMonth(),
-      ahora.getDate()
+      ahora.getDate(),
     );
     const ayer = new Date(hoy);
     ayer.setDate(ayer.getDate() - 1);
@@ -193,7 +204,7 @@ export default function NotificationsScreen() {
 
   const handleEliminarNotificacion = async (
     notifUsuarioId: string,
-    titulo: string
+    titulo: string,
   ) => {
     setNotifToDelete({ id: notifUsuarioId, titulo });
     setDialogVisible(true);
@@ -202,7 +213,7 @@ export default function NotificationsScreen() {
   const eliminarDirecto = async (notifUsuarioId: string) => {
     const notificacionesBackup = notificaciones;
     pendingDeletesRef.current.add(notifUsuarioId);
-    setNotificaciones(prev => prev.filter(n => n.id !== notifUsuarioId));
+    setNotificaciones((prev) => prev.filter((n) => n.id !== notifUsuarioId));
 
     try {
       await eliminarNotificacionUsuario(notifUsuarioId);
@@ -217,10 +228,10 @@ export default function NotificationsScreen() {
 
   const confirmarEliminacion = async () => {
     if (!notifToDelete) return;
-    
+
     const notificacionesBackup = notificaciones;
     pendingDeletesRef.current.add(notifToDelete.id);
-    setNotificaciones(prev => prev.filter(n => n.id !== notifToDelete.id));
+    setNotificaciones((prev) => prev.filter((n) => n.id !== notifToDelete.id));
     setDialogVisible(false);
     setNotifToDelete(null);
 
@@ -236,16 +247,26 @@ export default function NotificationsScreen() {
   };
 
   const renderRightActions = () => (
-    <View style={[styles.swipeBackground, { backgroundColor: theme.colors.background }]} />
+    <View
+      style={[
+        styles.swipeBackground,
+        { backgroundColor: theme.colors.background },
+      ]}
+    />
   );
-  
+
   const renderLeftActions = () => (
-    <View style={[styles.swipeBackground, { backgroundColor: theme.colors.background }]} />
+    <View
+      style={[
+        styles.swipeBackground,
+        { backgroundColor: theme.colors.background },
+      ]}
+    />
   );
 
   const eliminarNotificacionesPorFecha = async (dias: number) => {
     setMenuVisible(false);
-    
+
     const ahora = new Date();
     const fechaLimite = new Date(ahora);
     fechaLimite.setDate(fechaLimite.getDate() - dias);
@@ -262,15 +283,21 @@ export default function NotificationsScreen() {
     }
 
     const notificacionesBackup = notificaciones;
-    notificacionesAEliminar.forEach(n => pendingDeletesRef.current.add(n.id));
-    setNotificaciones(prev => prev.filter(notif => !notificacionesAEliminar.find(n => n.id === notif.id)));
+    notificacionesAEliminar.forEach((n) => pendingDeletesRef.current.add(n.id));
+    setNotificaciones((prev) =>
+      prev.filter(
+        (notif) => !notificacionesAEliminar.find((n) => n.id === notif.id),
+      ),
+    );
 
     try {
       const ids = notificacionesAEliminar.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar notificaciones:", error);
-      notificacionesAEliminar.forEach(n => pendingDeletesRef.current.delete(n.id));
+      notificacionesAEliminar.forEach((n) =>
+        pendingDeletesRef.current.delete(n.id),
+      );
       setNotificaciones(notificacionesBackup);
       setSnackbarMessage("No se pudieron eliminar las notificaciones");
       setSnackbarVisible(true);
@@ -279,7 +306,7 @@ export default function NotificationsScreen() {
 
   const eliminarNotificacionesUltimas24Horas = async () => {
     setMenuVisible(false);
-    
+
     const ahora = new Date();
     const hace24Horas = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
 
@@ -295,15 +322,24 @@ export default function NotificationsScreen() {
     }
 
     const notificacionesBackup = notificaciones;
-    notificacionesAEliminar.forEach(n => pendingDeletesRef.current.add(n.id));
-    setNotificaciones(prev => prev.filter(notif => !notificacionesAEliminar.find(n => n.id === notif.id)));
+    notificacionesAEliminar.forEach((n) => pendingDeletesRef.current.add(n.id));
+    setNotificaciones((prev) =>
+      prev.filter(
+        (notif) => !notificacionesAEliminar.find((n) => n.id === notif.id),
+      ),
+    );
 
     try {
       const ids = notificacionesAEliminar.map((notif) => notif.id);
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
-      console.error("Error al eliminar notificaciones de últimas 24 horas:", error);
-      notificacionesAEliminar.forEach(n => pendingDeletesRef.current.delete(n.id));
+      console.error(
+        "Error al eliminar notificaciones de últimas 24 horas:",
+        error,
+      );
+      notificacionesAEliminar.forEach((n) =>
+        pendingDeletesRef.current.delete(n.id),
+      );
       setNotificaciones(notificacionesBackup);
       setSnackbarMessage("No se pudieron eliminar las notificaciones");
       setSnackbarVisible(true);
@@ -312,13 +348,13 @@ export default function NotificationsScreen() {
 
   const eliminarTodasLasNotificaciones = async () => {
     setMenuVisible(false);
-    
+
     if (notificaciones.length === 0) {
       return;
     }
 
     const notificacionesBackup = notificaciones;
-    notificaciones.forEach(n => pendingDeletesRef.current.add(n.id));
+    notificaciones.forEach((n) => pendingDeletesRef.current.add(n.id));
     setNotificaciones([]);
 
     try {
@@ -326,7 +362,9 @@ export default function NotificationsScreen() {
       await eliminarNotificacionesUsuarioBatch(ids);
     } catch (error) {
       console.error("Error al eliminar todas las notificaciones:", error);
-      notificacionesBackup.forEach(n => pendingDeletesRef.current.delete(n.id));
+      notificacionesBackup.forEach((n) =>
+        pendingDeletesRef.current.delete(n.id),
+      );
       setNotificaciones(notificacionesBackup);
       setSnackbarMessage("No se pudieron eliminar las notificaciones");
       setSnackbarVisible(true);
@@ -381,52 +419,16 @@ export default function NotificationsScreen() {
       ]}
     >
       <Appbar.Header>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Notificaciones" />
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => {
-            setMenuVisible(false);
-            setMenuKey(prev => prev + 1);
+        <Appbar.BackAction
+          onPress={() => {
+            if (navigation.canGoBack()) navigation.goBack();
           }}
-          anchor={
-            <Appbar.Action
-              icon="dots-vertical"
-              onPress={() => setMenuVisible(true)}
-            />
-          }
-          key={menuKey}
-        >
-          <Menu.Item
-            onPress={() => {}}
-            title="Borrar Notificaciones"
-
-            titleStyle={{ color: theme.colors.primary }}
-          />
-          <Divider />
-          <Menu.Item
-            onPress={eliminarNotificacionesUltimas24Horas}
-            title="Últimas 24 horas"
-            leadingIcon="clock-time-four-outline"
-          />
-          <Menu.Item
-            onPress={() => eliminarNotificacionesPorFecha(7)}
-            title="Última semana"
-            leadingIcon="calendar-week"
-          />
-          <Menu.Item
-            onPress={() => eliminarNotificacionesPorFecha(30)}
-            title="Últimos 30 días"
-            leadingIcon="calendar-range"
-          />
-          <Divider />
-          <Menu.Item
-            onPress={eliminarTodasLasNotificaciones}
-            title="Borrar todo"
-            leadingIcon="delete-sweep"
-            titleStyle={{ color: theme.colors.error }}
-          />
-        </Menu>
+        />
+        <Appbar.Content title="Notificaciones" />
+        <Appbar.Action
+          icon="dots-vertical"
+          onPress={() => setMenuVisible(true)}
+        />
       </Appbar.Header>
 
       {loading ? (
@@ -580,11 +582,19 @@ export default function NotificationsScreen() {
           onDismiss={() => setDialogVisible(false)}
           style={{ backgroundColor: theme.colors.surface }}
         >
-          <Dialog.Title style={{ textAlign: 'center', color: theme.colors.onSurface }}>
+          <Dialog.Title
+            style={{ textAlign: "center", color: theme.colors.onSurface }}
+          >
             Eliminar notificación
           </Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+            <Text
+              variant="bodyMedium"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                textAlign: "center",
+              }}
+            >
               ¿Estás seguro de que deseas eliminar "{notifToDelete?.titulo}"?
             </Text>
           </Dialog.Content>
@@ -609,9 +619,12 @@ export default function NotificationsScreen() {
 
       <Portal>
         <Dialog visible={deleting} dismissable={false}>
-          <Dialog.Content style={{ alignItems: 'center', paddingVertical: 30 }}>
+          <Dialog.Content style={{ alignItems: "center", paddingVertical: 30 }}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text variant="bodyLarge" style={{ marginTop: 20, color: theme.colors.onSurface }}>
+            <Text
+              variant="bodyLarge"
+              style={{ marginTop: 20, color: theme.colors.onSurface }}
+            >
               Eliminando notificaciones...
             </Text>
           </Dialog.Content>
@@ -626,6 +639,101 @@ export default function NotificationsScreen() {
       >
         <Text style={{ color: theme.colors.onError }}>{snackbarMessage}</Text>
       </Snackbar>
+
+      {/* Dialog de opciones de borrado */}
+      <Portal>
+        <Dialog
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          style={{ backgroundColor: theme.colors.surface, borderRadius: 16 }}
+        >
+          <Dialog.Title>Borrar notificaciones</Dialog.Title>
+          <Dialog.Content style={{ paddingHorizontal: 0 }}>
+            <TouchableRipple
+              onPress={eliminarNotificacionesUltimas24Horas}
+              style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
+              >
+                <IconButton
+                  icon="clock-time-four-outline"
+                  size={22}
+                  style={{ margin: 0 }}
+                />
+                <Text
+                  variant="bodyLarge"
+                  style={{ color: theme.colors.onSurface }}
+                >
+                  Últimas 24 horas
+                </Text>
+              </View>
+            </TouchableRipple>
+            <TouchableRipple
+              onPress={() => eliminarNotificacionesPorFecha(7)}
+              style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
+              >
+                <IconButton
+                  icon="calendar-week"
+                  size={22}
+                  style={{ margin: 0 }}
+                />
+                <Text
+                  variant="bodyLarge"
+                  style={{ color: theme.colors.onSurface }}
+                >
+                  Última semana
+                </Text>
+              </View>
+            </TouchableRipple>
+            <TouchableRipple
+              onPress={() => eliminarNotificacionesPorFecha(30)}
+              style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
+              >
+                <IconButton
+                  icon="calendar-range"
+                  size={22}
+                  style={{ margin: 0 }}
+                />
+                <Text
+                  variant="bodyLarge"
+                  style={{ color: theme.colors.onSurface }}
+                >
+                  Últimos 30 días
+                </Text>
+              </View>
+            </TouchableRipple>
+            <Divider style={{ marginVertical: 4 }} />
+            <TouchableRipple
+              onPress={eliminarTodasLasNotificaciones}
+              style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
+              >
+                <IconButton
+                  icon="delete-sweep"
+                  size={22}
+                  style={{ margin: 0 }}
+                  iconColor={theme.colors.error}
+                />
+                <Text variant="bodyLarge" style={{ color: theme.colors.error }}>
+                  Borrar todo
+                </Text>
+              </View>
+            </TouchableRipple>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setMenuVisible(false)}>Cancelar</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
@@ -691,6 +799,6 @@ const styles = StyleSheet.create({
   },
   swipeBackground: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
 });

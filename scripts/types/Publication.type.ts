@@ -4,6 +4,7 @@ export interface Publicacion {
   autorUid: string;
   autorNombre: string;
   autorFoto?: string | null;
+  autorRol?: string;
   titulo: string;
   descripcion: string;
   fechaPublicacion: Date;

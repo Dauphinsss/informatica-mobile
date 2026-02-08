@@ -12,7 +12,7 @@ import { TipoArchivo } from "@/scripts/types/Files.type";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import { getAuth } from "firebase/auth";
-import { doc, increment, setDoc } from "firebase/firestore";
+import { doc, getDoc, increment, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
@@ -77,15 +77,15 @@ export default function CreatePublicationScreen() {
   const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<CustomAlertType>("info");
-  const [alertButtons, setAlertButtons] = useState<CustomAlertButton[] | undefined>(
-    undefined
-  );
+  const [alertButtons, setAlertButtons] = useState<
+    CustomAlertButton[] | undefined
+  >(undefined);
 
   const showAlert = (
     title: string | undefined,
     message: string,
     type: CustomAlertType = "info",
-    buttons?: CustomAlertButton[]
+    buttons?: CustomAlertButton[],
   ) => {
     setAlertTitle(title);
     setAlertMessage(message);
@@ -97,7 +97,7 @@ export default function CreatePublicationScreen() {
           onPress: () => {},
           mode: "contained",
         },
-      ]
+      ],
     );
     setAlertVisible(true);
   };
@@ -125,7 +125,8 @@ export default function CreatePublicationScreen() {
     if (tipo.includes("zip")) return "folder-zip";
     if (tipo.includes("word")) return "file-word";
     if (tipo.includes("excel")) return "file-excel";
-    if (tipo.includes("presentación") || tipo.includes("ppt")) return "file-powerpoint";
+    if (tipo.includes("presentación") || tipo.includes("ppt"))
+      return "file-powerpoint";
     if (tipo.includes("audio") || tipo.includes("mp3")) return "music";
     if (tipo.includes("texto")) return "file-document-outline";
     if (tipo.includes("enlace")) return "link-variant";
@@ -134,9 +135,8 @@ export default function CreatePublicationScreen() {
 
   const detectarTipoArchivo = (
     mimeType: string,
-    nombre: string
+    nombre: string,
   ): string | null => {
-
     // Buscar por mimetype
     for (const tipo of tipos) {
       if (tipo.mimetype.some((mime) => mimeType && mimeType.includes(mime))) {
@@ -162,7 +162,7 @@ export default function CreatePublicationScreen() {
 
   const agregarArchivo = async () => {
     setDialogSeleccionVisible(false);
-    
+
     try {
       const archivo = await seleccionarArchivo();
       if (!archivo) return;
@@ -173,7 +173,7 @@ export default function CreatePublicationScreen() {
         showAlert(
           "Tipo no soportado",
           "El tipo de archivo seleccionado no está soportado.",
-          "error"
+          "error",
         );
         return;
       }
@@ -215,18 +215,18 @@ export default function CreatePublicationScreen() {
       showAlert(
         "Error",
         "La URL no es válida. Debe incluir http:// o https://",
-        "error"
+        "error",
       );
       return;
     }
 
     const tipoEnlace = tipos.find((t) => t.nombre.toLowerCase() === "enlace");
-    
+
     if (!tipoEnlace) {
       showAlert(
         "Error",
         "No se encontró el tipo de archivo 'Enlace' en la base de datos",
-        "error"
+        "error",
       );
       return;
     }
@@ -261,7 +261,10 @@ export default function CreatePublicationScreen() {
     setArchivos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const actualizarEstadisticasUsuario = async (usuarioUid: string, cambios: Record<string, number>) => {
+  const actualizarEstadisticasUsuario = async (
+    usuarioUid: string,
+    cambios: Record<string, number>,
+  ) => {
     try {
       if (!usuarioUid) return;
       const data: Record<string, any> = {};
@@ -269,7 +272,9 @@ export default function CreatePublicationScreen() {
         data[key] = increment(value);
       });
 
-      await setDoc(doc(db, "estadisticasUsuario", usuarioUid), data, { merge: true });
+      await setDoc(doc(db, "estadisticasUsuario", usuarioUid), data, {
+        merge: true,
+      });
     } catch (error) {
       console.error("Error actualizando estadisticasUsuario:", error);
     }
@@ -297,25 +302,40 @@ export default function CreatePublicationScreen() {
     try {
       // 1. Crear publicación
       const nombreUsuario = user.displayName || user.email || "Usuario";
+
+      // Obtener rol del usuario
+      let autorRol = "usuario";
+      try {
+        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+        if (userDoc.exists()) {
+          autorRol = userDoc.data()?.rol || "usuario";
+        }
+      } catch (e) {}
+
       const pubId = await crearPublicacion(
         materiaId,
         user.uid,
         nombreUsuario,
         user.photoURL || null,
         titulo,
-        descripcion
+        descripcion,
+        autorRol,
       );
 
       setPublicacionId(pubId);
       try {
-        await actualizarEstadisticasUsuario(user.uid, { publicacionesCreadas: 1 });
+        await actualizarEstadisticasUsuario(user.uid, {
+          publicacionesCreadas: 1,
+        });
       } catch (e) {
-        console.error("No se pudo actualizar estadisticasUsuario tras crear publicación:", e);
+        console.error(
+          "No se pudo actualizar estadisticasUsuario tras crear publicación:",
+          e,
+        );
       }
 
       // 2. Subir archivos pendientes
       if (archivos.length > 0) {
-
         for (let i = 0; i < archivos.length; i++) {
           const archivo = archivos[i];
 
@@ -334,12 +354,11 @@ export default function CreatePublicationScreen() {
           try {
             // Si es un enlace externo
             if (archivo.esEnlaceExterno) {
-              
               const resultado = await guardarEnlaceExterno(
                 pubId,
                 archivo.tipoArchivoId,
                 archivo.nombreEnlace!,
-                archivo.urlExterna!
+                archivo.urlExterna!,
               );
 
               setArchivos((prev) => {
@@ -352,10 +371,9 @@ export default function CreatePublicationScreen() {
                 };
                 return nuevos;
               });
-            } 
+            }
             // Si es un archivo normal
             else {
-              
               const resultado = await subirArchivo(
                 pubId,
                 archivo.asset!,
@@ -368,7 +386,7 @@ export default function CreatePublicationScreen() {
                     nuevos[i] = { ...nuevos[i], progreso };
                     return nuevos;
                   });
-                }
+                },
               );
 
               setArchivos((prev) => {
@@ -400,14 +418,14 @@ export default function CreatePublicationScreen() {
               return nuevos;
             });
 
-            const nombreElemento = archivo.esEnlaceExterno 
-              ? archivo.nombreEnlace 
+            const nombreElemento = archivo.esEnlaceExterno
+              ? archivo.nombreEnlace
               : archivo.asset?.name;
 
             showAlert(
               "Error al subir archivo",
               `No se pudo subir "${nombreElemento}": ${mensajeError}\n\nLos demás elementos continuarán procesándose.`,
-              "error"
+              "error",
             );
           }
         }
@@ -421,7 +439,7 @@ export default function CreatePublicationScreen() {
           `${nombreUsuario} publicó: ${titulo}`,
           "info",
           "newspaper",
-          pubId
+          pubId,
         );
       } catch (notifError) {
         console.error("Error al enviar notificaciones:", notifError);
@@ -440,7 +458,11 @@ export default function CreatePublicationScreen() {
       console.error("Error al publicar:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Error desconocido";
-      showAlert("Error", `No se pudo crear la publicación: ${errorMessage}`, "error");
+      showAlert(
+        "Error",
+        `No se pudo crear la publicación: ${errorMessage}`,
+        "error",
+      );
     } finally {
       setPublicando(false);
     }
@@ -454,7 +476,10 @@ export default function CreatePublicationScreen() {
         <Appbar.Action icon="check" onPress={publicar} disabled={publicando} />
       </Appbar.Header>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="labelMedium" style={styles.label}>

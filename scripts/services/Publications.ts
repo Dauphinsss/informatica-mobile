@@ -1,19 +1,20 @@
+import { db } from "@/firebase";
 import {
-  collection,
   addDoc,
-  getDocs,
+  collection,
   doc,
   getDoc,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-  updateDoc,
+  getDocs,
+  limit,
   onSnapshot,
+  orderBy,
+  query,
+  Timestamp,
   Unsubscribe,
+  updateDoc,
+  where,
 } from "firebase/firestore";
-import { db } from "@/firebase";
-import { Publicacion, ArchivoPublicacion } from "../types/Publication.type";
+import { ArchivoPublicacion, Publicacion } from "../types/Publication.type";
 
 export const crearPublicacion = async (
   materiaId: string,
@@ -21,7 +22,8 @@ export const crearPublicacion = async (
   autorNombre: string,
   autorFoto: string | null,
   titulo: string,
-  descripcion: string
+  descripcion: string,
+  autorRol?: string,
 ): Promise<string> => {
   try {
     const publicacionData = {
@@ -29,6 +31,7 @@ export const crearPublicacion = async (
       autorUid,
       autorNombre,
       autorFoto: autorFoto || null,
+      autorRol: autorRol || "usuario",
       titulo,
       descripcion,
       fechaPublicacion: Timestamp.now(),
@@ -38,7 +41,10 @@ export const crearPublicacion = async (
       estado: "activo",
     };
 
-    const docRef = await addDoc(collection(db, "publicaciones"), publicacionData);
+    const docRef = await addDoc(
+      collection(db, "publicaciones"),
+      publicacionData,
+    );
     return docRef.id;
   } catch (error) {
     console.error("Error al crear publicación:", error);
@@ -47,7 +53,7 @@ export const crearPublicacion = async (
 };
 
 export const obtenerPublicacionesPorMateria = async (
-  materiaId: string
+  materiaId: string,
 ): Promise<Publicacion[]> => {
   const publicaciones: Publicacion[] = [];
   try {
@@ -56,8 +62,8 @@ export const obtenerPublicacionesPorMateria = async (
         collection(db, "publicaciones"),
         where("materiaId", "==", materiaId),
         where("estado", "==", "activo"),
-        orderBy("fechaPublicacion", "desc")
-      )
+        orderBy("fechaPublicacion", "desc"),
+      ),
     );
 
     publicacionesSnap.docs.forEach((docSnap) => {
@@ -66,6 +72,7 @@ export const obtenerPublicacionesPorMateria = async (
         id: docSnap.id,
         ...data,
         autorFoto: data.autorFoto ?? null,
+        autorRol: data.autorRol || "usuario",
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion);
     });
@@ -76,16 +83,19 @@ export const obtenerPublicacionesPorMateria = async (
 };
 
 export const obtenerPublicacionPorId = async (
-  publicacionId: string
+  publicacionId: string,
 ): Promise<Publicacion | null> => {
   try {
-    const publicacionDoc = await getDoc(doc(db, "publicaciones", publicacionId));
+    const publicacionDoc = await getDoc(
+      doc(db, "publicaciones", publicacionId),
+    );
     if (publicacionDoc.exists()) {
       const data = publicacionDoc.data();
       return {
         id: publicacionDoc.id,
         ...data,
         autorFoto: data.autorFoto ?? null,
+        autorRol: data.autorRol || "usuario",
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion;
     }
@@ -96,7 +106,7 @@ export const obtenerPublicacionPorId = async (
 };
 
 export const obtenerArchivosConTipo = async (
-  publicacionId: string
+  publicacionId: string,
 ): Promise<ArchivoPublicacion[]> => {
   const archivos: ArchivoPublicacion[] = [];
   try {
@@ -104,8 +114,8 @@ export const obtenerArchivosConTipo = async (
       query(
         collection(db, "archivos"),
         where("publicacionId", "==", publicacionId),
-        where("activo", "==", true)
-      )
+        where("activo", "==", true),
+      ),
     );
 
     const tiposIds = new Set<string>();
@@ -120,13 +130,13 @@ export const obtenerArchivosConTipo = async (
         if (tipoDoc.exists()) {
           tiposCache.set(tipoId, tipoDoc.data());
         }
-      })
+      }),
     );
 
     archivosSnap.docs.forEach((docSnap) => {
       const data = docSnap.data();
       const tipoInfo = tiposCache.get(data.tipoArchivoId);
-      
+
       archivos.push({
         id: docSnap.id,
         ...data,
@@ -142,11 +152,13 @@ export const obtenerArchivosConTipo = async (
   return archivos;
 };
 
-export const incrementarVistas = async (publicacionId: string): Promise<void> => {
+export const incrementarVistas = async (
+  publicacionId: string,
+): Promise<void> => {
   try {
     const publicacionRef = doc(db, "publicaciones", publicacionId);
     const publicacionSnap = await getDoc(publicacionRef);
-    
+
     if (publicacionSnap.exists()) {
       const vistaActual = publicacionSnap.data().vistas || 0;
       await updateDoc(publicacionRef, {
@@ -158,7 +170,9 @@ export const incrementarVistas = async (publicacionId: string): Promise<void> =>
   }
 };
 
-export const eliminarPublicacion = async (publicacionId: string): Promise<void> => {
+export const eliminarPublicacion = async (
+  publicacionId: string,
+): Promise<void> => {
   try {
     await updateDoc(doc(db, "publicaciones", publicacionId), {
       estado: "eliminado",
@@ -170,7 +184,7 @@ export const eliminarPublicacion = async (publicacionId: string): Promise<void> 
 };
 
 export const obtenerPublicacionesPorAutor = async (
-  autorUid: string
+  autorUid: string,
 ): Promise<Publicacion[]> => {
   const publicaciones: Publicacion[] = [];
   try {
@@ -179,8 +193,8 @@ export const obtenerPublicacionesPorAutor = async (
         collection(db, "publicaciones"),
         where("autorUid", "==", autorUid),
         where("estado", "==", "activo"),
-        orderBy("fechaPublicacion", "desc")
-      )
+        orderBy("fechaPublicacion", "desc"),
+      ),
     );
     publicacionesSnap.docs.forEach((docSnap) => {
       const data = docSnap.data();
@@ -188,6 +202,7 @@ export const obtenerPublicacionesPorAutor = async (
         id: docSnap.id,
         ...data,
         autorFoto: data.autorFoto ?? null,
+        autorRol: data.autorRol || "usuario",
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion);
     });
@@ -199,21 +214,22 @@ export const obtenerPublicacionesPorAutor = async (
 
 export function escucharPublicacionesPorAutor(
   autorUid: string,
-  callback: (publicaciones: Publicacion[]) => void
+  callback: (publicaciones: Publicacion[]) => void,
 ): Unsubscribe {
   const publicacionesQuery = query(
     collection(db, "publicaciones"),
     where("autorUid", "==", autorUid),
     where("estado", "==", "activo"),
-    orderBy("fechaPublicacion", "desc")
+    orderBy("fechaPublicacion", "desc"),
   );
   return onSnapshot(publicacionesQuery, (pubsSnap) => {
-    const pubs = pubsSnap.docs.map(docSnap => {
+    const pubs = pubsSnap.docs.map((docSnap) => {
       const data = docSnap.data();
       return {
         id: docSnap.id,
         ...data,
         autorFoto: data.autorFoto ?? null,
+        autorRol: data.autorRol || "usuario",
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion;
     });
@@ -223,24 +239,58 @@ export function escucharPublicacionesPorAutor(
 
 export function escucharPublicacionesPorMateria(
   materiaId: string,
-  callback: (publicaciones: Publicacion[]) => void
+  callback: (publicaciones: Publicacion[]) => void,
 ): Unsubscribe {
   const publicacionesQuery = query(
     collection(db, "publicaciones"),
     where("materiaId", "==", materiaId),
     where("estado", "==", "activo"),
-    orderBy("fechaPublicacion", "desc")
+    orderBy("fechaPublicacion", "desc"),
   );
   return onSnapshot(publicacionesQuery, (pubsSnap) => {
-    const pubs = pubsSnap.docs.map(docSnap => {
+    const pubs = pubsSnap.docs.map((docSnap) => {
       const data = docSnap.data();
       return {
         id: docSnap.id,
         ...data,
         autorFoto: data.autorFoto ?? null,
+        autorRol: data.autorRol || "usuario",
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion;
     });
     callback(pubs);
   });
+}
+
+export function escucharUltimasPublicaciones(
+  cantidad: number,
+  callback: (publicaciones: Publicacion[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  const publicacionesQuery = query(
+    collection(db, "publicaciones"),
+    where("estado", "==", "activo"),
+    orderBy("fechaPublicacion", "desc"),
+    limit(cantidad),
+  );
+  return onSnapshot(
+    publicacionesQuery,
+    (pubsSnap) => {
+      const pubs = pubsSnap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          autorFoto: data.autorFoto ?? null,
+          autorRol: data.autorRol || "usuario",
+          fechaPublicacion: data.fechaPublicacion.toDate(),
+        } as Publicacion;
+      });
+      callback(pubs);
+    },
+    (error) => {
+      console.error("Error en escucharUltimasPublicaciones:", error);
+      if (onError) onError(error);
+    },
+  );
 }

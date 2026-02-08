@@ -1,8 +1,16 @@
 import { CommentItem } from "@/app/components/comments/CommentItem";
 import { Comment } from "@/app/subjects/types/comment.type";
+import { db } from "@/firebase";
 import { comentariosService } from "@/services/comments.service";
 import { getAuth } from "firebase/auth";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Animated,
   Dimensions,
@@ -15,12 +23,13 @@ import {
   View,
 } from "react-native";
 
+import { AdminBadge } from "@/components/ui/AdminBadge";
 import {
   Avatar,
   IconButton,
   Text,
   TextInput,
-  useTheme
+  useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CommentsModalSkeleton } from "./CommentsSkeleton";
@@ -48,6 +57,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [userRole, setUserRole] = useState<string>("usuario");
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -98,7 +108,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       paddingHorizontal: 16,
     },
     inputContainer: {
-      position: 'absolute',
+      position: "absolute",
       bottom: 0,
       left: 0,
       right: 0,
@@ -142,7 +152,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     },
     sendButton: {
       margin: 0,
-      position: 'absolute',
+      position: "absolute",
       right: 0,
     },
   });
@@ -207,7 +217,10 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
           // Calcular nueva altura basada en el movimiento
           const newHeight = Math.max(
             MODAL_HEIGHT_SMALL,
-            Math.min(MODAL_HEIGHT_LARGE, currentHeight.current - gestureState.dy)
+            Math.min(
+              MODAL_HEIGHT_LARGE,
+              currentHeight.current - gestureState.dy,
+            ),
           );
 
           modalHeight.setValue(newHeight);
@@ -231,7 +244,8 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             targetHeight = MODAL_HEIGHT_LARGE;
           } else {
             // Snap al más cercano
-            targetHeight = finalHeight > midPoint ? MODAL_HEIGHT_LARGE : MODAL_HEIGHT_SMALL;
+            targetHeight =
+              finalHeight > midPoint ? MODAL_HEIGHT_LARGE : MODAL_HEIGHT_SMALL;
           }
 
           currentHeight.current = targetHeight;
@@ -243,7 +257,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
           }).start();
         },
       }),
-    [modalHeight, currentHeight, handleDismiss]
+    [modalHeight, currentHeight, handleDismiss],
   );
 
   // Efectos y handlers (mantener igual que antes)
@@ -252,14 +266,14 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       (e) => {
         setKeyboardHeight(e.endCoordinates.height);
-      }
+      },
     );
 
     const keyboardDidHideListener = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
       () => {
         setKeyboardHeight(0);
-      }
+      },
     );
 
     return () => {
@@ -288,7 +302,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             flatListRef.current?.scrollToEnd({ animated: true });
           }, 300);
         }
-      }
+      },
     );
   }, [publicacionId, visible]);
 
@@ -332,7 +346,33 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     return () => {
       detenerSuscripcion();
     };
-  }, [visible, iniciarSuscripcion, detenerSuscripcion, dragY, overlayAnim, slideAnim, modalHeight, currentHeight]);
+  }, [
+    visible,
+    iniciarSuscripcion,
+    detenerSuscripcion,
+    dragY,
+    overlayAnim,
+    slideAnim,
+    modalHeight,
+    currentHeight,
+  ]);
+
+  // Fetch user role
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (auth.currentUser) {
+        try {
+          const userDoc = await getDoc(
+            doc(db, "usuarios", auth.currentUser.uid),
+          );
+          if (userDoc.exists()) {
+            setUserRole(userDoc.data()?.rol || "usuario");
+          }
+        } catch (e) {}
+      }
+    };
+    fetchRole();
+  }, [auth.currentUser]);
 
   const handleSubmit = async () => {
     if (!commentText.trim() || !auth.currentUser) return;
@@ -346,6 +386,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
         autorUid: auth.currentUser.uid,
         autorNombre: auth.currentUser.displayName || "Usuario",
         autorFoto: auth.currentUser.photoURL || null,
+        autorRol: userRole,
         contenido: commentText.trim(),
         estado: "activo",
         likes: 0,
@@ -397,9 +438,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
           bottom: 0,
           left: 0,
           right: 0,
-          transform: [
-            { translateY: Animated.add(slideAnim, dragY) }
-          ],
+          transform: [{ translateY: Animated.add(slideAnim, dragY) }],
         }}
       >
         <Animated.View
@@ -410,20 +449,23 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             },
           ]}
         >
-          <View style={{ height: '100%', flexDirection: 'column' }}>
+          <View style={{ height: "100%", flexDirection: "column" }}>
             <View {...panResponder.panHandlers}>
               <View style={styles.handle} />
 
               <View style={styles.header}>
-                <Text variant="titleMedium" style={{ fontWeight: "bold", textAlign: "center", flex: 1 }}>
+                <Text
+                  variant="titleMedium"
+                  style={{ fontWeight: "bold", textAlign: "center", flex: 1 }}
+                >
                   Comentarios
                 </Text>
               </View>
             </View>
 
             <View style={styles.commentsList}>
-              {loading && comments.length === 0 ?  (
-                 <CommentsModalSkeleton />
+              {loading && comments.length === 0 ? (
+                <CommentsModalSkeleton />
               ) : comments.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Text variant="bodyLarge" style={styles.emptyText}>
@@ -444,7 +486,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   renderItem={renderCommentItem}
                   contentContainerStyle={[
                     styles.commentsContent,
-                    { paddingBottom: 120 }
+                    { paddingBottom: 120 },
                   ]}
                   showsVerticalScrollIndicator={true}
                   keyboardShouldPersistTaps="handled"
@@ -458,93 +500,104 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
               )}
             </View>
 
-          <SafeAreaView edges={["bottom"]} style={[styles.inputContainer, { marginBottom: keyboardHeight }]}>
-            {replyingTo && (
-              <View style={styles.replyingTo}>
-                <Text
-                  variant="bodySmall"
-                  style={{
-                    color: theme.colors.onSurfaceVariant,
-                    fontSize: 12,
-                  }}
-                >
-                  Respondiendo a{" "}
+            <SafeAreaView
+              edges={["bottom"]}
+              style={[styles.inputContainer, { marginBottom: keyboardHeight }]}
+            >
+              {replyingTo && (
+                <View style={styles.replyingTo}>
                   <Text
+                    variant="bodySmall"
                     style={{
-                      color: theme.colors.primary,
-                      fontWeight: "600",
+                      color: theme.colors.onSurfaceVariant,
+                      fontSize: 12,
                     }}
                   >
-                    {truncarNombre(replyingTo.autorNombre || "Usuario")}
+                    Respondiendo a{" "}
+                    <Text
+                      style={{
+                        color: theme.colors.primary,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {truncarNombre(replyingTo.autorNombre || "Usuario")}
+                    </Text>
                   </Text>
-                </Text>
-                <IconButton
-                  icon="close"
-                  size={16}
-                  onPress={cancelReply}
-                  iconColor={theme.colors.onSurfaceVariant}
-                  style={{ margin: 0 }}
-                />
-              </View>
-            )}
-
-            <View style={styles.inputRow}>
-              {auth.currentUser?.photoURL ? (
-                <Avatar.Image
-                  size={36}
-                  source={{ uri: auth.currentUser.photoURL }}
-                  style={{ marginRight: 8 }}
-                />
-              ) : (
-                <Avatar.Text
-                  size={36}
-                  label={auth.currentUser?.displayName?.charAt(0).toUpperCase() || "U"}
-                  style={{ marginRight: 8 }}
-                />
-              )}
-              <View style={{ flex: 1, position: 'relative' }}>
-                <TextInput
-                  mode="outlined"
-                  placeholder={
-                    replyingTo
-                      ? "Escribe tu respuesta..."
-                      : "Añade un comentario..."
-                  }
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  multiline
-                  style={[styles.textInput, commentText.trim() && { paddingRight: 48 }]}
-                  outlineColor={theme.colors.outline}
-                  activeOutlineColor={theme.colors.primary}
-                  placeholderTextColor={theme.colors.onSurfaceVariant}
-                  dense
-                  autoFocus={false}
-                  onSubmitEditing={handleSubmit}
-                  returnKeyType="default"
-                  onFocus={() => {
-                    currentHeight.current = MODAL_HEIGHT_LARGE;
-                    Animated.spring(modalHeight, {
-                      toValue: MODAL_HEIGHT_LARGE,
-                      useNativeDriver: false,
-                      friction: 10,
-                      tension: 50,
-                    }).start();
-                  }}
-                />
-                {commentText.trim() && (
                   <IconButton
-                    icon="send"
-                    size={20}
-                    onPress={handleSubmit}
-                    disabled={submitting}
-                    iconColor={theme.colors.primary}
-                    style={styles.sendButton}
+                    icon="close"
+                    size={16}
+                    onPress={cancelReply}
+                    iconColor={theme.colors.onSurfaceVariant}
+                    style={{ margin: 0 }}
                   />
-                )}
+                </View>
+              )}
+
+              <View style={styles.inputRow}>
+                <View style={{ position: "relative", marginRight: 8 }}>
+                  {auth.currentUser?.photoURL ? (
+                    <Avatar.Image
+                      size={36}
+                      source={{ uri: auth.currentUser.photoURL }}
+                    />
+                  ) : (
+                    <Avatar.Text
+                      size={36}
+                      label={
+                        auth.currentUser?.displayName
+                          ?.charAt(0)
+                          .toUpperCase() || "U"
+                      }
+                    />
+                  )}
+                  <AdminBadge size={36} isAdmin={userRole === "admin"} />
+                </View>
+                <View style={{ flex: 1, position: "relative" }}>
+                  <TextInput
+                    mode="outlined"
+                    placeholder={
+                      replyingTo
+                        ? "Escribe tu respuesta..."
+                        : "Añade un comentario..."
+                    }
+                    value={commentText}
+                    onChangeText={setCommentText}
+                    multiline
+                    style={[
+                      styles.textInput,
+                      commentText.trim() && { paddingRight: 48 },
+                    ]}
+                    outlineColor={theme.colors.outline}
+                    activeOutlineColor={theme.colors.primary}
+                    placeholderTextColor={theme.colors.onSurfaceVariant}
+                    dense
+                    autoFocus={false}
+                    onSubmitEditing={handleSubmit}
+                    returnKeyType="default"
+                    onFocus={() => {
+                      currentHeight.current = MODAL_HEIGHT_LARGE;
+                      Animated.spring(modalHeight, {
+                        toValue: MODAL_HEIGHT_LARGE,
+                        useNativeDriver: false,
+                        friction: 10,
+                        tension: 50,
+                      }).start();
+                    }}
+                  />
+                  {commentText.trim() && (
+                    <IconButton
+                      icon="send"
+                      size={20}
+                      onPress={handleSubmit}
+                      disabled={submitting}
+                      iconColor={theme.colors.primary}
+                      style={styles.sendButton}
+                    />
+                  )}
+                </View>
               </View>
-            </View>
-          </SafeAreaView>
-        </View>
+            </SafeAreaView>
+          </View>
         </Animated.View>
       </Animated.View>
     </View>
