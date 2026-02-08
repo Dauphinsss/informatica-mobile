@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Informática",
+    "name": "Informática Art",
     "slug": "informatica",
     "version": "1.1.0",
     "orientation": "portrait",
@@ -19,19 +19,13 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#7845AC"
+        "backgroundColor": "#472CB9"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "POST_NOTIFICATIONS",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "READ_MEDIA_IMAGES",
-        "READ_MEDIA_VIDEO",
-        "READ_MEDIA_AUDIO"
+        "POST_NOTIFICATIONS"
       ],
       "intentFilters": [
         {

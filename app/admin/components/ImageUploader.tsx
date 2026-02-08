@@ -29,15 +29,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   const pickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permiso requerido",
-          "Autoriza el acceso a tu galeria para seleccionar una imagen."
-        );
-        return;
-      }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -74,7 +65,10 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       }
     } catch (error) {
       console.error("Error seleccionando imagen:", error);
-      Alert.alert("Error", "No se pudo seleccionar la imagen.");
+      Alert.alert(
+        "Error",
+        "No se pudo seleccionar la imagen. Si tu dispositivo lo requiere, habilita el acceso a Fotos/Archivos en Ajustes."
+      );
     }
   };
 

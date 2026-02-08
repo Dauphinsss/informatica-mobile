@@ -1,7 +1,6 @@
 import { ArchivoPublicacion } from '@/scripts/types/Publication.type';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { PermissionsAndroid, Platform } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { enviarNotificacionLocal } from './pushNotifications';
 
@@ -31,36 +30,7 @@ export const getFolderForType = (tipoNombre: string): string => {
   return 'Otros';
 };
 
-const requestStoragePermissions = async (): Promise<boolean> => {
-  if (Platform.OS !== 'android') {
-    return true;
-  }
-
-  try {
-    const androidVersion = Platform.Version as number;
-
-    if (androidVersion >= 33) {
-      return true;
-    }
-
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-      {
-        title: 'Permiso de almacenamiento',
-        message: 'La app necesita acceso para descargar archivos',
-        buttonPositive: 'OK',
-        buttonNegative: 'Cancelar',
-      }
-    );
-
-    const hasPermission = granted === PermissionsAndroid.RESULTS.GRANTED;
-    return hasPermission;
-    
-  } catch (error) {
-    console.error('Error al solicitar permisos:', error);
-    return false;
-  }
-};
+const requestStoragePermissions = async (): Promise<boolean> => true;
 
 const sanitizeFileName = (fileName: string): string => {
   const lastDotIndex = fileName.lastIndexOf('.');
@@ -183,7 +153,7 @@ export const descargarArchivo = async (
     if (!hasPermission) {
       return {
         success: false,
-        error: 'Se necesitan permisos de almacenamiento. Ve a Ajustes > Aplicaciones > Informática > Permisos y activa "Archivos y multimedia"',
+        error: 'No se pudo obtener permisos de almacenamiento.',
       };
     }
 
