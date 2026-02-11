@@ -278,7 +278,7 @@ export default function SubjectDetailScreen() {
                 elevation={1}
               >
                 <Card.Content style={styles.cardContent}>
-                  {/* Top row: avatar + author + date */}
+                  {/* Top row: avatar + author */}
                   <View style={styles.topRow}>
                     <View style={{ position: "relative" }}>
                       {publicacion.autorFoto ? (
@@ -297,7 +297,8 @@ export default function SubjectDetailScreen() {
                       )}
                       <AdminBadge
                         size={40}
-                        isAdmin={publicacion.autorRol === "admin"}
+                        role={publicacion.autorRol}
+                        backgroundColor={theme.colors.elevation.level1}
                       />
                     </View>
 
@@ -323,18 +324,6 @@ export default function SubjectDetailScreen() {
                       </Text>
                     </View>
 
-                    <Text
-                      variant="labelSmall"
-                      style={{
-                        color: theme.colors.onSurfaceVariant,
-                        opacity: 0.6,
-                        flexShrink: 0,
-                        minWidth: 46,
-                        textAlign: "right",
-                      }}
-                    >
-                      {formatearFecha(publicacion.fechaPublicacion)}
-                    </Text>
                   </View>
 
                   {/* Description (if any) */}
@@ -360,9 +349,8 @@ export default function SubjectDetailScreen() {
                     }}
                   />
 
-                  {/* Bottom row: stats left + file types right */}
-                  <View style={styles.bottomRow}>
-                    {/* Stats (left) */}
+                  {/* Stats row: metrics left + date right */}
+                  <View style={styles.statsRowWithDate}>
                     <View style={styles.statsRow}>
                       {(archivosCount[publicacion.id] || 0) > 0 && (
                         <View style={styles.statItem}>
@@ -425,8 +413,21 @@ export default function SubjectDetailScreen() {
                         </View>
                       )}
                     </View>
+                    <Text
+                      variant="labelSmall"
+                      style={{
+                        color: theme.colors.onSurfaceVariant,
+                        opacity: 0.7,
+                        flexShrink: 0,
+                        minWidth: 46,
+                        textAlign: "right",
+                      }}
+                    >
+                      {formatearFecha(publicacion.fechaPublicacion)}
+                    </Text>
+                  </View>
 
-                    {/* File types (right) */}
+                  {(archivosExtensions[publicacion.id] || []).length > 0 && (
                     <View style={styles.fileTypesRow}>
                       {(archivosExtensions[publicacion.id] || []).map((ext) => (
                         <View
@@ -455,7 +456,7 @@ export default function SubjectDetailScreen() {
                         </View>
                       ))}
                     </View>
-                  </View>
+                  )}
                 </Card.Content>
               </Card>
             </Pressable>

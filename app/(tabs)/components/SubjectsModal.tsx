@@ -336,7 +336,7 @@ export default function SubjectsModal({
                 ({ label, subjects: groupSubjects }, groupIndex) => (
                   <List.Accordion
                     key={label}
-                    title={`${label} • ${groupSubjects.length}`}
+                    title={label}
                     titleStyle={{
                       color: theme.colors.onSurface,
                       fontWeight: "600",

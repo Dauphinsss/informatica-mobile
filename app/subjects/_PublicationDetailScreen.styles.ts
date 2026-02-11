@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 import { MD3Theme } from "react-native-paper";
 
 const H_MARGIN = 16;
-const THUMB = 56;
+const THUMB = 48;
 
 export const getStyles = (theme: MD3Theme) =>
   StyleSheet.create({
@@ -28,44 +28,66 @@ export const getStyles = (theme: MD3Theme) =>
     },
     headerCard: {
       marginHorizontal: "4%",
-      marginVertical: 16,
-      marginBottom: 12,
+      marginTop: 10,
+      marginBottom: 8,
       elevation: 2,
       borderRadius: 12,
+    },
+    headerCardContent: {
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      gap: 10,
     },
     autorContainer: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      marginBottom: 4,
     },
     autorInfo: {
       flex: 1,
     },
     autorNombre: {
-      fontWeight: "600",
+      fontWeight: "500",
+      fontSize: 16,
       color: theme.colors.onSurface,
     },
     fecha: {
       opacity: 0.7,
-      marginTop: 2,
+      marginTop: 1,
+      fontSize: 12,
       color: theme.colors.onSurface,
     },
     divider: {
-      marginVertical: 12,
+      marginVertical: 2,
     },
     titulo: {
-      fontWeight: "bold",
-      marginBottom: 12,
+      color: theme.colors.onSurface,
+      fontWeight: "700",
+      fontSize: 16,
+      lineHeight: 23,
+      letterSpacing: 0.1,
+      marginBottom: 8,
     },
     descripcion: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 16,
       lineHeight: 24,
-      marginBottom: 16,
+      letterSpacing: 0.1,
+      marginBottom: 12,
+      opacity: 0.9,
+    },
+    statsRowWithDownload: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      marginTop: 2,
     },
     statsContainer: {
       flexDirection: "row",
-      gap: 8,
+      gap: 6,
       flexWrap: "wrap",
+      marginLeft: "auto",
     },
     statChip: {
       backgroundColor: "transparent",
@@ -77,15 +99,15 @@ export const getStyles = (theme: MD3Theme) =>
     },
     archivosContainer: {
       marginHorizontal: H_MARGIN,
-      marginBottom: 12,
+      marginBottom: 8,
     },
     archivosTitle: {
       fontWeight: "bold",
-      marginBottom: 12,
+      marginBottom: 2,
     },
     archivosGrid: {
       flexDirection: "column",
-      gap: 10,
+      gap: 8,
     },
     archivoCardWrapper: {
       width: "100%",
@@ -100,8 +122,9 @@ export const getStyles = (theme: MD3Theme) =>
     archivoRow: {
       flexDirection: "row",
       alignItems: "center",
-      padding: 12,
-      gap: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
+      gap: 10,
     },
     archivoThumb: {
       width: THUMB,
@@ -128,7 +151,13 @@ export const getStyles = (theme: MD3Theme) =>
     archivoSubtitle: {
       color: theme.colors.onSurfaceVariant,
       opacity: 0.85,
-      fontSize: 12,
+      fontSize: 11,
+    },
+    openingProgressBar: {
+      marginTop: 6,
+      height: 3,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceVariant,
     },
     archivoTrailing: {
       marginRight: -6,
@@ -266,16 +295,17 @@ export const getStyles = (theme: MD3Theme) =>
       borderRadius: 12,
       maxHeight: "90%",
     },
-    archivosHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 12,
-      flexWrap: "wrap",
-      gap: 8,
+    downloadChip: {
+      borderRadius: 999,
+      backgroundColor: theme.colors.secondaryContainer,
+      height: 28,
+      justifyContent: "center",
+      paddingHorizontal: 0,
     },
-    downloadAllButton: {
-      borderRadius: 8,
+    downloadChipText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: theme.colors.onSecondaryContainer,
     },
     downloadProgressOverlay: {
       position: "absolute",

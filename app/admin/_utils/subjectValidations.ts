@@ -10,7 +10,7 @@ export const normalizeText = (text: string) => {
 // Validar campos del formulario
 export const validateSubjectFields = (formData: {
   nombre: string;
-  descripcion: string;
+  descripcion?: string;
   semestre: string;
 }) => {
   const errors = {
@@ -27,11 +27,6 @@ export const validateSubjectFields = (formData: {
     errors.nombre = 'El nombre no puede tener más de 30 caracteres';
   } else if (!nombreRegex.test(formData.nombre)) {
     errors.nombre = 'El nombre contiene caracteres no válidos';
-  }
-
-  // Validar descripción
-  if (!formData.descripcion.trim()) {
-    errors.descripcion = 'La descripción es obligatoria';
   }
 
   // Validar semestre (número entre 1-12)

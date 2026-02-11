@@ -18,6 +18,8 @@ export interface ActivityLog {
   timestamp: Timestamp;
   actorUid?: string;
   actorNombre?: string;
+  actorFoto?: string | null;
+  actorRol?: string;
   relacionadoUid?: string;
   metadata?: {
     [key: string]: any;

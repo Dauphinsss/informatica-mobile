@@ -587,7 +587,7 @@ export default function ReportsScreen() {
         
         await registrarActividadCliente(
           'publicacion_eliminada',
-          'Publicación eliminada por administrador',
+          'Publicación eliminada',
           `La publicación "${reporteSeleccionado.titulo}" de ${reporteSeleccionado.autor} fue eliminada por ${motivo}`,
           auth.currentUser?.uid,
           auth.currentUser?.displayName || auth.currentUser?.email || 'Admin',
@@ -667,7 +667,7 @@ export default function ReportsScreen() {
         
         await registrarActividadCliente(
           'usuario_baneado',
-          'Usuario baneado del sistema',
+          'Usuario baneado',
           `${reporteSeleccionado.autor} fue baneado por ${motivo}`,
           auth.currentUser?.uid,
           auth.currentUser?.displayName || auth.currentUser?.email || 'Admin',

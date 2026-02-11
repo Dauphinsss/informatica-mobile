@@ -11,10 +11,16 @@ import { crearPublicacion } from "@/scripts/services/Publications";
 import { TipoArchivo } from "@/scripts/types/Files.type";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
+import * as Clipboard from "expo-clipboard";
 import { getAuth } from "firebase/auth";
 import { doc, getDoc, increment, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  View,
+} from "react-native";
 import {
   Appbar,
   Button,
@@ -244,6 +250,20 @@ export default function CreatePublicationScreen() {
     setDialogEnlaceVisible(false);
     setUrlEnlace("");
     setNombreEnlace("");
+  };
+
+  const pegarUrlDesdePortapapeles = async () => {
+    try {
+      const text = (await Clipboard.getStringAsync())?.trim() || "";
+      if (!text) {
+        showAlert("Portapapeles vacío", "No hay texto para pegar.", "info");
+        return;
+      }
+      setUrlEnlace(text);
+    } catch (error) {
+      console.error("Error leyendo portapapeles:", error);
+      showAlert("Error", "No se pudo leer el portapapeles.", "error");
+    }
   };
 
   const eliminarArchivoLocal = async (index: number) => {
@@ -661,25 +681,42 @@ export default function CreatePublicationScreen() {
           onDismiss={() => setDialogEnlaceVisible(false)}
         >
           <Dialog.Title>Agregar enlace</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label="Nombre del enlace *"
-              value={nombreEnlace}
-              onChangeText={setNombreEnlace}
-              mode="outlined"
-              style={{ marginBottom: 12 }}
-              placeholder="Ej: Video explicativo"
-            />
-            <TextInput
-              label="URL *"
-              value={urlEnlace}
-              onChangeText={setUrlEnlace}
-              mode="outlined"
-              placeholder="https://ejemplo.com"
-              keyboardType="url"
-              autoCapitalize="none"
-            />
-          </Dialog.Content>
+          <Dialog.ScrollArea>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 24}
+            >
+              <ScrollView keyboardShouldPersistTaps="handled">
+                <TextInput
+                  label="Nombre del enlace *"
+                  value={nombreEnlace}
+                  onChangeText={setNombreEnlace}
+                  mode="outlined"
+                  style={{ marginBottom: 12 }}
+                  placeholder="Ej: Video explicativo"
+                />
+                <TextInput
+                  label="URL *"
+                  value={urlEnlace}
+                  onChangeText={setUrlEnlace}
+                  mode="outlined"
+                  placeholder="https://ejemplo.com"
+                  keyboardType="url"
+                  autoCapitalize="none"
+                />
+                <View style={{ alignItems: "flex-end", marginTop: 8 }}>
+                  <Button
+                    mode="text"
+                    icon="content-paste"
+                    compact
+                    onPress={pegarUrlDesdePortapapeles}
+                  >
+                    Pegar
+                  </Button>
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setDialogEnlaceVisible(false)}>
               Cancelar

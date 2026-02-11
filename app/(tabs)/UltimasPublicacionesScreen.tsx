@@ -124,7 +124,7 @@ const PublicationItem = React.memo(function PublicationItem({
         elevation={1}
       >
         <Card.Content style={styles.cardContent}>
-          {/* Top row: avatar + info + date */}
+          {/* Top row: avatar + info */}
           <View style={styles.topRow}>
             <View style={{ position: "relative" }}>
               {pub.autorFoto ? (
@@ -135,7 +135,11 @@ const PublicationItem = React.memo(function PublicationItem({
                   label={pub.autorNombre?.charAt(0).toUpperCase() || "?"}
                 />
               )}
-              <AdminBadge size={40} isAdmin={pub.autorRol === "admin"} />
+              <AdminBadge
+                size={40}
+                role={pub.autorRol}
+                backgroundColor={theme.colors.elevation.level1}
+              />
             </View>
 
             <View style={styles.infoBlock}>
@@ -157,23 +161,6 @@ const PublicationItem = React.memo(function PublicationItem({
               </Text>
             </View>
 
-            <Text
-              variant="labelSmall"
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                opacity: 0.6,
-                flexShrink: 0,
-                minWidth: 46,
-                textAlign: "right",
-              }}
-            >
-              {pub.fechaPublicacion
-                ? pub.fechaPublicacion.toLocaleDateString("es-BO", {
-                    day: "numeric",
-                    month: "short",
-                  })
-                : ""}
-            </Text>
           </View>
 
           {/* Divider */}
@@ -211,66 +198,85 @@ const PublicationItem = React.memo(function PublicationItem({
 
           {/* Stats row */}
           <View style={styles.statsRow}>
-            {pub.totalArchivos > 0 && (
-              <View style={styles.statItem}>
-                <MaterialCommunityIcons
-                  name="file-document-outline"
-                  size={14}
-                  color={theme.colors.primary}
-                />
-                <Text
-                  variant="labelSmall"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  {pub.totalArchivos}
-                </Text>
-              </View>
-            )}
-            {pub.vistas > 0 && (
-              <View style={styles.statItem}>
-                <MaterialCommunityIcons
-                  name="eye-outline"
-                  size={14}
-                  color={theme.colors.primary}
-                />
-                <Text
-                  variant="labelSmall"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  {pub.vistas}
-                </Text>
-              </View>
-            )}
-            {pub.totalCalificaciones > 0 && (
-              <View style={styles.statItem}>
-                <MaterialCommunityIcons
-                  name="heart-outline"
-                  size={14}
-                  color={theme.colors.primary}
-                />
-                <Text
-                  variant="labelSmall"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  {pub.totalCalificaciones}
-                </Text>
-              </View>
-            )}
-            {pub.totalComentarios > 0 && (
-              <View style={styles.statItem}>
-                <MaterialCommunityIcons
-                  name="comment-outline"
-                  size={14}
-                  color={theme.colors.primary}
-                />
-                <Text
-                  variant="labelSmall"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  {pub.totalComentarios}
-                </Text>
-              </View>
-            )}
+            <View style={styles.statsLeft}>
+              {pub.totalArchivos > 0 && (
+                <View style={styles.statItem}>
+                  <MaterialCommunityIcons
+                    name="file-document-outline"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    variant="labelSmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    {pub.totalArchivos}
+                  </Text>
+                </View>
+              )}
+              {pub.vistas > 0 && (
+                <View style={styles.statItem}>
+                  <MaterialCommunityIcons
+                    name="eye-outline"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    variant="labelSmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    {pub.vistas}
+                  </Text>
+                </View>
+              )}
+              {pub.totalCalificaciones > 0 && (
+                <View style={styles.statItem}>
+                  <MaterialCommunityIcons
+                    name="heart-outline"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    variant="labelSmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    {pub.totalCalificaciones}
+                  </Text>
+                </View>
+              )}
+              {pub.totalComentarios > 0 && (
+                <View style={styles.statItem}>
+                  <MaterialCommunityIcons
+                    name="comment-outline"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    variant="labelSmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    {pub.totalComentarios}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text
+              variant="labelSmall"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                opacity: 0.7,
+                flexShrink: 0,
+                minWidth: 46,
+                textAlign: "right",
+              }}
+            >
+              {pub.fechaPublicacion
+                ? pub.fechaPublicacion.toLocaleDateString("es-BO", {
+                    day: "numeric",
+                    month: "short",
+                  })
+                : ""}
+            </Text>
           </View>
         </Card.Content>
       </Card>
@@ -385,7 +391,7 @@ export default function UltimasPublicacionesScreen() {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <Appbar.Header>
-        <Appbar.Content title="Publicaciones" />
+        <Appbar.Content title="Últimas publicaciones" />
       </Appbar.Header>
 
       {cargando ? (
@@ -492,7 +498,15 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  statsLeft: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
+    flexWrap: "wrap",
+    flex: 1,
   },
   statItem: {
     flexDirection: "row",

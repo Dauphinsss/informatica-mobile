@@ -5,6 +5,7 @@ interface SharePublicationParams {
   titulo: string;
   descripcion: string;
   autorNombre: string;
+  materiaNombre?: string;
 }
 
 /**
@@ -26,6 +27,7 @@ const crearMensajeCompartir = (
 ): string => {
   const title = (params.titulo || "").trim();
   const author = (params.autorNombre || "").trim();
+  const subject = (params.materiaNombre || "").trim();
   const descRaw = (params.descripcion || "").trim().replace(/\s+/g, " ");
   const desc =
     descRaw.length > 0
@@ -35,9 +37,12 @@ const crearMensajeCompartir = (
       : "";
 
   const lines = [
-    title.length ? title : "Publicacion",
-    author.length ? `Por ${author}` : undefined,
-    desc.length ? desc : undefined,
+    `📚 *${title.length ? title : "Publicación"}*`,
+    subject.length ? `🎓 _${subject}_` : undefined,
+    author.length ? `👤 Por *${author}*` : undefined,
+    desc.length ? `📝 ${desc}` : undefined,
+    "",
+    `🔗 Abrir publicación:`,
     deepLink,
   ].filter(Boolean) as string[];
 

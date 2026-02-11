@@ -1,7 +1,7 @@
 export interface Subject {
   id: string;
   nombre: string;
-  descripcion: string;
+  descripcion?: string;
   semestre: number | 'Electiva';
   estado: 'active' | 'inactive';
   createdAt: Date;

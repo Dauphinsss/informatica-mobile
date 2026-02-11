@@ -10,7 +10,7 @@ interface ImageUploaderProps {
   uploading?: boolean;
 }
 
-const CARD_ASPECT_RATIO: [number, number] = [16, 9];
+const CARD_ASPECT_RATIO: [number, number] = [21, 9];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const CARD_ASPECT = CARD_ASPECT_RATIO[0] / CARD_ASPECT_RATIO[1];
 
@@ -132,7 +132,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             {!isRemote && !uploading && (
               <View style={{ marginTop: 8 }}>
                 <Text variant="bodySmall" style={{ color: "white" }}>
-                  Imagen seleccionada (recortada al formato 16:9)
+                  Imagen seleccionada (recortada al formato 21:9)
                 </Text>
               </View>
             )}
@@ -158,7 +158,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             {uploading ? "Subiendo..." : "Seleccionar imagen"}
           </Button>
           <Text variant="bodySmall" style={[styles.hint, { color: theme.colors.secondary }]}>
-            Formato recortado 16:9, tamano maximo 5MB.
+            Formato recortado 21:9, tamano maximo 5MB.
           </Text>
         </View>
       )}

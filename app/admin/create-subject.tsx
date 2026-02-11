@@ -22,6 +22,7 @@ import {
 } from "react-native-paper";
 import { auth, db, storage } from "../../firebase";
 import { AdminStackParamList } from "./_types";
+import SubjectHomePreviewCard from "./components/SubjectHomePreviewCard";
 import {
   normalizeText,
   validateSubjectFields,
@@ -42,13 +43,11 @@ export default function CreateSubjectScreen() {
 
   const [formData, setFormData] = useState({
     nombre: "",
-    descripcion: "",
     semestre: "" as string,
     imagenUrl: undefined as string | undefined,
   });
   const [errors, setErrors] = useState({
     nombre: "",
-    descripcion: "",
     semestre: "",
   });
   const [loading, setLoading] = useState(false);
@@ -135,7 +134,7 @@ export default function CreateSubjectScreen() {
 
       const newSubject = {
         nombre: nombreNormalizado,
-        descripcion: formData.descripcion.trim(),
+        descripcion: "",
         semestre: semestreNum,
         estado: "active",
         createdAt: new Date(),
@@ -153,7 +152,7 @@ export default function CreateSubjectScreen() {
         await notificarCreacionMateria(
           docRef.id,
           nombreNormalizado,
-          formData.descripcion.trim(),
+          "",
           semestreNum
         );
       } catch (error) {
@@ -213,10 +212,16 @@ export default function CreateSubjectScreen() {
 
   const isSaveDisabled =
     !formData.nombre.trim() ||
-    !formData.descripcion.trim() ||
     !formData.semestre ||
     loading ||
     uploadingImage;
+
+  const previewSemestre = formData.semestre
+    ? formData.semestre === "10"
+      ? 10
+      : Number(formData.semestre)
+    : "";
+  const isSaving = loading || uploadingImage;
 
   return (
     <View
@@ -257,24 +262,6 @@ export default function CreateSubjectScreen() {
             ) : null}
           </View>
 
-          <TextInput
-            label="Descripción breve *"
-            value={formData.descripcion}
-            onChangeText={(text) =>
-              setFormData({ ...formData, descripcion: text })
-            }
-            error={!!errors.descripcion}
-            style={styles.input}
-            multiline
-            numberOfLines={3}
-            mode="outlined"
-          />
-          {errors.descripcion ? (
-            <Text style={[styles.errorText, { color: theme.colors.error }]}>
-              {errors.descripcion}
-            </Text>
-          ) : null}
-
           <View style={styles.semestreContainer}>
             <Text variant="labelLarge" style={styles.semestreLabel}>
               Semestre *
@@ -306,6 +293,18 @@ export default function CreateSubjectScreen() {
             onImageRemoved={handleImageRemoved}
             uploading={uploadingImage}
           />
+
+          <View style={styles.previewSection}>
+            <Text variant="labelLarge" style={styles.previewLabel}>
+              Previsualizacion en Home
+            </Text>
+            <SubjectHomePreviewCard
+              nombre={formData.nombre}
+              semestre={previewSemestre}
+              imagenUrl={formData.imagenUrl}
+              loading={isSaving}
+            />
+          </View>
 
           <View style={styles.buttonContainer}>
             <Button
@@ -411,6 +410,13 @@ const styles = {
     justifyContent: "flex-end",
     gap: 12,
     marginTop: 24,
+  },
+  previewSection: {
+    marginTop: 8,
+    gap: 10,
+  },
+  previewLabel: {
+    fontWeight: "600",
   },
   button: {
     minWidth: 100,

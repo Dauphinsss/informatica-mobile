@@ -2,7 +2,7 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { doc, getDocs, updateDoc, collection } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -19,9 +19,9 @@ import {
   Text,
   TextInput,
   useTheme,
-  ActivityIndicator,
 } from "react-native-paper";
 import ImageUploader from "./components/ImageUploader";
+import SubjectHomePreviewCard from "./components/SubjectHomePreviewCard";
 import { db, storage } from "../../firebase";
 import { AdminStackParamList, SemestreOption } from "./_types";
 import { normalizeText } from "./_utils/subjectValidations";
@@ -45,13 +45,11 @@ export default function EditSubjectScreen() {
 
   const [formData, setFormData] = useState({
     nombre: subject.nombre,
-    descripcion: subject.descripcion,
     semestre: subject.semestre as SemestreOption,
     imagenUrl: subject.imagenUrl || "",
   });
   const [errors, setErrors] = useState({
     nombre: "",
-    descripcion: "",
     semestre: "",
   });
   const [loading, setLoading] = useState(false);
@@ -101,12 +99,10 @@ export default function EditSubjectScreen() {
 
   const validateEditFields = (formData: {
     nombre: string;
-    descripcion: string;
     semestre: SemestreOption;
   }) => {
     const errors = {
       nombre: "",
-      descripcion: "",
       semestre: "",
     };
 
@@ -117,10 +113,6 @@ export default function EditSubjectScreen() {
       errors.nombre = "El nombre no puede tener más de 30 caracteres";
     } else if (!nombreRegex.test(formData.nombre)) {
       errors.nombre = "El nombre contiene caracteres no válidos";
-    }
-
-    if (!formData.descripcion.trim()) {
-      errors.descripcion = "La descripción es obligatoria";
     }
 
     const isValid = !Object.values(errors).some((error) => error !== "");
@@ -160,7 +152,7 @@ export default function EditSubjectScreen() {
           imagenUrlToSave = await uploadLocalImageAndGetUrl(imagenUrlToSave);
         } catch (err) {
           console.error("Error subiendo imagen:", err);
-          imagenUrlToSave = undefined;
+          imagenUrlToSave = "";
         } finally {
           setUploadingImage(false);
         }
@@ -169,7 +161,7 @@ export default function EditSubjectScreen() {
       const subjectRef = doc(db, "materias", subject.id);
       await updateDoc(subjectRef, {
         nombre: nombreNormalizado,
-        descripcion: formData.descripcion.trim(),
+        descripcion: "",
         semestre: formData.semestre,
         imagenUrl: imagenUrlToSave,
         updatedAt: new Date(),
@@ -208,7 +200,7 @@ export default function EditSubjectScreen() {
   };
 
   const handleImageRemoved = () => {
-    setFormData({ ...formData, imagenUrl: undefined });
+    setFormData({ ...formData, imagenUrl: "" });
   };
 
   const getSemestreText = (semestre: SemestreOption) => {
@@ -223,9 +215,9 @@ export default function EditSubjectScreen() {
 
   const isSaveDisabled =
     !formData.nombre.trim() ||
-    !formData.descripcion.trim() ||
     loading ||
     uploadingImage;
+  const isSaving = loading || uploadingImage;
 
   return (
     <View
@@ -266,24 +258,6 @@ export default function EditSubjectScreen() {
             ) : null}
           </View>
 
-          <TextInput
-            label="Descripción breve *"
-            value={formData.descripcion}
-            onChangeText={(text) =>
-              setFormData({ ...formData, descripcion: text })
-            }
-            error={!!errors.descripcion}
-            style={styles.input}
-            multiline
-            numberOfLines={3}
-            mode="outlined"
-          />
-          {errors.descripcion ? (
-            <Text style={[styles.errorText, { color: theme.colors.error }]}>
-              {errors.descripcion}
-            </Text>
-          ) : null}
-
           <View style={styles.semestreContainer}>
             <Text variant="labelLarge" style={styles.semestreLabel}>
               Semestre *
@@ -313,6 +287,18 @@ export default function EditSubjectScreen() {
             onImageRemoved={handleImageRemoved}
             uploading={uploadingImage}
           />
+
+          <View style={styles.previewSection}>
+            <Text variant="labelLarge" style={styles.previewLabel}>
+              Previsualizacion en Home
+            </Text>
+            <SubjectHomePreviewCard
+              nombre={formData.nombre}
+              semestre={formData.semestre}
+              imagenUrl={formData.imagenUrl}
+              loading={isSaving}
+            />
+          </View>
 
           <View style={styles.buttonContainer}>
             <Button
@@ -414,6 +400,13 @@ const styles = {
     justifyContent: "flex-end",
     gap: 12,
     marginTop: 24,
+  },
+  previewSection: {
+    marginTop: 8,
+    gap: 10,
+  },
+  previewLabel: {
+    fontWeight: "600",
   },
   button: {
     minWidth: 100,

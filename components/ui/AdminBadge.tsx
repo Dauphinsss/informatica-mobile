@@ -7,8 +7,26 @@ interface AdminBadgeProps {
   /** Tamaño del avatar al que se le añade el badge */
   size: number;
   /** Si es true, muestra el badge de admin */
-  isAdmin: boolean;
+  isAdmin?: boolean;
+  /** Rol crudo del usuario para normalizar variantes (admin/administrador) */
+  role?: string | null;
+  /** Fondo del badge para integrarlo con la card */
+  backgroundColor?: string;
+  /** Color del ícono */
+  iconColor?: string;
 }
+
+export const isAdminRole = (role?: string | null): boolean => {
+  const normalized = String(role || "")
+    .trim()
+    .toLowerCase();
+
+  return (
+    normalized === "admin" ||
+    normalized === "administrador" ||
+    normalized === "administrator"
+  );
+};
 
 /**
  * Badge sutil de admin para superponer sobre un Avatar.
@@ -19,10 +37,18 @@ interface AdminBadgeProps {
  *
  * O usar el wrapper <AvatarWithBadge> para simplificar.
  */
-export function AdminBadge({ size, isAdmin }: AdminBadgeProps) {
+export function AdminBadge({
+  size,
+  isAdmin = false,
+  role,
+  backgroundColor,
+  iconColor,
+}: AdminBadgeProps) {
   const theme = useTheme();
 
-  if (!isAdmin) return null;
+  const showAsAdmin = isAdmin || isAdminRole(role);
+
+  if (!showAsAdmin) return null;
 
   const iconSize = Math.max(12, size * 0.3);
 
@@ -31,7 +57,7 @@ export function AdminBadge({ size, isAdmin }: AdminBadgeProps) {
       style={[
         styles.badge,
         {
-          backgroundColor: theme.colors.background,
+          backgroundColor: backgroundColor || theme.colors.background,
           borderRadius: iconSize,
           padding: 2,
         },
@@ -40,7 +66,7 @@ export function AdminBadge({ size, isAdmin }: AdminBadgeProps) {
       <MaterialCommunityIcons
         name="check-decagram"
         size={iconSize}
-        color={theme.colors.primary}
+        color={iconColor || theme.colors.primary}
       />
     </View>
   );

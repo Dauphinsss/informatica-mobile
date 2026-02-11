@@ -778,9 +778,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cardHeader: {
-    height: 170,
     position: "relative",
     overflow: "hidden",
+    aspectRatio: 21 / 9,
   },
   /* background color block when no image */
   cardHeaderColor: {

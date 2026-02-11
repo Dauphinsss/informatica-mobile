@@ -10,7 +10,7 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Appbar, Button, Card, Divider, Text } from "react-native-paper";
+import { Appbar, Button, Card, Text } from "react-native-paper";
 import ActivityCard from "../admin/components/ActivityCard";
 import ActivityDetailModal from "../admin/components/ActivityDetailModal";
 
@@ -347,28 +347,28 @@ export default function AdminScreen() {
           {loadingActivities ? (
             <ActivitySectionSkeleton />
           ) : recentActivities.length > 0 ? (
-            <Card 
-              elevation={1} 
-              style={[
-                styles.activityCard,
-                { backgroundColor: theme.colors.elevation.level1 }
-              ]}
-            >
-              <Card.Content style={{ padding: 0 }}>
-                {recentActivities.map((activity, index) => (
-                  <React.Fragment key={activity.id}>
-                    <ActivityCard 
-                      activity={activity} 
+            <View style={styles.activityList}>
+              {recentActivities.map((activity) => (
+                <Card
+                  key={activity.id}
+                  elevation={1}
+                  style={[
+                    styles.activityItemCard,
+                    { backgroundColor: theme.colors.elevation.level1 },
+                  ]}
+                >
+                  <Card.Content style={{ padding: 0 }}>
+                    <ActivityCard
+                      activity={activity}
                       onPress={() => {
                         setSelectedActivity(activity);
                         setActivityModalVisible(true);
                       }}
                     />
-                    {index < recentActivities.length - 1 && <Divider />}
-                  </React.Fragment>
-                ))}
-              </Card.Content>
-            </Card>
+                  </Card.Content>
+                </Card>
+              ))}
+            </View>
           ) : (
             <Card elevation={1} style={styles.activityCard}>
               <Card.Content>
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     height: 200,
   },
   cardContent: {
-    paddingVertical: 20,
+    paddingVertical: 12,
     alignItems: "center",
     position: "relative",
     height: "100%",
@@ -486,6 +486,13 @@ const styles = StyleSheet.create({
   },
   activityCard: {
     borderRadius: 12,
+  },
+  activityList: {
+    gap: 8,
+  },
+  activityItemCard: {
+    borderRadius: 12,
+    overflow: "hidden",
   },
   activityItem: {
     flexDirection: "row",

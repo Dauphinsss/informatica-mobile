@@ -16,6 +16,58 @@ import {
 } from "firebase/firestore";
 import { ArchivoPublicacion, Publicacion } from "../types/Publication.type";
 
+const ADMIN_ROLE_VALUES = new Set(["admin", "administrador", "administrator"]);
+const authorRoleCache = new Map<string, "admin" | "usuario">();
+
+const normalizeAuthorRole = (role?: string | null): "admin" | "usuario" => {
+  const normalized = String(role || "")
+    .trim()
+    .toLowerCase();
+  return ADMIN_ROLE_VALUES.has(normalized) ? "admin" : "usuario";
+};
+
+const hydratePublicationsAuthorRoles = async (
+  publicaciones: Publicacion[],
+): Promise<Publicacion[]> => {
+  const missingRoleAuthorIds = Array.from(
+    new Set(
+      publicaciones
+        .filter((pub) => normalizeAuthorRole(pub.autorRol) !== "admin")
+        .map((pub) => pub.autorUid)
+        .filter((uid): uid is string => typeof uid === "string" && uid !== ""),
+    ),
+  ).filter((uid) => !authorRoleCache.has(uid));
+
+  if (missingRoleAuthorIds.length > 0) {
+    await Promise.all(
+      missingRoleAuthorIds.map(async (uid) => {
+        try {
+          const userSnap = await getDoc(doc(db, "usuarios", uid));
+          const role = userSnap.exists()
+            ? normalizeAuthorRole(userSnap.data()?.rol)
+            : "usuario";
+          authorRoleCache.set(uid, role);
+        } catch {
+          authorRoleCache.set(uid, "usuario");
+        }
+      }),
+    );
+  }
+
+  return publicaciones.map((pub) => {
+    const current = normalizeAuthorRole(pub.autorRol);
+    if (current === "admin") {
+      return { ...pub, autorRol: "admin" };
+    }
+
+    const cached = pub.autorUid ? authorRoleCache.get(pub.autorUid) : undefined;
+    return {
+      ...pub,
+      autorRol: cached || "usuario",
+    };
+  });
+};
+
 export const crearPublicacion = async (
   materiaId: string,
   autorUid: string,
@@ -72,10 +124,12 @@ export const obtenerPublicacionesPorMateria = async (
         id: docSnap.id,
         ...data,
         autorFoto: data.autorFoto ?? null,
-        autorRol: data.autorRol || "usuario",
+        autorRol: normalizeAuthorRole(data.autorRol),
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion);
     });
+
+    return await hydratePublicationsAuthorRoles(publicaciones);
   } catch (error) {
     console.error("Error al obtener publicaciones:", error);
   }
@@ -91,13 +145,15 @@ export const obtenerPublicacionPorId = async (
     );
     if (publicacionDoc.exists()) {
       const data = publicacionDoc.data();
-      return {
+      const publication = {
         id: publicacionDoc.id,
         ...data,
         autorFoto: data.autorFoto ?? null,
-        autorRol: data.autorRol || "usuario",
+        autorRol: normalizeAuthorRole(data.autorRol),
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion;
+      const [hydrated] = await hydratePublicationsAuthorRoles([publication]);
+      return hydrated || publication;
     }
   } catch (error) {
     console.error("Error al obtener publicación:", error);
@@ -202,10 +258,11 @@ export const obtenerPublicacionesPorAutor = async (
         id: docSnap.id,
         ...data,
         autorFoto: data.autorFoto ?? null,
-        autorRol: data.autorRol || "usuario",
+        autorRol: normalizeAuthorRole(data.autorRol),
         fechaPublicacion: data.fechaPublicacion.toDate(),
       } as Publicacion);
     });
+    return await hydratePublicationsAuthorRoles(publicaciones);
   } catch (error) {
     console.error("Error al obtener publicaciones por autor:", error);
   }
@@ -223,17 +280,19 @@ export function escucharPublicacionesPorAutor(
     orderBy("fechaPublicacion", "desc"),
   );
   return onSnapshot(publicacionesQuery, (pubsSnap) => {
-    const pubs = pubsSnap.docs.map((docSnap) => {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        ...data,
-        autorFoto: data.autorFoto ?? null,
-        autorRol: data.autorRol || "usuario",
-        fechaPublicacion: data.fechaPublicacion.toDate(),
-      } as Publicacion;
-    });
-    callback(pubs);
+    void (async () => {
+      const pubs = pubsSnap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          autorFoto: data.autorFoto ?? null,
+          autorRol: normalizeAuthorRole(data.autorRol),
+          fechaPublicacion: data.fechaPublicacion.toDate(),
+        } as Publicacion;
+      });
+      callback(await hydratePublicationsAuthorRoles(pubs));
+    })();
   });
 }
 
@@ -248,17 +307,19 @@ export function escucharPublicacionesPorMateria(
     orderBy("fechaPublicacion", "desc"),
   );
   return onSnapshot(publicacionesQuery, (pubsSnap) => {
-    const pubs = pubsSnap.docs.map((docSnap) => {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        ...data,
-        autorFoto: data.autorFoto ?? null,
-        autorRol: data.autorRol || "usuario",
-        fechaPublicacion: data.fechaPublicacion.toDate(),
-      } as Publicacion;
-    });
-    callback(pubs);
+    void (async () => {
+      const pubs = pubsSnap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          autorFoto: data.autorFoto ?? null,
+          autorRol: normalizeAuthorRole(data.autorRol),
+          fechaPublicacion: data.fechaPublicacion.toDate(),
+        } as Publicacion;
+      });
+      callback(await hydratePublicationsAuthorRoles(pubs));
+    })();
   });
 }
 
@@ -276,17 +337,19 @@ export function escucharUltimasPublicaciones(
   return onSnapshot(
     publicacionesQuery,
     (pubsSnap) => {
-      const pubs = pubsSnap.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          ...data,
-          autorFoto: data.autorFoto ?? null,
-          autorRol: data.autorRol || "usuario",
-          fechaPublicacion: data.fechaPublicacion.toDate(),
-        } as Publicacion;
-      });
-      callback(pubs);
+      void (async () => {
+        const pubs = pubsSnap.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            ...data,
+            autorFoto: data.autorFoto ?? null,
+            autorRol: normalizeAuthorRole(data.autorRol),
+            fechaPublicacion: data.fechaPublicacion.toDate(),
+          } as Publicacion;
+        });
+        callback(await hydratePublicationsAuthorRoles(pubs));
+      })();
     },
     (error) => {
       console.error("Error en escucharUltimasPublicaciones:", error);

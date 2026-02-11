@@ -127,7 +127,7 @@ exports.registrarUsuarioNuevo = functions.firestore
     
     await registrarActividad(
       'usuario_registrado',
-      'Nuevo usuario registrado',
+      'Nuevo usuario',
       `${userData.nombre || 'Usuario'} se ha registrado en la plataforma`,
       userId,
       userData.nombre,
@@ -163,7 +163,7 @@ exports.registrarPublicacionNueva = functions.firestore
     
     await registrarActividad(
       'publicacion_creada',
-      'Nueva publicación creada',
+      'Nueva publicación',
       `${autorNombre} publicó "${pubData.titulo || 'Sin título'}"${materiaNombre ? ` en ${materiaNombre}` : ''}`,
       pubData.autorUid,
       autorNombre,
@@ -217,7 +217,7 @@ exports.registrarReporteNuevo = functions.firestore
     
     await registrarActividad(
       'publicacion_reportada',
-      'Nuevo reporte recibido',
+      'Nuevo reporte',
       `${reportanteNombre} reportó "${tituloPublicacion}" por ${reporteData.motivo || 'motivo no especificado'}`,
       reporteData.reportadoPor,
       reportanteNombre,

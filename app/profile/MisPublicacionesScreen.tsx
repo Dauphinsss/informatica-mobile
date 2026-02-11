@@ -46,6 +46,7 @@ type PublicationCardProps = {
   onComment: (pub: PublicacionConMateria) => void;
   styles: ReturnType<typeof getStyles>;
   primaryColor: string;
+  badgeBackgroundColor: string;
 };
 
 const PublicationCard = React.memo(
@@ -59,6 +60,7 @@ const PublicationCard = React.memo(
     onComment,
     styles,
     primaryColor,
+    badgeBackgroundColor,
   }: PublicationCardProps) {
     const anim = useRef(new Animated.Value(0)).current;
 
@@ -96,7 +98,11 @@ const PublicationCard = React.memo(
                       label={pub.autorNombre?.charAt(0).toUpperCase() || "?"}
                     />
                   )}
-                  <AdminBadge size={44} isAdmin={pub.autorRol === "admin"} />
+                  <AdminBadge
+                    size={44}
+                    role={pub.autorRol}
+                    backgroundColor={badgeBackgroundColor}
+                  />
                 </View>
                 <Text
                   variant="bodySmall"
@@ -573,6 +579,7 @@ export default function MisPublicacionesScreen() {
                 onComment={handleCommentPress}
                 styles={styles}
                 primaryColor={theme.colors.primary}
+                badgeBackgroundColor={theme.colors.surface}
               />
             )}
           />

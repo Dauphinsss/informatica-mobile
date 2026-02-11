@@ -72,14 +72,14 @@ export default function SubjectCardSkeleton() {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 16,
+    marginBottom: 14,
     overflow: "hidden",
   },
   cardHeader: {
-    height: 150,
     position: "relative",
     overflow: "hidden",
+    aspectRatio: 21 / 9,
   },
   headerBackground: {
     ...StyleSheet.absoluteFillObject,
