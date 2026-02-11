@@ -42,7 +42,7 @@ const SuspendedModal: React.FC<SuspendedModalProps> = ({ visible, onDismiss }) =
       />
       
       <View style={styles.content}>
-        {/* Icono de advertencia - Estilo Material Design */}
+        {}
         <View style={styles.iconContainer}>
           <IconButton 
             icon="alert-circle" 
@@ -52,12 +52,12 @@ const SuspendedModal: React.FC<SuspendedModalProps> = ({ visible, onDismiss }) =
           />
         </View>
 
-        {/* Título principal */}
+        {}
         <Text variant="headlineLarge" style={[styles.title, { color: theme.colors.onBackground }]}>
           Cuenta Suspendida
         </Text>
 
-        {/* Card con información */}
+        {}
         <Card style={[styles.infoCard, { backgroundColor: theme.colors.surface }]}>
           <Card.Content>
             <Text variant="titleMedium" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
@@ -91,7 +91,7 @@ const SuspendedModal: React.FC<SuspendedModalProps> = ({ visible, onDismiss }) =
           </Card.Content>
         </Card>
 
-        {/* Botón de cerrar sesión */}
+        {}
         <Button
           mode="contained"
           onPress={handleLogout}
@@ -105,7 +105,7 @@ const SuspendedModal: React.FC<SuspendedModalProps> = ({ visible, onDismiss }) =
           Cerrar Sesión
         </Button>
 
-        {/* Texto adicional */}
+        {}
         <Text variant="bodySmall" style={[styles.footerText, { color: theme.colors.onSurfaceVariant }]}>
           Esta acción cerrará tu sesión actual
         </Text>

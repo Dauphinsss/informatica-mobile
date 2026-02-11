@@ -136,7 +136,6 @@ export default function SubjectsModal({
     }
   }, [visible]);
 
-  // Listener en tiempo real para contar materiales de cada materia
   useEffect(() => {
     if (!visible || subjects.length === 0) {
       return;
@@ -173,7 +172,6 @@ export default function SubjectsModal({
     };
   }, [visible, subjects]);
 
-  // Auto-abrir el acordeón del semestre con materias nuevas y hacer scroll
   useEffect(() => {
     if (visible && subjects.length > 0 && newSubjectIds.length > 0) {
       const newSubject = subjects.find(s => newSubjectIds.includes(s.id));
@@ -244,7 +242,6 @@ export default function SubjectsModal({
       const activeSubjects = subjectsList.filter((s) => s.estado === "active");
       setSubjects(activeSubjects);
     } catch {
-      // Error silencioso
     } finally {
       setLoadingSubjects(false);
     }

@@ -40,7 +40,7 @@ function AppContent() {
     return () => unsubscribe();
   }, [setUserData]);
 
-  // Escuchar cambios en el estado del usuario
+  
   useEffect(() => {
     if (user) {
       const userRef = doc(db, "usuarios", user.uid);
@@ -63,7 +63,7 @@ function AppContent() {
       if (user) {
         try {
           const { regenerarTokens } = await import("@/services/pushNotifications");
-          // Regenerar tokens cada vez que se abre la app
+          
           await regenerarTokens(user.uid);
           console.log("Tokens regenerados exitosamente");
         } catch (err) {
@@ -82,11 +82,11 @@ function AppContent() {
     );
   }
 
-  // Estructura principal con el modal de suspensión al nivel más alto
+  
   return (
     <>
       {user ? <TabsLayout /> : <LoginScreen />}
-      {/* Modal de suspensión al nivel más alto - cubre TODO */}
+      {}
       <SuspendedModal visible={isSuspended} onDismiss={() => {}} />
       <StatusBar style={isDark ? "light" : "dark"} />
     </>

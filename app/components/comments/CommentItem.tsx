@@ -12,10 +12,11 @@ import {
 import { Avatar, IconButton, Menu, Text, useTheme } from "react-native-paper";
 import { LikeButton } from "./LikeButton";
 
-// Habilitar LayoutAnimation en Android
+
 if (
   Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
+  UIManager.setLayoutAnimationEnabledExperimental &&
+  !(global as any).nativeFabricUIManager
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -42,7 +43,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   const [menuVisible, setMenuVisible] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
 
-  // Verificar permisos de eliminación
+  
   const puedeEliminar =
     auth.currentUser &&
     (auth.currentUser.uid === comment.autorUid ||
@@ -112,19 +113,19 @@ export const CommentItem: React.FC<CommentItemProps> = ({
     },
   });
 
-  // Función para manejar el menú en modo readOnly
+  
   const handleMenuPress = () => {
     if (readOnly) {
-      // En modo readOnly, no hacer nada
+      
       return;
     }
     setMenuVisible(true);
   };
 
-  // Función para manejar reply en modo readOnly
+  
   const handleReplyPress = () => {
     if (readOnly) {
-      // En modo readOnly, no hacer nada
+      
       return;
     }
     onReply(comment);
@@ -150,7 +151,6 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   };
 
   const toggleReplies = () => {
-    // Configurar animación suave
     LayoutAnimation.configureNext({
       duration: 300,
       create: {
@@ -251,7 +251,6 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         </View>
       </View>
 
-      {/* Respuestas */}
       {comment.respuestas && comment.respuestas.length > 0 && (
         <View style={styles.repliesContainer}>
           {!showReplies ? (

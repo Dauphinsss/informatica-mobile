@@ -1,4 +1,4 @@
-// src/screens/notifications/NotificationsScreen.tsx
+
 import { NotificationSectionSkeleton } from "@/app/(tabs)/components/NotificationItemSkeleton";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth } from "@/firebase";
@@ -9,6 +9,7 @@ import {
   marcarComoLeida,
   NotificacionCompleta,
 } from "@/services/notifications";
+import { getCache, setCache } from "@/services/cache.service";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -21,6 +22,7 @@ import {
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import {
   Appbar,
+  Avatar,
   Button,
   Dialog,
   Divider,
@@ -56,24 +58,47 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     if (!user) return;
+    let isMounted = true;
+    let unsubscribe: (() => void) | undefined;
+    const cacheKey = `notifications_${user.uid}`;
 
-    const unsubscribe = escucharNotificaciones(
-      user.uid,
-      (notifs) => {
-        const filtradas = notifs.filter(
-          (n) => !pendingDeletesRef.current.has(n.id),
-        );
-        setNotificaciones(filtradas);
-        setTimeout(() => setLoading(false), 300);
-      },
-      (error) => {
-        console.error("Error al cargar notificaciones:", error);
-        setLoading(false);
-      },
-    );
+    const start = async () => {
+      try {
+        const cached = await getCache<any[]>(cacheKey, 1000 * 60 * 20);
+        if (isMounted && cached && cached.length > 0) {
+          setNotificaciones(cached as NotificacionCompleta[]);
+          setLoading(false);
+        }
+      } catch {}
+
+      if (!isMounted) return;
+
+      unsubscribe = escucharNotificaciones(
+        user.uid,
+        (notifs) => {
+          const filtradas = notifs.filter(
+            (n) => !pendingDeletesRef.current.has(n.id),
+          );
+          setNotificaciones(filtradas);
+          const serializable = filtradas.map((n) => ({
+            ...n,
+            creadoEn: n.creadoEn?.toMillis ? n.creadoEn.toMillis() : n.creadoEn,
+          }));
+          void setCache(cacheKey, serializable);
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error al cargar notificaciones:", error);
+          setLoading(false);
+        },
+      );
+    };
+
+    void start();
 
     return () => {
-      unsubscribe();
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
       pendingDeletesRef.current.clear();
     };
   }, [user]);
@@ -87,7 +112,7 @@ export default function NotificationsScreen() {
   );
 
   const handleNotificationPress = async (notif: NotificacionCompleta) => {
-    // Marcar como leída
+    
     if (!notif.leida) {
       try {
         await marcarComoLeida(notif.id);
@@ -96,7 +121,7 @@ export default function NotificationsScreen() {
       }
     }
 
-    // Navegar según el tipo de notificación
+    
     const metadata = notif.metadata;
 
     if (!metadata) {
@@ -105,7 +130,7 @@ export default function NotificationsScreen() {
     }
 
     try {
-      // Obtener la navegación del tab padre
+      
       const tabNavigation = navigation.getParent() || navigation;
 
       switch (metadata.accion) {
@@ -146,7 +171,7 @@ export default function NotificationsScreen() {
           console.log(
             "[Notificación] Decisión de admin, permaneciendo en notificaciones",
           );
-          // Ya estamos en la pantalla de notificaciones, no hacemos nada más
+          
           break;
 
         default:
@@ -158,7 +183,30 @@ export default function NotificationsScreen() {
     }
   };
 
-  // Agrupar notificaciones por período (hoy, ayer, anteriores)
+  function obtenerFechaNotificacion(valor: any): Date | null {
+    if (!valor) return null;
+    if (valor?.toDate) {
+      const parsed = valor.toDate();
+      return Number.isNaN(parsed?.getTime?.()) ? null : parsed;
+    }
+    if (typeof valor === "number" || typeof valor === "string") {
+      const parsed = new Date(valor);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    if (
+      typeof valor === "object" &&
+      typeof valor.seconds === "number" &&
+      typeof valor.nanoseconds === "number"
+    ) {
+      const parsed = new Date(
+        valor.seconds * 1000 + Math.floor(valor.nanoseconds / 1_000_000),
+      );
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+  }
+
+  
   const grupos = useMemo(() => {
     const ahora = new Date();
     const hoy = new Date(
@@ -174,11 +222,10 @@ export default function NotificationsScreen() {
     const anterioresNotifs: NotificacionCompleta[] = [];
 
     notificaciones.forEach((notif) => {
-      const fecha = notif.creadoEn?.toDate
-        ? notif.creadoEn.toDate()
-        : new Date(notif.creadoEn);
-
-      if (fecha >= hoy) {
+      const fecha = obtenerFechaNotificacion(notif.creadoEn);
+      if (!fecha) {
+        anterioresNotifs.push(notif);
+      } else if (fecha >= hoy) {
         hoyNotifs.push(notif);
       } else if (fecha >= ayer) {
         ayerNotifs.push(notif);
@@ -187,19 +234,38 @@ export default function NotificationsScreen() {
       }
     });
 
-    const result = [];
-    if (hoyNotifs.length > 0)
-      result.push({ key: "hoy", title: "Hoy", data: hoyNotifs });
-    if (ayerNotifs.length > 0)
-      result.push({ key: "ayer", title: "Ayer", data: ayerNotifs });
-    if (anterioresNotifs.length > 0)
-      result.push({
-        key: "anteriores",
-        title: "Anteriores",
-        data: anterioresNotifs,
-      });
+    return [
+      { key: "hoy", title: "Hoy", data: hoyNotifs },
+      { key: "ayer", title: "Ayer", data: ayerNotifs },
+      { key: "anteriores", title: "Anteriores", data: anterioresNotifs },
+    ];
+  }, [notificaciones]);
 
-    return result;
+  const gruposVisibles = useMemo(
+    () => grupos.filter((grupo) => grupo.data.length > 0),
+    [grupos],
+  );
+
+  const conteosBorrado = useMemo(() => {
+    const ahora = Date.now();
+    const d24h = 24 * 60 * 60 * 1000;
+    const d7 = 7 * 24 * 60 * 60 * 1000;
+    const d30 = 30 * 24 * 60 * 60 * 1000;
+
+    let ultimas24h = 0;
+    let ultimaSemana = 0;
+    let ultimos30dias = 0;
+
+    notificaciones.forEach((notif) => {
+      const fecha = obtenerFechaNotificacion(notif.creadoEn);
+      if (!fecha) return;
+      const diff = ahora - fecha.getTime();
+      if (diff <= d30) ultimos30dias += 1;
+      if (diff <= d7) ultimaSemana += 1;
+      if (diff <= d24h) ultimas24h += 1;
+    });
+
+    return { ultimas24h, ultimaSemana, ultimos30dias, total: notificaciones.length };
   }, [notificaciones]);
 
   const handleEliminarNotificacion = async (
@@ -388,6 +454,10 @@ export default function NotificationsScreen() {
     }
   };
 
+  const isPublicationNotification = (notif: NotificacionCompleta) =>
+    notif.metadata?.accion === "ver_publicacion" ||
+    notif.metadata?.tipo === "publicacion";
+
   const formatearTiempo = (timestamp: any) => {
     if (!timestamp) return "Ahora";
 
@@ -399,11 +469,14 @@ export default function NotificationsScreen() {
     const horas = Math.floor(diff / 3600000);
     const dias = Math.floor(diff / 86400000);
 
-    if (minutos < 1) return "Ahora";
-    if (minutos < 60) return `${minutos}m`;
-    if (horas < 24) return `${horas}h`;
-    if (dias < 7) return `${dias}d`;
-    return fecha.toLocaleDateString();
+    if (minutos < 1) return "Hace un momento";
+    if (minutos < 60) return `Hace ${minutos} min`;
+    if (horas < 24) return `Hace ${horas} h`;
+    if (dias < 7) return `Hace ${dias} d`;
+    return fecha.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "short",
+    });
   };
 
   if (!user) return null;
@@ -444,7 +517,7 @@ export default function NotificationsScreen() {
           style={styles.content}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {grupos.map((grupo) => (
+          {gruposVisibles.map((grupo) => (
             <View key={grupo.key} style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text
@@ -457,9 +530,18 @@ export default function NotificationsScreen() {
                   {grupo.title}
                 </Text>
               </View>
-              <Divider />
+              {grupo.key !== "anteriores" && (
+                <View style={styles.sectionSpacing} />
+              )}
 
               {grupo.data.map((notif) => {
+                const isPublicationNotif = isPublicationNotification(notif);
+                const actorFoto = (notif.metadata as any)?.actorFoto as
+                  | string
+                  | undefined;
+                const actorNombre = (notif.metadata as any)?.actorNombre as
+                  | string
+                  | undefined;
                 return (
                   <ReanimatedSwipeable
                     key={notif.id}
@@ -472,26 +554,61 @@ export default function NotificationsScreen() {
                     leftThreshold={60}
                     onSwipeableWillOpen={() => eliminarDirecto(notif.id)}
                   >
-                    <Animated.View>
+                    <Animated.View
+                      style={[
+                        styles.notifCard,
+                        { backgroundColor: theme.colors.elevation.level1 },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => handleNotificationPress(notif)}
                         activeOpacity={0.7}
                         style={[
                           styles.notifItem,
-                          {
-                            backgroundColor: !notif.leida
-                              ? theme.dark
-                                ? "rgba(255, 255, 255, 0.05)"
-                                : "rgba(0, 0, 0, 0.03)"
-                              : "transparent",
-                          },
+                          !notif.leida && styles.notifItemUnread,
                         ]}
                       >
-                        <List.Icon
-                          icon={notif.icono}
-                          color={getIconColor(notif.tipo, notif.leida)}
-                          style={{ margin: 0 }}
-                        />
+                        {isPublicationNotif ? (
+                          actorFoto ? (
+                            <Avatar.Image size={40} source={{ uri: actorFoto }} />
+                          ) : actorNombre ? (
+                            <Avatar.Text
+                              size={40}
+                              label={actorNombre.charAt(0).toUpperCase()}
+                              color={
+                                notif.leida
+                                  ? theme.colors.onSurfaceVariant
+                                  : theme.colors.primary
+                              }
+                              style={{
+                                backgroundColor: notif.leida
+                                  ? theme.colors.surfaceVariant
+                                  : theme.colors.primaryContainer,
+                              }}
+                            />
+                          ) : (
+                            <Avatar.Icon
+                              icon="account"
+                              size={40}
+                              style={{
+                                backgroundColor: notif.leida
+                                  ? theme.colors.surfaceVariant
+                                  : theme.colors.primaryContainer,
+                              }}
+                              color={
+                                notif.leida
+                                  ? theme.colors.onSurfaceVariant
+                                  : theme.colors.primary
+                              }
+                            />
+                          )
+                        ) : (
+                          <List.Icon
+                            icon={notif.icono}
+                            color={getIconColor(notif.tipo, notif.leida)}
+                            style={{ margin: 0 }}
+                          />
+                        )}
                         <View style={styles.notifContent}>
                           <View style={styles.notifHeader}>
                             <Text
@@ -531,20 +648,7 @@ export default function NotificationsScreen() {
                             {notif.descripcion}
                           </Text>
                         </View>
-                        <View style={styles.notifActions}>
-                          {!notif.leida && (
-                            <View
-                              style={[
-                                styles.unreadDot,
-                                { backgroundColor: theme.colors.primary },
-                              ]}
-                            />
-                          )}
-                        </View>
                       </TouchableOpacity>
-                      <Divider
-                        style={{ backgroundColor: theme.colors.outlineVariant }}
-                      />
                     </Animated.View>
                   </ReanimatedSwipeable>
                 );
@@ -552,7 +656,7 @@ export default function NotificationsScreen() {
             </View>
           ))}
 
-          {notificaciones.length === 0 && (
+          {gruposVisibles.length === 0 && (
             <View style={styles.emptyState}>
               <IconButton
                 icon="bell-outline"
@@ -642,18 +746,25 @@ export default function NotificationsScreen() {
         <Text style={{ color: theme.colors.onError }}>{snackbarMessage}</Text>
       </Snackbar>
 
-      {/* Dialog de opciones de borrado */}
       <Portal>
         <Dialog
           visible={menuVisible}
           onDismiss={() => setMenuVisible(false)}
           style={{ backgroundColor: theme.colors.surface, borderRadius: 16 }}
         >
-          <Dialog.Title>Borrar notificaciones</Dialog.Title>
+          <Dialog.Title>Eliminar notificaciones</Dialog.Title>
           <Dialog.Content style={{ paddingHorizontal: 0 }}>
             <TouchableRipple
-              onPress={eliminarNotificacionesUltimas24Horas}
-              style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+              onPress={
+                conteosBorrado.ultimas24h > 0
+                  ? eliminarNotificacionesUltimas24Horas
+                  : undefined
+              }
+              style={{
+                paddingVertical: 14,
+                paddingHorizontal: 24,
+                opacity: conteosBorrado.ultimas24h > 0 ? 1 : 0.45,
+              }}
             >
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
@@ -667,13 +778,21 @@ export default function NotificationsScreen() {
                   variant="bodyLarge"
                   style={{ color: theme.colors.onSurface }}
                 >
-                  Últimas 24 horas
+                  Últimas 24 horas ({conteosBorrado.ultimas24h})
                 </Text>
               </View>
             </TouchableRipple>
             <TouchableRipple
-              onPress={() => eliminarNotificacionesPorFecha(7)}
-              style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+              onPress={
+                conteosBorrado.ultimaSemana > 0
+                  ? () => eliminarNotificacionesPorFecha(7)
+                  : undefined
+              }
+              style={{
+                paddingVertical: 14,
+                paddingHorizontal: 24,
+                opacity: conteosBorrado.ultimaSemana > 0 ? 1 : 0.45,
+              }}
             >
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
@@ -687,13 +806,21 @@ export default function NotificationsScreen() {
                   variant="bodyLarge"
                   style={{ color: theme.colors.onSurface }}
                 >
-                  Última semana
+                  Última semana ({conteosBorrado.ultimaSemana})
                 </Text>
               </View>
             </TouchableRipple>
             <TouchableRipple
-              onPress={() => eliminarNotificacionesPorFecha(30)}
-              style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+              onPress={
+                conteosBorrado.ultimos30dias > 0
+                  ? () => eliminarNotificacionesPorFecha(30)
+                  : undefined
+              }
+              style={{
+                paddingVertical: 14,
+                paddingHorizontal: 24,
+                opacity: conteosBorrado.ultimos30dias > 0 ? 1 : 0.45,
+              }}
             >
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
@@ -707,14 +834,22 @@ export default function NotificationsScreen() {
                   variant="bodyLarge"
                   style={{ color: theme.colors.onSurface }}
                 >
-                  Últimos 30 días
+                  Últimos 30 días ({conteosBorrado.ultimos30dias})
                 </Text>
               </View>
             </TouchableRipple>
             <Divider style={{ marginVertical: 4 }} />
             <TouchableRipple
-              onPress={eliminarTodasLasNotificaciones}
-              style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+              onPress={
+                conteosBorrado.total > 0
+                  ? eliminarTodasLasNotificaciones
+                  : undefined
+              }
+              style={{
+                paddingVertical: 14,
+                paddingHorizontal: 24,
+                opacity: conteosBorrado.total > 0 ? 1 : 0.45,
+              }}
             >
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 16 }}
@@ -726,7 +861,7 @@ export default function NotificationsScreen() {
                   iconColor={theme.colors.error}
                 />
                 <Text variant="bodyLarge" style={{ color: theme.colors.error }}>
-                  Borrar todo
+                  Borrar todo ({conteosBorrado.total})
                 </Text>
               </View>
             </TouchableRipple>
@@ -748,24 +883,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 20,
+    paddingHorizontal: 16,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
     marginBottom: 8,
   },
   sectionTitle: {
     fontWeight: "bold" as const,
   },
+  sectionDivider: {
+    marginBottom: 10,
+  },
+  sectionSpacing: {
+    height: 2,
+  },
+  notifCard: {
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
   notifItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     gap: 12,
+  },
+  notifItemUnread: {
+    backgroundColor: "rgba(132, 94, 247, 0.08)",
   },
   notifContent: {
     flex: 1,
@@ -775,11 +926,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  notifActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
   notifTitle: {
     fontWeight: "600",
     flex: 1,
@@ -787,11 +933,6 @@ const styles = StyleSheet.create({
   notifDescription: {
     lineHeight: 20,
     marginTop: 4,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   emptyState: {
     flex: 1,

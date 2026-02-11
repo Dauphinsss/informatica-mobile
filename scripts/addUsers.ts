@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import { initializeApp } from "firebase/app";
 import { addDoc, collection, getFirestore } from "firebase/firestore";
 
-// Configuración de Firebase (sin AsyncStorage para Node.js)
+
 const firebaseConfig = {
   apiKey: "AIzaSyAB19HjYP4Z_wSYr_b6WextKIpBiW8OLZg",
   authDomain: "mobile-1dae0.firebaseapp.com",
@@ -13,12 +13,12 @@ const firebaseConfig = {
   measurementId: "G-4652K5EKCR",
 };
 
-// Inicializar Firebase para Node.js
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const usersCollection = collection(db, 'usuarios');
 
-{/* Función para generar UID único */}
+{}
 const generateUID = (): string => {
   return randomBytes(14).toString('base64').replace(/[+/=]/g, match => {
     switch (match) {
@@ -30,7 +30,7 @@ const generateUID = (): string => {
   });
 };
 
-{/* Lista de usuarios a agregar */}
+{}
 const users = [
   {
     correo: "bruno@umss.edu.bo",

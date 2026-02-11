@@ -7,27 +7,31 @@ import {
   seleccionarArchivo,
   subirArchivo,
 } from "@/scripts/services/Files";
-import { crearPublicacion } from "@/scripts/services/Publications";
+import {
+  crearPublicacion,
+  obtenerArchivosConTipo,
+  obtenerPublicacionPorId,
+} from "@/scripts/services/Publications";
 import { TipoArchivo } from "@/scripts/types/Files.type";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import * as Clipboard from "expo-clipboard";
 import { getAuth } from "firebase/auth";
-import { doc, getDoc, increment, setDoc } from "firebase/firestore";
+import { doc, getDoc, increment, setDoc, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TouchableOpacity,
   View,
 } from "react-native";
 import {
   Appbar,
   Button,
   Card,
-  Chip,
   Dialog,
-  IconButton,
   Portal,
   ProgressBar,
   Text,
@@ -51,6 +55,8 @@ interface ArchivoTemp {
   esEnlaceExterno: boolean;
   urlExterna?: string;
   nombreEnlace?: string;
+  nombrePersonalizado?: string;
+  tamanoBytes?: number;
 }
 
 export default function CreatePublicationScreen() {
@@ -64,10 +70,13 @@ export default function CreatePublicationScreen() {
   const params = route.params as {
     materiaId?: string;
     materiaNombre?: string;
+    publicacionId?: string;
   };
 
   const materiaId = params?.materiaId || "";
   const materiaNombre = params?.materiaNombre || "Materia";
+  const editPublicacionId = params?.publicacionId || "";
+  const isEditMode = Boolean(editPublicacionId);
 
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -78,6 +87,11 @@ export default function CreatePublicationScreen() {
   const [dialogEnlaceVisible, setDialogEnlaceVisible] = useState(false);
   const [urlEnlace, setUrlEnlace] = useState("");
   const [nombreEnlace, setNombreEnlace] = useState("");
+  const [dialogRenombrarVisible, setDialogRenombrarVisible] = useState(false);
+  const [archivoRenombrarIndex, setArchivoRenombrarIndex] = useState<
+    number | null
+  >(null);
+  const [nuevoNombreArchivo, setNuevoNombreArchivo] = useState("");
   const [dialogSeleccionVisible, setDialogSeleccionVisible] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
@@ -112,6 +126,53 @@ export default function CreatePublicationScreen() {
     cargarTiposArchivo();
   }, []);
 
+  useEffect(() => {
+    if (!isEditMode || !editPublicacionId) return;
+    let cancelled = false;
+
+    const cargarDatosEdicion = async () => {
+      setPublicando(true);
+      try {
+        const pub = await obtenerPublicacionPorId(editPublicacionId);
+        if (!cancelled && pub) {
+          setTitulo(pub.titulo || "");
+          setDescripcion(pub.descripcion || "");
+          setPublicacionId(editPublicacionId);
+        }
+
+        const archivosExistentes = await obtenerArchivosConTipo(editPublicacionId);
+        if (!cancelled) {
+          setArchivos(
+            archivosExistentes.map((archivo) => ({
+              id: archivo.id,
+              tipoArchivoId: archivo.tipoArchivoId,
+              progreso: 100,
+              subiendo: false,
+              esEnlaceExterno: !!archivo.esEnlaceExterno,
+              urlExterna: archivo.esEnlaceExterno ? archivo.webUrl : undefined,
+              nombreEnlace: archivo.esEnlaceExterno ? archivo.titulo : undefined,
+              nombrePersonalizado: archivo.titulo,
+              tamanoBytes: archivo.tamanoBytes || 0,
+            })),
+          );
+        }
+      } catch (error) {
+        console.error("Error cargando publicación para editar:", error);
+        if (!cancelled) {
+          showAlert("Error", "No se pudo cargar la publicación para editar", "error");
+        }
+      } finally {
+        if (!cancelled) setPublicando(false);
+      }
+    };
+
+    void cargarDatosEdicion();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, editPublicacionId]);
+
   const cargarTiposArchivo = async () => {
     const tiposData = await obtenerTiposArchivo();
     setTipos(tiposData);
@@ -143,14 +204,14 @@ export default function CreatePublicationScreen() {
     mimeType: string,
     nombre: string,
   ): string | null => {
-    // Buscar por mimetype
+    
     for (const tipo of tipos) {
       if (tipo.mimetype.some((mime) => mimeType && mimeType.includes(mime))) {
         return tipo.id;
       }
     }
 
-    // Buscar por extensión
+    
     const extension = "." + nombre.split(".").pop()?.toLowerCase();
 
     for (const tipo of tipos) {
@@ -269,7 +330,7 @@ export default function CreatePublicationScreen() {
   const eliminarArchivoLocal = async (index: number) => {
     const archivo = archivos[index];
 
-    // Si ya está subido, eliminarlo de Firebase
+    
     if (archivo.id && publicacionId) {
       try {
         await eliminarArchivo(archivo.id);
@@ -279,6 +340,51 @@ export default function CreatePublicationScreen() {
     }
 
     setArchivos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const obtenerNombreArchivo = (archivo: ArchivoTemp) => {
+    if (archivo.nombrePersonalizado?.trim()) {
+      return archivo.nombrePersonalizado.trim();
+    }
+    if (archivo.esEnlaceExterno) {
+      return archivo.nombreEnlace || "Enlace";
+    }
+    return archivo.asset?.name || "Archivo";
+  };
+
+  const abrirDialogoRenombrarArchivo = (index: number) => {
+    const archivo = archivos[index];
+    if (!archivo) return;
+    setArchivoRenombrarIndex(index);
+    setNuevoNombreArchivo(obtenerNombreArchivo(archivo));
+    setDialogRenombrarVisible(true);
+  };
+
+  const guardarNombreArchivo = () => {
+    if (archivoRenombrarIndex === null) return;
+    const nombreLimpio = nuevoNombreArchivo.trim();
+    if (!nombreLimpio) {
+      showAlert("Error", "El nombre no puede estar vacío", "error");
+      return;
+    }
+
+    setArchivos((prev) =>
+      prev.map((archivo, index) => {
+        if (index !== archivoRenombrarIndex) return archivo;
+        if (archivo.esEnlaceExterno) {
+          return {
+            ...archivo,
+            nombrePersonalizado: nombreLimpio,
+            nombreEnlace: nombreLimpio,
+          };
+        }
+        return { ...archivo, nombrePersonalizado: nombreLimpio };
+      }),
+    );
+
+    setDialogRenombrarVisible(false);
+    setArchivoRenombrarIndex(null);
+    setNuevoNombreArchivo("");
   };
 
   const actualizarEstadisticasUsuario = async (
@@ -320,10 +426,10 @@ export default function CreatePublicationScreen() {
     setPublicando(true);
 
     try {
-      // 1. Crear publicación
+      
       const nombreUsuario = user.displayName || user.email || "Usuario";
 
-      // Obtener rol del usuario
+      
       let autorRol = "usuario";
       try {
         const userDoc = await getDoc(doc(db, "usuarios", user.uid));
@@ -332,39 +438,48 @@ export default function CreatePublicationScreen() {
         }
       } catch (e) {}
 
-      const pubId = await crearPublicacion(
-        materiaId,
-        user.uid,
-        nombreUsuario,
-        user.photoURL || null,
-        titulo,
-        descripcion,
-        autorRol,
-      );
-
-      setPublicacionId(pubId);
-      try {
-        await actualizarEstadisticasUsuario(user.uid, {
-          publicacionesCreadas: 1,
+      let pubId = publicacionId || "";
+      if (isEditMode && editPublicacionId) {
+        pubId = editPublicacionId;
+        await updateDoc(doc(db, "publicaciones", editPublicacionId), {
+          titulo: titulo.trim(),
+          descripcion: descripcion.trim(),
+          updatedAt: new Date(),
         });
-      } catch (e) {
-        console.error(
-          "No se pudo actualizar estadisticasUsuario tras crear publicación:",
-          e,
+      } else {
+        pubId = await crearPublicacion(
+          materiaId,
+          user.uid,
+          nombreUsuario,
+          user.photoURL || null,
+          titulo,
+          descripcion,
+          autorRol,
         );
+        setPublicacionId(pubId);
+        try {
+          await actualizarEstadisticasUsuario(user.uid, {
+            publicacionesCreadas: 1,
+          });
+        } catch (e) {
+          console.error(
+            "No se pudo actualizar estadisticasUsuario tras crear publicación:",
+            e,
+          );
+        }
       }
 
-      // 2. Subir archivos pendientes
+      
       if (archivos.length > 0) {
         for (let i = 0; i < archivos.length; i++) {
           const archivo = archivos[i];
 
-          // Si ya está subido, saltar
+          
           if (archivo.id) {
             continue;
           }
 
-          // Marcar como subiendo
+          
           setArchivos((prev) => {
             const nuevos = [...prev];
             nuevos[i] = { ...nuevos[i], subiendo: true };
@@ -372,12 +487,12 @@ export default function CreatePublicationScreen() {
           });
 
           try {
-            // Si es un enlace externo
+            
             if (archivo.esEnlaceExterno) {
               const resultado = await guardarEnlaceExterno(
                 pubId,
                 archivo.tipoArchivoId,
-                archivo.nombreEnlace!,
+                obtenerNombreArchivo(archivo),
                 archivo.urlExterna!,
               );
 
@@ -392,13 +507,13 @@ export default function CreatePublicationScreen() {
                 return nuevos;
               });
             }
-            // Si es un archivo normal
+            
             else {
               const resultado = await subirArchivo(
                 pubId,
                 archivo.asset!,
                 archivo.tipoArchivoId,
-                archivo.asset!.name,
+                obtenerNombreArchivo(archivo),
                 undefined,
                 (progreso) => {
                   setArchivos((prev) => {
@@ -451,21 +566,34 @@ export default function CreatePublicationScreen() {
         }
       }
 
-      try {
-        await notificarUsuariosMateria(
-          materiaId,
-          materiaNombre,
-          "Nueva publicación",
-          `${nombreUsuario} publicó: ${titulo}`,
-          "info",
-          "newspaper",
-          pubId,
-        );
-      } catch (notifError) {
-        console.error("Error al enviar notificaciones:", notifError);
+      if (!isEditMode) {
+        try {
+          await notificarUsuariosMateria(
+            materiaId,
+            materiaNombre,
+            "Nueva publicación",
+            `${nombreUsuario} publicó: ${titulo}`,
+            "info",
+            "newspaper",
+            pubId,
+            {
+              uid: user.uid,
+              nombre: nombreUsuario,
+              foto: user.photoURL || null,
+            },
+          );
+        } catch (notifError) {
+          console.error("Error al enviar notificaciones:", notifError);
+        }
       }
 
-      showAlert("Éxito", "Publicación creada correctamente", "success", [
+      showAlert(
+        "Éxito",
+        isEditMode
+          ? "Publicación actualizada correctamente"
+          : "Publicación creada correctamente",
+        "success",
+        [
         {
           text: "OK",
           onPress: async () => {
@@ -480,7 +608,7 @@ export default function CreatePublicationScreen() {
         error instanceof Error ? error.message : "Error desconocido";
       showAlert(
         "Error",
-        `No se pudo crear la publicación: ${errorMessage}`,
+        `No se pudo ${isEditMode ? "actualizar" : "crear"} la publicación: ${errorMessage}`,
         "error",
       );
     } finally {
@@ -492,7 +620,7 @@ export default function CreatePublicationScreen() {
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Nueva publicación" />
+        <Appbar.Content title={isEditMode ? "Editar publicación" : "Nueva publicación"} />
         <Appbar.Action icon="check" onPress={publicar} disabled={publicando} />
       </Appbar.Header>
 
@@ -500,8 +628,8 @@ export default function CreatePublicationScreen() {
         style={styles.content}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        <Card style={styles.card}>
-          <Card.Content>
+        <Card style={[styles.card, styles.archivosCard]}>
+          <Card.Content style={styles.archivosCardContent}>
             <Text variant="labelMedium" style={styles.label}>
               Materia: {materiaNombre}
             </Text>
@@ -543,92 +671,95 @@ export default function CreatePublicationScreen() {
                 Adjuntar
               </Button>
             </View>
+          </Card.Content>
+        </Card>
 
-            {archivos.length === 0 ? (
-              <Text variant="bodyMedium" style={styles.noArchivos}>
-                No hay archivos adjuntos
-              </Text>
-            ) : (
-              archivos.map((archivo, index) => {
-                const tipo = tipos.find((t) => t.id === archivo.tipoArchivoId);
-                const nombreMostrar = archivo.esEnlaceExterno
-                  ? archivo.nombreEnlace
-                  : archivo.asset?.name;
+        {archivos.length === 0 ? (
+          <Text variant="bodyMedium" style={styles.noArchivos}>
+            No hay archivos adjuntos
+          </Text>
+        ) : (
+          <View style={styles.archivosList}>
+            {archivos.map((archivo, index) => {
+              const tipo = tipos.find((t) => t.id === archivo.tipoArchivoId);
+              const nombreMostrar = obtenerNombreArchivo(archivo);
+              const tamanoTexto = archivo.esEnlaceExterno
+                ? "Enlace"
+                : formatearTamano(archivo.asset?.size || archivo.tamanoBytes || 0);
+              const tamanoTextoUI = tamanoTexto.replace(" ", "\u00A0");
+              const icono = obtenerIconoPorTipo(tipo?.nombre || "");
 
-                return (
-                  <Card key={index} style={styles.archivoCard}>
-                    <Card.Content style={styles.archivoContent}>
-                      <View style={styles.archivoInfo}>
-                        <IconButton
-                          icon={obtenerIconoPorTipo(tipo?.nombre || "")}
-                          size={32}
-                          style={styles.archivoIcon}
+              return (
+                <Card key={index} style={styles.archivoCard}>
+                  <Card.Content style={styles.archivoContent}>
+                    <View style={styles.archivoInfo}>
+                      <View style={styles.archivoLeading}>
+                        <MaterialCommunityIcons
+                          name={icono as any}
+                          size={24}
+                          color={theme.colors.primary}
                         />
-                        <View style={styles.archivoTexto}>
-                          <Text
-                            variant="bodyMedium"
-                            style={styles.archivoNombre}
-                            numberOfLines={2}
-                          >
-                            {nombreMostrar}
+                      </View>
+                      <View style={styles.archivoTexto}>
+                        <Text
+                          variant="bodyMedium"
+                          style={styles.archivoNombre}
+                          numberOfLines={2}
+                        >
+                          {nombreMostrar}
+                        </Text>
+                        <View style={styles.archivoFooterRow}>
+                          <Text variant="bodySmall" style={styles.archivoTamano}>
+                            {tamanoTextoUI}
                           </Text>
-                          <View style={styles.archivoMeta}>
-                            <Chip
-                              compact
-                              style={styles.tipoChip}
-                              textStyle={{ fontSize: 12 }}
+                          <View style={styles.archivoActions}>
+                            <TouchableOpacity
+                              onPress={() => abrirDialogoRenombrarArchivo(index)}
+                              disabled={archivo.subiendo}
+                              style={styles.archivoActionButton}
                             >
-                              {tipo?.nombre || "Archivo"}
-                            </Chip>
-                            {!archivo.esEnlaceExterno && (
-                              <Text
-                                variant="bodySmall"
-                                style={styles.archivoTamano}
-                              >
-                                {formatearTamano(archivo.asset?.size || 0)}
-                              </Text>
-                            )}
-                            {archivo.esEnlaceExterno && (
-                              <Text
-                                variant="bodySmall"
-                                style={styles.archivoTamano}
-                                numberOfLines={1}
-                              >
-                                {archivo.urlExterna}
-                              </Text>
-                            )}
+                              <MaterialCommunityIcons
+                                name="pencil"
+                                size={18}
+                                color={theme.colors.onSurfaceVariant}
+                              />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => eliminarArchivoLocal(index)}
+                              disabled={archivo.subiendo}
+                              style={styles.archivoActionButton}
+                            >
+                              <MaterialCommunityIcons
+                                name="close"
+                                size={20}
+                                color={theme.colors.onSurfaceVariant}
+                              />
+                            </TouchableOpacity>
                           </View>
                         </View>
                       </View>
-                      <IconButton
-                        icon="close"
-                        size={20}
-                        onPress={() => eliminarArchivoLocal(index)}
-                        disabled={archivo.subiendo}
-                        style={{ margin: 0 }}
-                      />
+                    </View>
+                  </Card.Content>
+
+                  {archivo.subiendo && (
+                    <ProgressBar
+                      progress={archivo.progreso / 100}
+                      style={styles.progressBar}
+                    />
+                  )}
+
+                  {archivo.error && (
+                    <Card.Content>
+                      <Text variant="bodySmall" style={styles.errorText}>
+                        {archivo.error}
+                      </Text>
                     </Card.Content>
-
-                    {archivo.subiendo && (
-                      <ProgressBar
-                        progress={archivo.progreso / 100}
-                        style={styles.progressBar}
-                      />
-                    )}
-
-                    {archivo.error && (
-                      <Card.Content>
-                        <Text variant="bodySmall" style={styles.errorText}>
-                          {archivo.error}
-                        </Text>
-                      </Card.Content>
-                    )}
-                  </Card>
-                );
-              })
-            )}
-          </Card.Content>
-        </Card>
+                  )}
+                </Card>
+              );
+            })}
+          </View>
+        )}
 
         <Button
           mode="contained"
@@ -638,11 +769,16 @@ export default function CreatePublicationScreen() {
           style={styles.publicarButton}
           icon="send"
         >
-          {publicando ? "Publicando..." : "Publicar"}
+          {publicando
+            ? isEditMode
+              ? "Guardando..."
+              : "Publicando..."
+            : isEditMode
+            ? "Guardar cambios"
+            : "Publicar"}
         </Button>
       </ScrollView>
 
-      {/* Diálogo de selección: Archivo o Enlace */}
       <Portal>
         <Dialog
           visible={dialogSeleccionVisible}
@@ -674,7 +810,6 @@ export default function CreatePublicationScreen() {
         </Dialog>
       </Portal>
 
-      {/* Diálogo para agregar enlace */}
       <Portal>
         <Dialog
           visible={dialogEnlaceVisible}
@@ -722,6 +857,40 @@ export default function CreatePublicationScreen() {
               Cancelar
             </Button>
             <Button onPress={agregarEnlace}>Agregar</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog
+          visible={dialogRenombrarVisible}
+          onDismiss={() => {
+            setDialogRenombrarVisible(false);
+            setArchivoRenombrarIndex(null);
+            setNuevoNombreArchivo("");
+          }}
+        >
+          <Dialog.Title>Editar nombre del archivo</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Nombre"
+              value={nuevoNombreArchivo}
+              onChangeText={setNuevoNombreArchivo}
+              mode="outlined"
+              maxLength={80}
+              autoFocus
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button
+              onPress={() => {
+                setDialogRenombrarVisible(false);
+                setArchivoRenombrarIndex(null);
+                setNuevoNombreArchivo("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onPress={guardarNombreArchivo}>Guardar</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

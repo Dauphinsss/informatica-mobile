@@ -1,7 +1,4 @@
-/**
- * Servicio para generar HTML de fallback cuando la app no está instalada
- * Este HTML permite ver la publicación en el navegador
- */
+
 
 export interface PublicacionHTMLData {
   publicacionId: string;
@@ -17,9 +14,7 @@ export interface PublicacionHTMLData {
   materiaNombre?: string;
 }
 
-/**
- * Genera HTML para mostrar una publicación en el navegador
- */
+
 export const generarHTMLPublicacion = (data: PublicacionHTMLData): string => {
   const appLink = `informatica://publicacion/${data.publicacionId}`;
   const playStoreLink = 'https://play.google.com/store/apps/details?id=com.informatica.app';
@@ -313,9 +308,9 @@ export const generarHTMLPublicacion = (data: PublicacionHTMLData): string => {
     </div>
     
     <script>
-        // Intentar abrir la app automáticamente al cargar
+        
         window.addEventListener('load', () => {
-            // Solo intentar abrir en móviles
+            
             if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
                 setTimeout(() => {
                     window.location.href = '${appLink}';
@@ -328,19 +323,12 @@ export const generarHTMLPublicacion = (data: PublicacionHTMLData): string => {
   `;
 };
 
-/**
- * Escapa caracteres especiales HTML para evitar inyección
- */
 function escapeHtml(text: string): string {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-/**
- * Genera una URL base64 que contiene el HTML
- * Útil para pasar como deep link
- */
 export const generarDataURLPublicacion = (data: PublicacionHTMLData): string => {
   const html = generarHTMLPublicacion(data);
   const base64 = btoa(unescape(encodeURIComponent(html)));

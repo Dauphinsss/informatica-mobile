@@ -22,7 +22,7 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
 
-  // Valores compartidos para animaciones
+  
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -31,13 +31,13 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
   const savedTranslateY = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
-  // Gesto de pinch (pellizcar para zoom)
+  
   const pinchGesture = Gesture.Pinch()
     .onUpdate((event) => {
       scale.value = savedScale.value * event.scale;
     })
     .onEnd(() => {
-      // Limitar el zoom entre 1x y 4x
+      
       if (scale.value < 1) {
         scale.value = withSpring(1);
         savedScale.value = 1;
@@ -53,7 +53,7 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
       }
     });
 
-  // Gesto de pan (arrastrar cuando hay zoom)
+  
   const panGesture = Gesture.Pan()
     .enabled(scale.value > 1)
     .onUpdate((event) => {
@@ -74,12 +74,12 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
       savedTranslateY.value = translateY.value;
     });
 
-  // Gesto de doble tap (zoom rápido)
+  
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
     .onEnd((event) => {
       if (scale.value > 1) {
-        // Hacer zoom out
+        
         scale.value = withTiming(1);
         savedScale.value = 1;
         translateX.value = withTiming(0);
@@ -87,12 +87,12 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
         savedTranslateX.value = 0;
         savedTranslateY.value = 0;
       } else {
-        // Hacer zoom in al punto tocado
+        
         const zoomLevel = 2.5;
         scale.value = withTiming(zoomLevel);
         savedScale.value = zoomLevel;
 
-        // Calcular la posición para centrar en el punto tocado
+        
         const centerX = SCREEN_WIDTH / 2;
         const centerY = SCREEN_HEIGHT / 2;
         const offsetX = (event.x - centerX) * (zoomLevel - 1);
@@ -105,13 +105,13 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
       }
     });
 
-  // Combinar todos los gestos
+  
   const composedGestures = Gesture.Simultaneous(
     doubleTapGesture,
     Gesture.Simultaneous(pinchGesture, panGesture)
   );
 
-  // Estilo animado para la imagen
+  
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
@@ -122,7 +122,7 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
     };
   });
 
-  // Función para resetear zoom
+  
   const resetZoom = () => {
     scale.value = withSpring(1);
     savedScale.value = 1;
@@ -170,7 +170,7 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
         </Animated.View>
       </GestureDetector>
 
-      {/* Botón para resetear zoom (aparece solo cuando hay zoom) */}
+      {}
       {scale.value > 1.1 && (
         <View style={styles.resetButton}>
           <IconButton
@@ -183,7 +183,7 @@ export default function ImageViewerWithZoom({ url }: ImageViewerWithZoomProps) {
         </View>
       )}
 
-      {/* Indicador de zoom */}
+      {}
       {scale.value > 1.1 && (
         <View style={[styles.zoomIndicator, { backgroundColor: theme.colors.surface }]}>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurface }}>

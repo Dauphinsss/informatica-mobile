@@ -39,7 +39,7 @@ export default function AllSubjectsScreen() {
         ...doc.data(),
       })) as Subject[];
 
-      // Ordenar por semestre y nombre
+      
       subjectsList.sort((a, b) => {
         if (a.semestre !== b.semestre) {
           return a.semestre - b.semestre;
@@ -47,7 +47,7 @@ export default function AllSubjectsScreen() {
         return a.nombre.localeCompare(b.nombre);
       });
 
-      // Filtrar solo materias activas
+      
       const activeSubjects = subjectsList.filter((s) => s.estado === "active");
       setSubjects(activeSubjects);
     } catch (error) {
@@ -61,13 +61,13 @@ export default function AllSubjectsScreen() {
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      {/* Header */}
+      {}
       <Appbar.Header style={{ backgroundColor: theme.colors.surface }}>
         <Appbar.BackAction onPress={() => router.back()} />
         <Appbar.Content title="Todas las Materias" />
       </Appbar.Header>
 
-      {/* Contenido */}
+      {}
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollContent}

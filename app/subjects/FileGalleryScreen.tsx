@@ -89,7 +89,7 @@ export default function FileGalleryScreen() {
     if (tipo.includes("video")) return "video";
     if (tipo.includes("audio")) return "music";
     if (tipo.includes("word")) return "file-word";
-    // if (tipo.includes("excel")) return "file-excel";
+    
     if (tipo.includes("powerpoint") || tipo.includes("presentación")) return "file-powerpoint";
     if (tipo.includes("texto")) return "file-document-outline";
     return "file-document";
@@ -689,7 +689,7 @@ function AudioViewer({
     }
   }, [status, isInitialLoad]);
 
-  // Actualizar progreso con un intervalo
+  
   React.useEffect(() => {
     if (!cargando && !error) {
       const interval = setInterval(() => {
@@ -808,9 +808,7 @@ function AudioViewer({
           Archivo de audio
         </Text>
 
-        {/* Barra de progreso y controles */}
         <View style={{ width: "100%", paddingHorizontal: 24, marginBottom: 24 }}>
-          {/* Tiempos */}
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
             <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
               {formatTime(currentTime)}
@@ -820,7 +818,6 @@ function AudioViewer({
             </Text>
           </View>
 
-          {/* Barra de progreso personalizada */}
           <View style={{ height: 40, justifyContent: "center" }}>
             <View
               style={{
@@ -839,7 +836,6 @@ function AudioViewer({
               />
             </View>
 
-            {/* Slider invisible para interacción */}
             <View
               style={{
                 position: "absolute",
@@ -871,7 +867,6 @@ function AudioViewer({
           </View>
         </View>
 
-        {/* Controles de reproducción */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 24 }}>
           <TouchableOpacity
             onPress={() => {
@@ -954,11 +949,11 @@ function PdfViewerWithGoogleDocs({
   const [cargando, setCargando] = useState(true);
   const [intentoAlternativo, setIntentoAlternativo] = useState(false);
 
-  const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(
-    url
+  const googleDocsUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(
+    url,
   )}&embedded=true`;
   const pdfJsUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(
-    url
+    url,
   )}`;
 
   const urlActual = intentoAlternativo ? pdfJsUrl : googleDocsUrl;
@@ -1090,8 +1085,8 @@ function DocumentViewer({
   const [error, setError] = useState(false);
   const [cargando, setCargando] = useState(true);
 
-  const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(
-    url
+  const googleDocsUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(
+    url,
   )}&embedded=true`;
 
   if (error) {

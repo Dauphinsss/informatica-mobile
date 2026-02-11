@@ -21,9 +21,7 @@ try {
   console.log('Módulos de notificaciones no disponibles (Expo Go)');
 }
 
-{/*
-  Solicitar permisos de notificaciones
-*/}
+{}
 export async function solicitarPermisosNotificaciones() {
   if (!Device || !Notifications) {
     console.log('Notificaciones push no disponibles en Expo Go');
@@ -50,9 +48,7 @@ export async function solicitarPermisosNotificaciones() {
   return true;
 }
 
-{/*
-  Configurar canal de notificaciones para Android
-*/}
+{}
 export async function configurarCanalAndroid() {
   if (!Notifications || Platform.OS !== 'android') return;
 
@@ -79,9 +75,7 @@ export async function configurarCanalAndroid() {
   }
 }
 
-{/*
-  Notificaciones locales
-*/}
+{}
 
 export async function obtenerExpoPushToken(): Promise<string | null> {
   if (!Device || !Notifications) return null;
@@ -109,7 +103,7 @@ export async function enviarNotificacionLocal(
     const { getNotificationSettings } = await import('@/hooks/useNotificationSettings');
     const settings = await getNotificationSettings();
 
-    // Verificar configuración específica por tipo de notificación
+    
     const tipo = data?.tipo;
     const accion = data?.accion;
     
@@ -143,7 +137,7 @@ export async function enviarNotificacionLocal(
       trigger: null,
     });
   } catch (error) {
-    // Silent error
+    
   }
 }
 
@@ -179,11 +173,6 @@ export async function notificarNuevaPublicacion(
     }
   );
 }
-
-{/*
-  Servicio de notificaciones push fcm
-*/}
-
 export async function obtenerFCMToken() {
   if (Device.isDevice) {
     try {
@@ -216,10 +205,6 @@ export async function registrarTokens(uid: string, expoToken: string, fcmToken: 
   }
 }
 
-/**
- * Limpia todos los tokens antiguos y registra nuevos tokens
- * Se ejecuta cada vez que se abre la app para evitar tokens huérfanos
- */
 export async function regenerarTokens(uid: string) {
   try {
     const expoToken = await obtenerExpoPushToken();
@@ -233,7 +218,6 @@ export async function regenerarTokens(uid: string) {
     const snap = await getDoc(userRef);
 
     if (!snap.exists()) {
-      // Si el usuario no existe, crearlo con los tokens
       await setDoc(userRef, {
         uid,
         rol: 'usuario',
@@ -241,7 +225,6 @@ export async function regenerarTokens(uid: string) {
         pushTokens: [fcmToken],
       }, { merge: true });
     } else {
-      // Si existe, reemplazar los tokens
       await updateDoc(userRef, {
         tokens: [expoToken],
         pushTokens: [fcmToken],

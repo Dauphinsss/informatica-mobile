@@ -109,12 +109,12 @@ export const CommentsModalReadOnly: React.FC<CommentsModalReadOnlyProps> = ({
     },
   });
 
-  // Función dummy para acciones deshabilitadas
+  
   const handleDisabledAction = () => {
-    // No hacer nada - acciones deshabilitadas
+    
   };
 
-  // Efectos y handlers
+  
   const iniciarSuscripcion = useCallback(() => {
     if (!publicacionId || !visible) return;
 
@@ -154,7 +154,7 @@ export const CommentsModalReadOnly: React.FC<CommentsModalReadOnlyProps> = ({
           duration: 350,
           useNativeDriver: true,
           easing: (t) => {
-            // Ease out cubic para animacion mas suave
+            
             return 1 - Math.pow(1 - t, 3);
           },
         }),

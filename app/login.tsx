@@ -29,7 +29,7 @@ GoogleSignin.configure({
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// ─── Partículas flotantes ───
+
 const PARTICLE_COUNT = 12;
 
 interface Particle {
@@ -64,7 +64,7 @@ function useFloatingParticles(): Particle[] {
   useEffect(() => {
     const animations = particles.current.map((p) => {
       const duration = 5000 + Math.random() * 5000;
-      // Offsets fijos para evitar teleportación
+      
       const offsetY = 30 + Math.random() * 40;
       const offsetX = (Math.random() - 0.5) * 40;
       const opHigh = Math.random() * 0.2 + 0.1;
@@ -125,7 +125,7 @@ function useFloatingParticles(): Particle[] {
   return particles.current;
 }
 
-// ─── Typewriter </> ───
+
 function useTypewriter(text: string, speed = 120, startDelay = 600) {
   const [displayed, setDisplayed] = useState("");
   const [showCursor, setShowCursor] = useState(true);
@@ -154,7 +154,7 @@ function useTypewriter(text: string, speed = 120, startDelay = 600) {
   return { displayed, cursor: showCursor ? "|" : " " };
 }
 
-// ─── Feature chips data ───
+
 const FEATURES = [
   { icon: "book-open-variant" as const, label: "Materiales" },
   { icon: "account-group" as const, label: "Comunidad" },
@@ -168,7 +168,7 @@ export default function LoginScreen() {
   const { displayed, cursor } = useTypewriter("</>", 120, 800);
   const [fontsLoaded] = useFonts({ Pacifico_400Regular });
 
-  // Animaciones de entrada staggered
+  
   const slideCode = useRef(new Animated.Value(30)).current;
   const fadeCode = useRef(new Animated.Value(0)).current;
   const slideTitle = useRef(new Animated.Value(30)).current;
@@ -355,7 +355,7 @@ export default function LoginScreen() {
         },
       ]}
     >
-      {/* Partículas flotantes */}
+      {}
       {particles.map((p, i) => (
         <Animated.View
           key={i}
@@ -381,7 +381,7 @@ export default function LoginScreen() {
       ))}
 
       <View style={styles.content}>
-        {/* Código animado </> — minimalista */}
+        {}
         <Animated.View
           style={[
             styles.codeContainer,
@@ -397,7 +397,7 @@ export default function LoginScreen() {
           </Text>
         </Animated.View>
 
-        {/* Título */}
+        {}
         <Animated.View
           style={{
             opacity: fadeTitle,
@@ -420,7 +420,7 @@ export default function LoginScreen() {
           </View>
         </Animated.View>
 
-        {/* Subtítulo */}
+        {}
         <Animated.View
           style={{
             opacity: fadeSubtitle,
@@ -435,7 +435,7 @@ export default function LoginScreen() {
           </Text>
         </Animated.View>
 
-        {/* Feature chips */}
+        {}
         <Animated.View
           style={[
             styles.chipsContainer,
@@ -472,7 +472,7 @@ export default function LoginScreen() {
           ))}
         </Animated.View>
 
-        {/* Botón de Google */}
+        {}
         <Animated.View
           style={[
             styles.buttonContainer,
@@ -535,7 +535,7 @@ export default function LoginScreen() {
         </Animated.View>
       </View>
 
-      {/* Footer */}
+      {}
       <View style={styles.footer}>
         <Text
           variant="labelSmall"

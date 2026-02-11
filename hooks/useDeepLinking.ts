@@ -9,7 +9,7 @@ export const useDeepLinking = () => {
     const esDeepLinkPublicacion = (url: string): boolean => {
       if (!url) return false;
       
-      // Acepta tanto el scheme nativo como el App Link https del dominio.
+      
       const schemeRegex = /^informatica:\/\/publicacion\/[a-zA-Z0-9_-]+$/;
       const httpsRegex = /^https:\/\/informatica\.art\/publicacion\/[a-zA-Z0-9_-]+$/;
       return schemeRegex.test(url) || httpsRegex.test(url);
@@ -17,7 +17,7 @@ export const useDeepLinking = () => {
 
     const navegarAPublicacion = (publicacionId: string) => {
       if (!navigationRef.isReady()) {
-        // Si no está listo, esperar un momento y reintentar
+        
         setTimeout(() => navegarAPublicacion(publicacionId), 300);
         return;
       }
@@ -37,11 +37,9 @@ export const useDeepLinking = () => {
       }
     };
 
-    /**
-     * Procesa el deep link solo si es válido y no ha sido procesado antes
-     */
+    
     const procesarDeepLink = (url: string) => {
-      // Verificar que sea un deep link de publicación compartida
+      
       if (!esDeepLinkPublicacion(url)) {
         console.log('Deep Link: URL ignorada (no es publicación compartida):', url);
         return;
@@ -49,7 +47,7 @@ export const useDeepLinking = () => {
 
       processedUrls.current.add(url);
 
-      // Extraer el ID de la publicación
+      
       const segments = url.split('/');
       const publicacionId = segments[segments.length - 1];
 
@@ -62,12 +60,12 @@ export const useDeepLinking = () => {
       navegarAPublicacion(publicacionId);
     };
 
-    // Listener para cuando la app ya está abierta y se hace clic en un link
+    
     const linkingSubscription = Linking.addEventListener('url', (event) => {
       procesarDeepLink(event.url);
     });
 
-    // Verificar si la app se abrió desde un deep link (app cerrada)
+    
     Linking.getInitialURL().then((url) => {
       if (url) {
         console.log('Deep Link: App iniciada desde URL:', url);
@@ -85,5 +83,5 @@ export const useDeepLinking = () => {
 
 
 export const useNotificationDeepLinking = () => {
-  // Hook vacío - las notificaciones se manejan en useNotificationNavigation
+  
 };

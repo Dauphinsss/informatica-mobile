@@ -5,16 +5,12 @@ const CACHE_PREFIX = "@cache_";
 const PDF_CACHE_DIR = `${FileSystem.cacheDirectory}pdfs/`;
 const MAX_PDF_CACHE_MB = 100;
 
-// ─── JSON Cache (publicaciones, materias, userData) ───
 
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
 }
 
-/**
- * Guarda datos en cache con timestamp
- */
 export const setCache = async <T>(key: string, data: T): Promise<void> => {
   try {
     const entry: CacheEntry<T> = {
@@ -27,10 +23,6 @@ export const setCache = async <T>(key: string, data: T): Promise<void> => {
   }
 };
 
-/**
- * Obtiene datos del cache. Devuelve null si no existe o si expiró.
- * @param maxAgeMs - edad máxima en ms (default: 24h)
- */
 export const getCache = async <T>(
   key: string,
   maxAgeMs: number = 24 * 60 * 60 * 1000,
@@ -51,9 +43,6 @@ export const getCache = async <T>(
   }
 };
 
-/**
- * Elimina una entrada del cache
- */
 export const removeCache = async (key: string): Promise<void> => {
   try {
     await AsyncStorage.removeItem(`${CACHE_PREFIX}${key}`);
@@ -62,9 +51,6 @@ export const removeCache = async (key: string): Promise<void> => {
   }
 };
 
-/**
- * Limpia todo el cache de datos JSON
- */
 export const clearAllCache = async (): Promise<void> => {
   try {
     const allKeys = await AsyncStorage.getAllKeys();
@@ -77,11 +63,7 @@ export const clearAllCache = async (): Promise<void> => {
   }
 };
 
-// ─── PDF Cache (archivos descargados) ───
 
-/**
- * Asegura que el directorio de cache de PDFs existe
- */
 const ensurePdfCacheDir = async (): Promise<void> => {
   const dirInfo = await FileSystem.getInfoAsync(PDF_CACHE_DIR);
   if (!dirInfo.exists) {
@@ -91,12 +73,8 @@ const ensurePdfCacheDir = async (): Promise<void> => {
   }
 };
 
-/**
- * Genera un nombre de archivo sanitizado para el cache
- */
 const getPdfCachePath = (url: string, titulo: string): string => {
   const sanitized = titulo.replace(/[^a-z0-9._-]/gi, "_");
-  // Usar hash simple de la URL para evitar colisiones
   const hash = url.split("").reduce((a, b) => {
     a = (a << 5) - a + b.charCodeAt(0);
     return a & a;
@@ -104,9 +82,6 @@ const getPdfCachePath = (url: string, titulo: string): string => {
   return `${PDF_CACHE_DIR}${sanitized}_${Math.abs(hash)}.pdf`;
 };
 
-/**
- * Verifica si un PDF ya está en cache
- */
 export const getPdfFromCache = async (
   url: string,
   titulo: string,
@@ -124,9 +99,6 @@ export const getPdfFromCache = async (
   }
 };
 
-/**
- * Descarga un PDF y lo guarda en cache persistente
- */
 export const downloadAndCachePdf = async (
   url: string,
   titulo: string,
@@ -152,15 +124,11 @@ export const downloadAndCachePdf = async (
   const result = await download.downloadAsync();
   if (!result?.uri) throw new Error("Download failed");
 
-  // Limpiar cache viejo si excede el límite
   cleanPdfCacheIfNeeded().catch(() => {});
 
   return path;
 };
 
-/**
- * Limpia PDFs viejos si el cache excede el límite
- */
 const cleanPdfCacheIfNeeded = async (): Promise<void> => {
   try {
     await ensurePdfCacheDir();
@@ -183,7 +151,6 @@ const cleanPdfCacheIfNeeded = async (): Promise<void> => {
 
     if (totalSize <= maxBytes) return;
 
-    // Borrar los más viejos primero
     fileInfos.sort((a, b) => a.modTime - b.modTime);
 
     let currentSize = totalSize;
@@ -197,7 +164,6 @@ const cleanPdfCacheIfNeeded = async (): Promise<void> => {
   }
 };
 
-// ─── Cache Keys ───
 
 export const CACHE_KEYS = {
   subjects: "all_subjects",

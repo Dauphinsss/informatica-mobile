@@ -7,10 +7,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, FlatList, Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { Appbar, Avatar, Card, Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PublicationCardSkeleton from "../profile/PublicationCardSkeleton";
 
 interface Materia {
   id: string;
@@ -29,78 +30,6 @@ type StackParamList = {
   PublicationDetail: { publicacionId: string; materiaNombre: string };
   FileGallery: any;
 };
-
-// Skeleton loader
-function CardSkeleton() {
-  const { theme } = useTheme();
-  const anim = useRef(new Animated.Value(0.3)).current;
-
-  React.useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [anim]);
-
-  return (
-    <Animated.View
-      style={{ opacity: anim, marginHorizontal: 16, marginBottom: 12 }}
-    >
-      <Card style={{ borderRadius: 16, overflow: "hidden" }}>
-        <Card.Content style={{ paddingVertical: 16, gap: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: theme.colors.surfaceVariant,
-              }}
-            />
-            <View style={{ flex: 1, gap: 6 }}>
-              <View
-                style={{
-                  width: "60%",
-                  height: 13,
-                  borderRadius: 6,
-                  backgroundColor: theme.colors.surfaceVariant,
-                }}
-              />
-              <View
-                style={{
-                  width: "35%",
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: theme.colors.surfaceVariant,
-                }}
-              />
-            </View>
-          </View>
-          <View
-            style={{
-              width: "40%",
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: theme.colors.surfaceVariant,
-            }}
-          />
-        </Card.Content>
-      </Card>
-    </Animated.View>
-  );
-}
 
 const PublicationItem = React.memo(function PublicationItem({
   pub,
@@ -124,7 +53,7 @@ const PublicationItem = React.memo(function PublicationItem({
         elevation={1}
       >
         <Card.Content style={styles.cardContent}>
-          {/* Top row: avatar + info */}
+          {}
           <View style={styles.topRow}>
             <View style={{ position: "relative" }}>
               {pub.autorFoto ? (
@@ -163,7 +92,7 @@ const PublicationItem = React.memo(function PublicationItem({
 
           </View>
 
-          {/* Divider */}
+          {}
           <View
             style={[
               styles.divider,
@@ -171,7 +100,7 @@ const PublicationItem = React.memo(function PublicationItem({
             ]}
           />
 
-          {/* Bottom: subject tag */}
+          {}
           <View
             style={[
               styles.subjectTag,
@@ -196,7 +125,7 @@ const PublicationItem = React.memo(function PublicationItem({
             </Text>
           </View>
 
-          {/* Stats row */}
+          {}
           <View style={styles.statsRow}>
             <View style={styles.statsLeft}>
               {pub.totalArchivos > 0 && (
@@ -312,7 +241,7 @@ export default function UltimasPublicacionesScreen() {
       try {
         setCargando(true);
         setError(false);
-        // Obtener materias
+        
         const snap = await getDocs(collection(db, "materias"));
         const mats = snap.docs.map((doc: any) => {
           const data = doc.data();
@@ -325,13 +254,13 @@ export default function UltimasPublicacionesScreen() {
 
         if (!isMounted) return;
 
-        // Escuchar últimas 30 publicaciones
+        
         unsubscribe = escucharUltimasPublicaciones(
           30,
           async (pubs) => {
             if (!isMounted) return;
 
-            // Obtener conteo de archivos para cada publicación
+            
             const archivosCountMap: Record<string, number> = {};
             try {
               const archivosSnap = await getDocs(
@@ -397,7 +326,7 @@ export default function UltimasPublicacionesScreen() {
       {cargando ? (
         <View style={{ flex: 1, paddingTop: 8 }}>
           {[1, 2, 3, 4, 5].map((i) => (
-            <CardSkeleton key={i} />
+            <PublicationCardSkeleton key={i} />
           ))}
         </View>
       ) : error ? (

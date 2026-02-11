@@ -20,17 +20,17 @@ import LoginScreen from './app/login';
 import { auth, db } from './firebase';
 import { useNotificationNavigation } from './scripts/hooks/useNotificationNavigation';
 
-// Suprimir warnings conocidos
+
 LogBox.ignoreLogs([
-  // React Native Paper 5.x - Bug conocido donde componentes usan Fragment internamente
+  
   'Invalid prop `index` supplied to `React.Fragment`',
   'Invalid prop `%s` supplied to `React.Fragment`',
-  // Firestore BloomFilter - Warning benigno de optimización interna
+  
   'BloomFilter error',
   '@firebase/firestore: Firestore',
 ]);
 
-export const navigationRef = createNavigationContainerRef();
+export const navigationRef = createNavigationContainerRef<any>();
 
 function AppContent() {
   const { isDark, theme } = useTheme();
@@ -41,22 +41,21 @@ function AppContent() {
 
   const pendingActions = useMemo(() => [] as any[], []);
 
-  // Hooks para manejar deep linking
+  
   useDeepLinking();
   useNotificationDeepLinking();
 
   const navWrapper = useMemo(() => ({
     navigate: (...args: any[]) => {
       if (navigationRef.isReady()) {
-        // @ts-ignore
-        navigationRef.navigate(...args);
+        (navigationRef as any).navigate(...args);
       } else {
         pendingActions.push({ type: 'navigate', args });
       }
     },
     reset: (state: any) => {
       if (navigationRef.isReady() && typeof navigationRef.reset === 'function') {
-        // @ts-ignore
+        
         navigationRef.reset(state);
       } else {
         pendingActions.push({ type: 'reset', state });
@@ -68,10 +67,8 @@ function AppContent() {
         const action = pendingActions.shift();
         try {
           if (action.type === 'navigate') {
-            // @ts-ignore
-            navigationRef.navigate(...action.args);
+            (navigationRef as any).navigate(...action.args);
           } else if (action.type === 'reset') {
-            // @ts-ignore
             navigationRef.reset(action.state);
           }
         } catch (err) {
@@ -121,8 +118,8 @@ function AppContent() {
     const registerTokens = async () => {
       if (user) {
         try {
-          // Regenerar tokens cada vez que se abre la app
-          // Esto limpia tokens antiguos y crea nuevos
+          
+          
           await regenerarTokens(user.uid);
         } catch (err) {
           console.warn('Error regenerando tokens:', err);

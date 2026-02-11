@@ -1,4 +1,4 @@
-// (reemplaza tu ManageSubjectsScreen actual con este contenido)
+
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import {
@@ -24,13 +24,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth, db, storage } from "../../firebase";
 
-// Components
+
 import SubjectCardSkeleton from "@/app/(tabs)/components/SubjectCardSkeleton";
 import CreateSubjectModal from "./components/CreateSubjectModal";
 import EditSubjectModal from "./components/EditSubjectModal";
 import SubjectCard from "./components/SubjectCard";
 
-// Utils and Types
+
 import { AdminStackParamList, SemestreOption, Subject } from "./_types";
 import {
   normalizeText,
@@ -66,7 +66,7 @@ export default function ManageSubjectsScreen() {
   );
   const [refreshing, setRefreshing] = useState(false);
 
-  // Estado del formulario de CREACIÓN
+  
   const [formData, setFormData] = useState({
     nombre: "",
     descripcion: "",
@@ -79,7 +79,7 @@ export default function ManageSubjectsScreen() {
     semestre: "",
   });
 
-  // Estado del formulario de EDICIÓN
+  
   const [editFormData, setEditFormData] = useState({
     nombre: "",
     descripcion: "",
@@ -92,7 +92,7 @@ export default function ManageSubjectsScreen() {
     semestre: "",
   });
 
-  // Util: subir imagen local a storage y devolver downloadURL
+  
   const uploadLocalImageAndGetUrl = async (localUri: string) => {
     try {
       const response = await fetch(localUri);
@@ -110,14 +110,12 @@ export default function ManageSubjectsScreen() {
     }
   };
 
-  // Pull to refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await new Promise((resolve) => setTimeout(resolve, 800));
     setRefreshing(false);
   }, []);
 
-  // Listener en tiempo real para materias
   useEffect(() => {
     setLoadingSubjects(true);
     const subjectsCollection = collection(db, "materias");
@@ -132,7 +130,6 @@ export default function ManageSubjectsScreen() {
             : (docSnap.data() as any).createdAt || new Date(),
         })) as Subject[];
 
-        // Ordenar por semestre (numérico) y luego por nombre
         subjectsList.sort((a, b) => {
           const sa = Number(a.semestre ?? 0);
           const sb = Number(b.semestre ?? 0);
@@ -154,13 +151,9 @@ export default function ManageSubjectsScreen() {
     return () => unsubscribe();
   }, []);
 
-  // Mantener fetchSubjects para uso tras crear materia (compatibilidad)
   const fetchSubjects = useCallback(async () => {
-    // Ya no es necesario, el onSnapshot se encarga,
-    // pero mantenemos la referencia para no romper otros usos
   }, []);
 
-  // Verificar duplicados (excluir id opcional)
   const checkDuplicateSubject = async (
     nombre: string,
     excludeId?: string,
@@ -185,8 +178,6 @@ export default function ManageSubjectsScreen() {
     }
   };
 
-  // Crear nueva materia
-  // ahora acepta optional finalData (para cuando el modal le pase el objeto final)
   const handleCreateSubject = async (finalData?: any) => {
     const data = finalData ?? formData;
 
@@ -211,14 +202,12 @@ export default function ManageSubjectsScreen() {
         return;
       }
 
-      // Si tiene imagen local (no empieza por http), subir aquí y reemplazar
       let imagenUrlToSave = data.imagenUrl;
       if (imagenUrlToSave && !imagenUrlToSave.startsWith("http")) {
         try {
           imagenUrlToSave = await uploadLocalImageAndGetUrl(imagenUrlToSave);
         } catch (err) {
           console.error("Error subiendo imagen antes de crear subject:", err);
-          // opcional: mostrar alerta, pero seguimos intentando guardar sin imagen
           imagenUrlToSave = undefined;
         }
       }
@@ -240,7 +229,6 @@ export default function ManageSubjectsScreen() {
 
       const docRef = await addDoc(collection(db, "materias"), newSubject);
 
-      // Notificación (opcional)
       try {
         const { notificarCreacionMateria } =
           await import("@/services/notifications");
@@ -274,7 +262,6 @@ export default function ManageSubjectsScreen() {
     }
   };
 
-  // Editar materia (subir imagen local si existe)
   const handleEditSubject = async () => {
     if (!editingSubject) return;
 
@@ -303,7 +290,6 @@ export default function ManageSubjectsScreen() {
         return;
       }
 
-      // Si imagen local, subirla
       let imagenUrlToSave = editFormData.imagenUrl;
       if (imagenUrlToSave && !imagenUrlToSave.startsWith("http")) {
         try {
@@ -337,12 +323,10 @@ export default function ManageSubjectsScreen() {
     }
   };
 
-  // Abrir modal de edición
   const handleOpenEditModal = (subject: Subject) => {
     navigation.navigate("EditSubject", { subject });
   };
 
-  // Validación edición
   const validateEditFields = (formData: {
     nombre: string;
     descripcion: string;

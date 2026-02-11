@@ -287,4 +287,4 @@ const styles = StyleSheet.create({
   },
 });
 
-{/* No habrán configuración de sonido y vibración debido a la complejidad del mismo y los bugs que ocasiona */}
+{}

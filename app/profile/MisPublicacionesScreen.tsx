@@ -475,7 +475,7 @@ export default function MisPublicacionesScreen() {
 
   const styles = getStyles(theme);
 
-  // Renderizar skeletons mientras carga
+  
   const renderSkeletons = () => (
     <>
       <PublicationCardSkeleton />

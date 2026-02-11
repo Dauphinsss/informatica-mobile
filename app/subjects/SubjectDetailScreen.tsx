@@ -1,4 +1,4 @@
-// app/subjects/SubjectDetailScreen.tsx
+
 import {
   PublicationFilters,
   SortBy,
@@ -80,7 +80,7 @@ export default function SubjectDetailScreen() {
       if (!materiaId) return;
       setCargando(true);
 
-      // Cargar del cache primero para carga instantánea
+      
       getCache<any[]>(CACHE_KEYS.subjectPublications(materiaId))
         .then((cached) => {
           if (cached && cached.length > 0) {
@@ -99,14 +99,14 @@ export default function SubjectDetailScreen() {
         async (items) => {
           setPublicaciones(items);
           setCargando(false);
-          // Guardar en cache
+          
           const serializable = items.map((p) => ({
             ...p,
             fechaPublicacion: p.fechaPublicacion.toISOString(),
           }));
           setCache(CACHE_KEYS.subjectPublications(materiaId), serializable);
 
-          // Contar archivos por publicación
+          
           try {
             const pubIds = items.map((p) => p.id);
             if (pubIds.length > 0) {
@@ -147,7 +147,7 @@ export default function SubjectDetailScreen() {
     }, [materiaId]),
   );
 
-  // 🔧 FUNCIÓN PARA APLICAR FILTROS
+  
   const aplicarFiltros = (publicaciones: Publicacion[]): Publicacion[] => {
     let filtered = [...publicaciones];
 
@@ -249,10 +249,10 @@ export default function SubjectDetailScreen() {
         />
         {cargando ? (
           <>
-            <PublicationCardSkeleton />
-            <PublicationCardSkeleton />
-            <PublicationCardSkeleton />
-            <PublicationCardSkeleton />
+            <PublicationCardSkeleton withHorizontalMargin={false} />
+            <PublicationCardSkeleton withHorizontalMargin={false} />
+            <PublicationCardSkeleton withHorizontalMargin={false} />
+            <PublicationCardSkeleton withHorizontalMargin={false} />
           </>
         ) : publicacionesFiltradas.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -278,7 +278,6 @@ export default function SubjectDetailScreen() {
                 elevation={1}
               >
                 <Card.Content style={styles.cardContent}>
-                  {/* Top row: avatar + author */}
                   <View style={styles.topRow}>
                     <View style={{ position: "relative" }}>
                       {publicacion.autorFoto ? (
@@ -326,7 +325,6 @@ export default function SubjectDetailScreen() {
 
                   </View>
 
-                  {/* Description (if any) */}
                   {publicacion.descripcion ? (
                     <Text
                       variant="bodySmall"
@@ -340,7 +338,6 @@ export default function SubjectDetailScreen() {
                     </Text>
                   ) : null}
 
-                  {/* Divider */}
                   <View
                     style={{
                       height: 1,
@@ -349,7 +346,6 @@ export default function SubjectDetailScreen() {
                     }}
                   />
 
-                  {/* Stats row: metrics left + date right */}
                   <View style={styles.statsRowWithDate}>
                     <View style={styles.statsRow}>
                       {(archivosCount[publicacion.id] || 0) > 0 && (

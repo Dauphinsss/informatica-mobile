@@ -1,4 +1,4 @@
-// src/components/skeletons/ReportsSkeleton.tsx
+
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
@@ -56,7 +56,7 @@ export const ReportsSkeleton: React.FC<ReportsSkeletonProps> = ({
   );
 };
 
-// Skeleton para las tarjetas de reporte
+
 export const ReportCardSkeleton: React.FC = () => {
   const theme = useTheme();
   const styles = getSkeletonStyles(theme);
@@ -74,14 +74,14 @@ export const ReportCardSkeleton: React.FC = () => {
   );
 };
 
-// Skeleton para el modal de detalles
+
 export const ReportDetailSkeleton: React.FC = () => {
   const theme = useTheme();
   const styles = getSkeletonStyles(theme);
 
   return (
     <View style={styles.detailContainer}>
-      {/* Archivos adjuntos */}
+      {}
         <View style={styles.archivosGridSkeleton}>
           {[1, 2, 3].map((item) => (
             <View key={item} style={styles.archivoSkeleton}>
@@ -97,7 +97,7 @@ export const ReportDetailSkeleton: React.FC = () => {
   );
 };
 
-// Skeleton para la lista de reportes en estado de carga
+
 export const ReportsListSkeleton: React.FC = () => {
   const theme = useTheme();
   const styles = getSkeletonStyles(theme);
@@ -105,7 +105,7 @@ export const ReportsListSkeleton: React.FC = () => {
   return (
     <View style={styles.listContainer}>
             
-      {/* Tarjetas skeleton */}
+      {}
       {[1, 2, 3, 4].map((item) => (
         <ReportCardSkeleton key={item} />
       ))}

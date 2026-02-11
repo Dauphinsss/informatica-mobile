@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { View, ScrollView, StyleSheet } from "react-native";
-import { Appbar, Text, ActivityIndicator, Divider } from "react-native-paper";
+import { Appbar, Card, Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -99,9 +99,7 @@ export default function AllActivityScreen() {
           style={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.activityContainer, { backgroundColor: 'transparent' }]}>
-            <ActivityListSkeleton count={ITEMS_PER_PAGE} fullWidth />
-          </View>
+          <ActivityListSkeleton count={12} />
         </ScrollView>
       ) : totalCount === 0 ? (
         <View style={styles.emptyContainer}>
@@ -120,18 +118,26 @@ export default function AllActivityScreen() {
           style={styles.content}
           showsVerticalScrollIndicator={false}
         >
-            <View style={[styles.activityContainer, { backgroundColor: theme.colors.elevation.level1 }]}>
-              {activities.map((activity, index) => (
-                <React.Fragment key={activity.id}>
-                  <ActivityCard
-                    activity={activity} 
-                    onPress={() => {
-                      setSelectedActivity(activity);
-                      setActivityModalVisible(true);
-                    }}
-                  />
-                  {index < activities.length - 1 && <Divider />}
-                </React.Fragment>
+            <View style={styles.activityList}>
+              {activities.map((activity) => (
+                <Card
+                  key={activity.id}
+                  elevation={1}
+                  style={[
+                    styles.activityItemCard,
+                    { backgroundColor: theme.colors.elevation.level1 },
+                  ]}
+                >
+                  <Card.Content style={{ padding: 0 }}>
+                    <ActivityCard
+                      activity={activity}
+                      onPress={() => {
+                        setSelectedActivity(activity);
+                        setActivityModalVisible(true);
+                      }}
+                    />
+                  </Card.Content>
+                </Card>
               ))}
             </View>
 
@@ -192,10 +198,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activityContainer: {
-    borderRadius: 12,
-    overflow: 'hidden',
     marginBottom: 16,
-    paddingHorizontal: 12,
+  },
+  activityList: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  activityItemCard: {
+    borderRadius: 12,
+    overflow: "hidden",
   },
   resultsInfoBottom: {
     marginTop: 4,

@@ -14,15 +14,12 @@ export const DEFAULT_SETTINGS: NotificationSettings = {
   adminAlertsEnabled: true,
 };
 
-/**
- * Obtiene las configuraciones de notificaciones desde Firestore
- * Si no existen, retorna DEFAULT_SETTINGS
- */
+
 export async function getNotificationSettings(userId?: string): Promise<NotificationSettings> {
   try {
     let uid = userId;
     
-    // Si no se proporciona userId, obtenerlo del usuario actual
+    
     if (!uid) {
       const auth = getAuth();
       uid = auth.currentUser?.uid;
@@ -40,18 +37,16 @@ export async function getNotificationSettings(userId?: string): Promise<Notifica
       return data;
     }
 
-    // Si no existen configuraciones, retornar defaults SIN crear el documento
-    // (el documento se creará cuando el usuario entre a configuración)
+    
+    
     return DEFAULT_SETTINGS;
   } catch (error) {
-    // En caso de error de permisos u otro, retornar defaults
+    
     return DEFAULT_SETTINGS;
   }
 }
 
-/**
- * Guarda las configuraciones de notificaciones en Firestore
- */
+
 export async function saveNotificationSettings(
   settings: NotificationSettings,
   userId?: string

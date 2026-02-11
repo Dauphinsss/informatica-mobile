@@ -48,13 +48,13 @@ const ManageUsers = () => {
   }>({});
 
   {
-    /* Función para filtrar usuarios según el filtro seleccionado y la búsqueda */
+    
   }
   const getFilteredUsers = () => {
     let filtered = users;
 
     {
-      /* Filtrar por rol */
+      
     }
     if (filter === "admin") {
       filtered = filtered.filter((user) => user.rol === "admin");
@@ -63,7 +63,7 @@ const ManageUsers = () => {
     }
 
     {
-      /* Filtrar por búsqueda */
+      
     }
     if (searchQuery.trim() !== "") {
       filtered = filtered.filter(
@@ -216,7 +216,6 @@ const ManageUsers = () => {
           style={styles.content}
           contentContainerStyle={{ paddingBottom: 160 }}
         >
-          {/* Buscador dinámico */}
           {searchOpen && (
             <Searchbar
               placeholder="Buscar por nombre o email"
@@ -227,7 +226,6 @@ const ManageUsers = () => {
             />
           )}
 
-          {/* Filtros de usuarios */}
           <View style={styles.filterButtons}>
             <Button
               mode={filter === "all" ? "contained" : "outlined"}
@@ -255,7 +253,6 @@ const ManageUsers = () => {
             </Button>
           </View>
 
-          {/* Lista Unificada de Usuarios */}
           {loading ? (
             <ActivityListSkeleton count={5} />
           ) : filteredUsers.length > 0 ? (
@@ -358,7 +355,6 @@ const ManageUsers = () => {
                           onPress={() => handleToggleExpand(user.uid)}
                         />
 
-                        {/* Collapse animado */}
                         {expandedUser === user.uid && (
                           <Animated.View
                             style={[
@@ -367,7 +363,6 @@ const ManageUsers = () => {
                             ]}
                           >
                             <View style={styles.collapseContent}>
-                              {/* Información del usuario */}
                               <View style={styles.infoSection}>
                                 <Text
                                   variant="labelSmall"
@@ -423,7 +418,6 @@ const ManageUsers = () => {
                                 </View>
                               </View>
 
-                              {/* Acciones */}
                               <Text
                                 variant="labelSmall"
                                 style={[
@@ -491,7 +485,6 @@ const ManageUsers = () => {
           )}
         </ScrollView>
 
-        {/* Dialog de confirmación */}
         <Portal>
           <Dialog
             visible={dialogVisible}
@@ -559,7 +552,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Avatar y estado suspendido
   avatarContainer: {
     position: "relative",
     marginLeft: 8,
@@ -589,7 +581,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
-  // Usuario item
   userName: {
     fontSize: 15,
   },
@@ -606,7 +597,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
 
-  // Estilos para collapse animado
   collapseWrapper: {
     overflow: "hidden",
   },
@@ -615,7 +605,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
 
-  // Sección de información
   infoSection: {
     marginBottom: 20,
   },
@@ -634,7 +623,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Acciones
   actionsLabel: {
     fontWeight: "bold",
     marginBottom: 12,

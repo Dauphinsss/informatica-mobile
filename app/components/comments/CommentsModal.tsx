@@ -42,8 +42,8 @@ interface CommentsModalProps {
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const MODAL_HEIGHT_SMALL = SCREEN_HEIGHT * 0.6; // Altura inicial (60%)
-const MODAL_HEIGHT_LARGE = SCREEN_HEIGHT * 0.95; // Altura expandida (95%)
+const MODAL_HEIGHT_SMALL = SCREEN_HEIGHT * 0.6; 
+const MODAL_HEIGHT_LARGE = SCREEN_HEIGHT * 0.95; 
 
 export const CommentsModal: React.FC<CommentsModalProps> = ({
   visible,
@@ -157,7 +157,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     },
   });
 
-  // Utilidades
+  
   const truncarNombre = (nombre: string): string => {
     if (!nombre) return "Usuario";
     if (nombre.length <= 20) return nombre;
@@ -201,7 +201,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     });
   }, [overlayAnim, slideAnim, modalHeight, onDismiss]);
 
-  // PanResponder que sigue tu dedo fluidamente
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -210,11 +209,9 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
           return Math.abs(gestureState.dy) > 5;
         },
         onPanResponderGrant: () => {
-          // Guardar la altura actual al empezar el gesto
           currentHeight.current = currentHeight.current;
         },
         onPanResponderMove: (_, gestureState) => {
-          // Calcular nueva altura basada en el movimiento
           const newHeight = Math.max(
             MODAL_HEIGHT_SMALL,
             Math.min(
@@ -232,7 +229,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
           let targetHeight;
 
           if (gestureState.vy > 0.5) {
-            // Swipe rápido hacia abajo
             if (finalHeight < midPoint) {
               handleDismiss();
               return;
@@ -240,10 +236,8 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
               targetHeight = MODAL_HEIGHT_SMALL;
             }
           } else if (gestureState.vy < -0.5) {
-            // Swipe rápido hacia arriba
             targetHeight = MODAL_HEIGHT_LARGE;
           } else {
-            // Snap al más cercano
             targetHeight =
               finalHeight > midPoint ? MODAL_HEIGHT_LARGE : MODAL_HEIGHT_SMALL;
           }
@@ -260,7 +254,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     [modalHeight, currentHeight, handleDismiss],
   );
 
-  // Efectos y handlers (mantener igual que antes)
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
@@ -330,7 +323,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
           duration: 350,
           useNativeDriver: true,
           easing: (t) => {
-            // Ease out cubic para animación más suave
             return 1 - Math.pow(1 - t, 3);
           },
         }),
@@ -357,7 +349,6 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     currentHeight,
   ]);
 
-  // Fetch user role
   useEffect(() => {
     const fetchRole = async () => {
       if (auth.currentUser) {

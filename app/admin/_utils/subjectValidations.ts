@@ -1,4 +1,4 @@
-// Función para normalizar texto (quitar acentos y convertir a minúsculas)
+
 export const normalizeText = (text: string) => {
   return text
     .normalize("NFD")
@@ -7,7 +7,7 @@ export const normalizeText = (text: string) => {
     .trim();
 };
 
-// Validar campos del formulario
+
 export const validateSubjectFields = (formData: {
   nombre: string;
   descripcion?: string;
@@ -19,7 +19,7 @@ export const validateSubjectFields = (formData: {
     semestre: ''
   };
 
-  // Validar nombre (permite letras, números, espacios, acentos y caracteres comunes)
+  
   const nombreRegex = /^[a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑüÜ,.;:()\-]+$/;
   if (!formData.nombre.trim()) {
     errors.nombre = 'El nombre es obligatorio';
@@ -29,7 +29,7 @@ export const validateSubjectFields = (formData: {
     errors.nombre = 'El nombre contiene caracteres no válidos';
   }
 
-  // Validar semestre (número entre 1-12)
+  
   const semestre = parseInt(formData.semestre);
   if (!formData.semestre) {
     errors.semestre = 'El semestre es obligatorio';

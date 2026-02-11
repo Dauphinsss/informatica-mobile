@@ -38,7 +38,7 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
     const tabNavigation = navigation.getParent?.() || navigation;
     
     try {
-      // CASO 1: Deep link de publicación compartida (formato: informatica://publicacion/{id})
+      
       if (segments[0] === 'publicacion' && segments[1]) {
         const publicacionId = segments[1];
         console.log('[Deep Link Compartir] Navegando a publicación compartida:', publicacionId);
@@ -54,7 +54,7 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         return;
       }
       
-      // CASO 2: Notificación de nueva publicación (formato: /materias/{id}/publicaciones/{id})
+      
       if (segments[0] === 'materias' && segments[2] === 'publicaciones') {
         const materiaId = segments[1];
         const publicacionId = segments[3];
@@ -81,7 +81,7 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         try {
            if (navigation && typeof (navigation as any).reset === 'function') {
             try {
-              // @ts-ignore
+              
               (navigation as any).reset(resetState);
              return;
             } catch (err) {
@@ -204,12 +204,10 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
     return () => {
       notificationListener.current?.remove();
       responseListener.current?.remove();
-      // linkingSubscription.remove(); // Ya no existe
     };
   }, [navigation]);
 
   const handleNotificationNavigation = (data: NotificationData) => {
-    // Esto previene que el sistema de notificaciones interfiera con deep links compartidos
     if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
       console.log('[Notificaciones] Data vacía, ignorando navegación');
       return;
@@ -247,12 +245,9 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         if (data.materiaId) {
           console.log('[Notificación] Abriendo modal de materias con materia:', data.materiaId);
           
-          // Importar dinámicamente para evitar problemas de dependencias circulares
           import('@/services/navigationService').then(({ openSubjectsModalWithMateria }) => {
-            // Primero navegar al tab Home
             tabNavigation.navigate('Home', { screen: 'HomeMain' });
             
-            // Pequeño delay para asegurar que el tab esté activo antes de abrir el modal
             setTimeout(() => {
               openSubjectsModalWithMateria(data.materiaId!);
             }, 300);
@@ -269,8 +264,6 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         break;
         
       default:
-        // ⚠️ Solo navegar a notificaciones si hay acción reconocida
-        // Si no hay acción, probablemente es un deep link y no debemos interferir
         if (data.accion) {
           console.log('Acción no reconocida, yendo a notificaciones:', data.accion);
           goTo('/notificaciones');

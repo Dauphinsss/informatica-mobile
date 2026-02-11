@@ -7,15 +7,15 @@ const Shimmer = ({ style, color }: { style?: any; color?: string }) => (
   <View style={[styles.shimmer, style, color ? { backgroundColor: color } : {}]} />
 );
 
-// Skeleton de una tarjeta de actividad usando Card de Paper
+
 const ActivityCardSkeleton = () => {
   const theme = useTheme();
   return (
     <Card mode="elevated" style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <Card.Content style={styles.cardContent}>
-        {/* Ícono Skeleton */}
+        {}
         <View style={[styles.iconSkeleton, { backgroundColor: theme.colors.surfaceVariant }]} />
-        {/* Contenido Skeleton */}
+        {}
         <View style={styles.textsColumn}>
           <Shimmer style={[styles.titleSkeleton]} color={theme.colors.surfaceVariant} />
           <Shimmer style={[styles.descSkeleton]} color={theme.colors.surfaceVariant} />
@@ -50,7 +50,7 @@ export default function ActivityListSkeleton() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      {/* Ejemplo de sección: Hoy */}
+      {}
       <View style={styles.section}>
         <Shimmer style={[styles.sectionTitle, { width: 82 }]} color={shimmerColor} />
         {[...Array(3)].map((_, i) => (
@@ -61,7 +61,7 @@ export default function ActivityListSkeleton() {
         ))}
       </View>
       <View style={{ height: 24 }} />
-      {/* Ejemplo de sección: Ayer */}
+      {}
       <View style={styles.section}>
         <Shimmer style={[styles.sectionTitle, { width: 62 }]} color={shimmerColor} />
         {[...Array(2)].map((_, i) => (
@@ -75,7 +75,7 @@ export default function ActivityListSkeleton() {
   );
 }
 
-// ---- ESTILOS USANDO PATRONES DE PAPERNATIVE ----
+
 const styles = StyleSheet.create({
   shimmer: {
     borderRadius: 6,

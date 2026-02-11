@@ -27,6 +27,9 @@ export interface NotificacionBase {
     materiaId?: string;
     materiaNombre?: string;
     publicacionId?: string;
+    actorUid?: string;
+    actorNombre?: string;
+    actorFoto?: string | null;
     accion?: string;
     tipo?: string;
     publicacionTitulo?: string;
@@ -97,12 +100,10 @@ export const crearNotificacion = async (
   metadata?: any,
   enviarPush: boolean = true
 ) => {
-  // Verificar configuración del usuario receptor
   const userSettings = await getNotificationSettings(userId);
   const accion = metadata?.accion;
   const tipoData = metadata?.tipo;
   
-  // Verificar según el tipo de notificación
   if (accion === 'admin_decision' || tipoData === 'admin_decision') {
     if (!userSettings.adminAlertsEnabled) {
       return null;
@@ -153,7 +154,6 @@ export const escucharNotificaciones = (
   try {
     const notifUsuarioRef = collection(db, "notificacionesUsuario");
 
-    // ✅ Optimizado: Solo where() + limit para reducir datos
     const q = query(
       notifUsuarioRef,
       where("userId", "==", userId),
@@ -164,8 +164,6 @@ export const escucharNotificaciones = (
       q,
       async (snapshot) => {
         try {
-          // Obtener todas las referencias de notificaciones del usuario
-          // ✅ Filtrar las eliminadas en el cliente
           const notificacionesUsuario = snapshot.docs
             .map((doc) => ({
               id: doc.id,
@@ -180,47 +178,48 @@ export const escucharNotificaciones = (
             return;
           }
 
-          // ✅ OPTIMIZACIÓN: Obtener todos los IDs únicos de notificaciones
           const notifIds = [
             ...new Set(notificacionesUsuario.map((n) => n.notificacionId)),
           ];
 
-          // ✅ Hacer una sola query batch con documentId() (máx 10 por batch)
-          const notificacionesCompletas: NotificacionCompleta[] = [];
           const batchSize = 10;
-
+          const notifIdBatches: string[][] = [];
           for (let i = 0; i < notifIds.length; i += batchSize) {
-            const batch = notifIds.slice(i, i + batchSize);
-            const notifQuery = query(
-              collection(db, "notificaciones"),
-              where(documentId(), "in", batch)
-            );
-
-            const notifSnapshot = await getDocs(notifQuery);
-            const notifMap = new Map();
-
-            notifSnapshot.docs.forEach((doc) => {
-              notifMap.set(doc.id, doc.data());
-            });
-
-            // Combinar datos
-            notificacionesUsuario.forEach((notifUsuario) => {
-              if (batch.includes(notifUsuario.notificacionId)) {
-                const notifData = notifMap.get(notifUsuario.notificacionId);
-
-                if (notifData) {
-                  notificacionesCompletas.push({
-                    id: notifUsuario.id,
-                    ...notifData,
-                    leida: notifUsuario.leida,
-                    creadoEn: notifUsuario.creadoEn,
-                  } as NotificacionCompleta);
-                }
-              }
-            });
+            notifIdBatches.push(notifIds.slice(i, i + batchSize));
           }
 
-          // ✅ Ordenar en el cliente por fecha (más reciente primero)
+          const notifSnapshots = await Promise.all(
+            notifIdBatches.map((batch) =>
+              getDocs(
+                query(
+                  collection(db, "notificaciones"),
+                  where(documentId(), "in", batch)
+                )
+              )
+            )
+          );
+
+          const notifMap = new Map<string, any>();
+          notifSnapshots.forEach((snapshot) => {
+            snapshot.docs.forEach((docSnap) => {
+              notifMap.set(docSnap.id, docSnap.data());
+            });
+          });
+
+          const notificacionesCompletas: NotificacionCompleta[] =
+            notificacionesUsuario
+              .map((notifUsuario) => {
+                const notifData = notifMap.get(notifUsuario.notificacionId);
+                if (!notifData) return null;
+                return {
+                  id: notifUsuario.id,
+                  ...notifData,
+                  leida: notifUsuario.leida,
+                  creadoEn: notifUsuario.creadoEn,
+                } as NotificacionCompleta;
+              })
+              .filter((item): item is NotificacionCompleta => item !== null);
+
           notificacionesCompletas.sort((a, b) => {
             const timeA = a.creadoEn?.toMillis ? a.creadoEn.toMillis() : 0;
             const timeB = b.creadoEn?.toMillis ? b.creadoEn.toMillis() : 0;
@@ -245,9 +244,6 @@ export const escucharNotificaciones = (
   }
 };
 
-/**
- * Marcar una notificación como leída
- */
 export const marcarComoLeida = async (notificacionUsuarioId: string) => {
   try {
     const notifUsuarioRef = doc(
@@ -264,9 +260,6 @@ export const marcarComoLeida = async (notificacionUsuarioId: string) => {
   }
 };
 
-/**
- * Eliminar la relación usuario-notificación (no elimina la notificación original)
- */
 export const eliminarNotificacionUsuario = async (
   notificacionUsuarioId: string
 ) => {
@@ -285,9 +278,6 @@ export const eliminarNotificacionUsuario = async (
   }
 };
 
-/**
- * Eliminar múltiples notificaciones de usuario en batch (más eficiente)
- */
 export const eliminarNotificacionesUsuarioBatch = async (
   notificacionUsuarioIds: string[]
 ) => {
@@ -308,15 +298,11 @@ export const eliminarNotificacionesUsuarioBatch = async (
   }
 };
 
-/**
- * Obtener contador de notificaciones no leídas
- */
 export const obtenerContadorNoLeidas = (
   userId: string,
   onUpdate: (count: number) => void
 ) => {
   const notifUsuarioRef = collection(db, "notificacionesUsuario");
-  // ✅ Optimizado: Solo where() + limit para evitar cargar todas
   const q = query(
     notifUsuarioRef,
     where("userId", "==", userId),
@@ -324,7 +310,6 @@ export const obtenerContadorNoLeidas = (
   );
 
   return onSnapshot(q, (snapshot) => {
-    // Filtrar no leídas y no eliminadas en el cliente
     const noLeidas = snapshot.docs.filter((doc) => {
       const data = doc.data();
       return data.leida === false && !data.eliminada;
@@ -333,9 +318,6 @@ export const obtenerContadorNoLeidas = (
   });
 };
 
-/**
- * Notificar a todos los usuarios inscritos en una materia
- */
 export const notificarUsuariosMateria = async (
   materiaId: string,
   materiaNombre: string,
@@ -343,7 +325,8 @@ export const notificarUsuariosMateria = async (
   descripcion: string,
   tipo: "info" | "exito" | "advertencia" | "error" = "info",
   icono: string = "school",
-  publicacionId: string
+  publicacionId: string,
+  actor?: { uid?: string; nombre?: string; foto?: string | null }
 ) => {
   try {
     const usuariosRef = collection(db, "usuarios");
@@ -360,7 +343,6 @@ export const notificarUsuariosMateria = async (
       return;
     }
 
-    // Filtrar usuarios que tengan habilitadas las notificaciones de publicaciones
     const usuariosConNotificacionesHabilitadas: string[] = [];
     
     for (const userId of userIds) {
@@ -385,6 +367,9 @@ export const notificarUsuariosMateria = async (
         materiaNombre,
         accion: 'ver_publicacion',
         publicacionId,
+        actorUid: actor?.uid || null,
+        actorNombre: actor?.nombre || null,
+        actorFoto: actor?.foto || null,
       },
     });
 
@@ -405,17 +390,12 @@ export const notificarUsuariosMateria = async (
 
     await batch.commit();
 
-    // Las notificaciones FCM se envían automáticamente por Cloud Functions
-    // cuando se crean los documentos en notificacionesUsuario
   } catch (error) {
     console.error("Error al notificar usuarios de materia:", error);
     throw error;
   }
 };
 
-/**
- * Notificar cuando se crea una nueva materia (solo a usuarios en ese semestre)
- */
 export const notificarCreacionMateria = async (
   materiaId: string,
   materiaNombre: string,
@@ -455,7 +435,6 @@ export const notificarCreacionMateria = async (
       return;
     }
 
-    // Filtrar usuarios que tengan habilitadas las notificaciones de nuevas materias
     const usuariosConNotificacionesHabilitadas: string[] = [];
     
     for (const userId of userIds) {
@@ -499,8 +478,6 @@ export const notificarCreacionMateria = async (
 
     await batch.commit();
 
-    // Las notificaciones FCM se envían automáticamente por Cloud Functions
-    // cuando se crean los documentos en notificacionesUsuario
   } catch (error) {
     console.error("Error al notificar creación de materia:", error);
     throw error;
@@ -579,7 +556,6 @@ export const notificarDecisionAdminDenunciantes = async ({
   const userIds = reportadores.map(r => r.uid).filter(Boolean) as string[];
   if (userIds.length === 0) return;
   
-  // Filtrar usuarios que tengan habilitadas las alertas de admin
   const usuariosConNotificacionesHabilitadas: string[] = [];
   
   for (const userId of userIds) {

@@ -50,7 +50,6 @@ exports.enviarPushNuevaNotificacion = functions.firestore
       return null;
     }
 
-    // Enviar notificación push
     const message = {
       notification: {
         title: notifData.titulo,
@@ -232,7 +231,6 @@ exports.registrarReporteNuevo = functions.firestore
     return null;
   });
 
-// Nueva función dedicada a notificaciones de nueva publicación
 exports.enviarPushNuevaPublicacion = functions.firestore
   .document('notificacionesUsuario/{notifUserId}')
   .onCreate(async (snap, context) => {
@@ -251,13 +249,11 @@ exports.enviarPushNuevaPublicacion = functions.firestore
       return null;
     }
 
-    // Solo procesar notificaciones que correspondan a publicaciones
     if (!(notifData.metadata?.accion === 'ver_publicacion' || notifData.metadata?.publicacionId)) {
       console.log('ℹ️ [Functions] Notificación no es de tipo publicacion — ignorando en enviarPushNuevaPublicacion');
       return null;
     }
 
-    // Obtiene los tokens del usuario
     const usuarioDoc = await admin.firestore()
       .collection('usuarios')
       .doc(userId)
@@ -272,7 +268,6 @@ exports.enviarPushNuevaPublicacion = functions.firestore
     const materiaId = notifData.metadata?.materiaId || '';
     const publicacionId = notifData.metadata?.publicacionId || '';
 
-    // Enviar notificación push
     const message = {
       notification: {
         title: notifData.titulo,
@@ -283,7 +278,7 @@ exports.enviarPushNuevaPublicacion = functions.firestore
         materiaNombre: notifData.metadata?.materiaNombre || '',
         accion: 'ver_publicacion',
         publicacionId,
-        deepLink: materiaId && publicacionId ? `informatica://materias/${materiaId}/publicaciones/${publicacionId}` : '',
+        deepLink: materiaId && publicacionId ? `informatica:
       },
       tokens: [tokens[0]],
       android: {
@@ -296,7 +291,6 @@ exports.enviarPushNuevaPublicacion = functions.firestore
       const response = await admin.messaging().sendEachForMulticast(message);
       console.log('Notificaciones enviadas (publicacion):', response.successCount, 'responses:', response.responses?.length);
 
-      // Marcar el documento como procesado para evitar duplicados posteriores
       try {
         const ref = admin.firestore().collection('notificacionesUsuario').doc(notifUsuarioId);
         await ref.update({ enviadoPublicacion: true });

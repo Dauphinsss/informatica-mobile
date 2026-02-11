@@ -49,7 +49,7 @@ export default function UserProfileModal({
 
   useEffect(() => {
     if (visible) {
-      // Montar el modal
+      
       setIsMounted(true);
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -64,7 +64,7 @@ export default function UserProfileModal({
         }),
       ]).start();
     } else {
-      // Animación de salida antes de desmontar
+      
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: 500,
@@ -76,7 +76,7 @@ export default function UserProfileModal({
           duration: 250,
           useNativeDriver: true,
         }),
-      ]).start(() => setIsMounted(false)); // desmontar al finalizar
+      ]).start(() => setIsMounted(false)); 
     }
   }, [visible]);
 
@@ -107,12 +107,12 @@ export default function UserProfileModal({
       animationType="none"
     >
       <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-        {/* Fondo (overlay) */}
+        {}
         <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
           <Pressable style={styles.overlayPress} onPress={onDismiss} />
         </Animated.View>
 
-        {/* Contenedor deslizante */}
+        {}
         <Animated.View
           style={[
             styles.modalContainer,

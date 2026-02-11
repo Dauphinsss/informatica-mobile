@@ -11,7 +11,7 @@ export const useCalcularSemestre = (
 
     const calcularYActualizarSemestre = async () => {
       try {
-        // Si no tiene materias inscritas, semestre = 0
+        
         if (!materiasInscritas || materiasInscritas.length === 0) {
           const userRef = doc(db, 'usuarios', userId);
           await updateDoc(userRef, { 

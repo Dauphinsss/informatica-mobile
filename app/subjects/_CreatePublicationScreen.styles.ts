@@ -15,6 +15,13 @@ export const getStyles = (theme: MD3Theme) =>
     card: {
       marginBottom: 16,
     },
+    archivosCard: {
+      marginBottom: 10,
+    },
+    archivosCardContent: {
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+    },
     label: {
       opacity: 0.7,
       color: theme.colors.onSurface,
@@ -27,7 +34,7 @@ export const getStyles = (theme: MD3Theme) =>
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: 12,
+      marginBottom: 4,
     },
     archivosTitle: {
       fontWeight: "bold",
@@ -36,56 +43,81 @@ export const getStyles = (theme: MD3Theme) =>
     noArchivos: {
       textAlign: "center",
       opacity: 0.6,
-      paddingVertical: 16,
+      paddingVertical: 8,
       color: theme.colors.onSurface,
     },
+    archivosList: {
+      marginTop: 0,
+      marginBottom: 4,
+      gap: 6,
+    },
     archivoCard: {
-      marginTop: 8,
-      backgroundColor: theme.colors.surfaceVariant,
-      elevation: 0,
+      backgroundColor: theme.colors.elevation.level1,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      elevation: 0.5,
     },
     archivoContent: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       justifyContent: "space-between",
-      paddingVertical: 8,
-      gap: 8,
+      paddingVertical: 10,
+      gap: 6,
     },
     archivoInfo: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       flex: 1,
       gap: 8,
       minWidth: 0,
     },
-    archivoIcon: {
-      margin: 0,
+    archivoLeading: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surfaceVariant,
       flexShrink: 0,
     },
     archivoTexto: {
       flex: 1,
       minWidth: 0,
-      paddingRight: 4,
+      paddingRight: 6,
     },
     archivoNombre: {
       fontWeight: "500",
       color: theme.colors.onSurface,
-      marginBottom: 8,
+      marginBottom: 4,
       flexWrap: "wrap",
     },
-    archivoMeta: {
+    archivoFooterRow: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "space-between",
       gap: 8,
-      flexWrap: "wrap",
-    },
-    tipoChip: {
-      alignSelf: "flex-start",
-      flexShrink: 0,
+      minHeight: 24,
     },
     archivoTamano: {
       opacity: 0.7,
       color: theme.colors.onSurface,
+      fontSize: 13,
+      minWidth: 58,
+      flexShrink: 0,
+    },
+    archivoActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginLeft: "auto",
+      flexShrink: 0,
+    },
+    archivoActionButton: {
+      width: 24,
+      height: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      opacity: 0.9,
     },
     progressBar: {
       height: 3,

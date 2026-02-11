@@ -69,7 +69,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
   const handleLike = async () => {
     if (!auth.currentUser || loading) return;
 
-    // Optimistic update
+    
     const wasLiked = liked;
     const previousCount = likesCount;
 
@@ -85,7 +85,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
       );
     } catch (error) {
       console.error("Error al dar like:", error);
-      // Revert optimistic update on error
+      
       setLiked(wasLiked);
       setLikesCount(previousCount);
     } finally {

@@ -1,10 +1,16 @@
-// src/components/PublicationCardSkeleton.tsx
+
 import { useTheme } from "@/contexts/ThemeContext";
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { Card } from "react-native-paper";
 
-export default function PublicationCardSkeleton() {
+interface PublicationCardSkeletonProps {
+  withHorizontalMargin?: boolean;
+}
+
+export default function PublicationCardSkeleton({
+  withHorizontalMargin = true,
+}: PublicationCardSkeletonProps) {
   const { theme } = useTheme();
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
@@ -31,68 +37,48 @@ export default function PublicationCardSkeleton() {
   });
 
   return (
-    <View style={styles.card}>
-      <Card style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }}>
-        <Card.Content>
-          {/* Header con avatar y fecha */}
-          <View style={styles.cardContent}>
+    <View
+      style={[
+        styles.card,
+        { marginHorizontal: withHorizontalMargin ? 16 : 0 },
+      ]}
+    >
+      <Card style={{ borderRadius: 16, backgroundColor: theme.colors.elevation.level1 }}>
+        <Card.Content style={styles.cardContent}>
+          <View style={styles.topRow}>
             <Animated.View
-              style={[
-                styles.avatar,
-                { backgroundColor: theme.colors.surfaceVariant, opacity },
-              ]}
+              style={[styles.avatar, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
             />
-            <Animated.View
-              style={[
-                styles.fecha,
-                { backgroundColor: theme.colors.surfaceVariant, opacity },
-              ]}
-            />
-            
-            {/* Título y descripción */}
-            <View style={styles.autorContainer}>
+            <View style={styles.infoBlock}>
               <Animated.View
-                style={[
-                  styles.titulo,
-                  { backgroundColor: theme.colors.surfaceVariant, opacity },
-                ]}
+                style={[styles.titleLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
               />
               <Animated.View
-                style={[
-                  styles.descripcion,
-                  { backgroundColor: theme.colors.surfaceVariant, opacity },
-                ]}
+                style={[styles.authorLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
               />
             </View>
+            <Animated.View
+              style={[styles.dateLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
+            />
           </View>
 
-          {/* Materia */}
           <Animated.View
-            style={[
-              styles.materiaNombre,
-              { backgroundColor: theme.colors.surfaceVariant, opacity },
-            ]}
+            style={[styles.descriptionLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
           />
 
-          {/* Stats */}
-          <View style={styles.statsContainer}>
+          <Animated.View
+            style={[styles.subjectLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
+          />
+
+          <View style={styles.statsRow}>
             <Animated.View
-              style={[
-                styles.statChip,
-                { backgroundColor: theme.colors.surfaceVariant, opacity },
-              ]}
+              style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
             />
             <Animated.View
-              style={[
-                styles.statChip,
-                { backgroundColor: theme.colors.surfaceVariant, opacity },
-              ]}
+              style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
             />
             <Animated.View
-              style={[
-                styles.statChip,
-                { backgroundColor: theme.colors.surfaceVariant, opacity },
-              ]}
+              style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
             />
           </View>
         </Card.Content>
@@ -103,58 +89,61 @@ export default function PublicationCardSkeleton() {
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
     marginBottom: 12,
   },
   cardContent: {
+    paddingVertical: 16,
+    gap: 12,
+  },
+  topRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    position: "relative",
+    alignItems: "center",
+    gap: 12,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
-  fecha: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 80,
+  infoBlock: {
+    flex: 1,
+    gap: 8,
+    minWidth: 0,
+  },
+  titleLine: {
+    width: "85%",
     height: 14,
     borderRadius: 4,
   },
-  autorContainer: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 100,
-    gap: 8,
+  authorLine: {
+    width: "65%",
+    height: 11,
+    borderRadius: 4,
   },
-  titulo: {
+  dateLine: {
+    width: 52,
+    height: 10,
+    borderRadius: 5,
+  },
+  descriptionLine: {
     width: "90%",
-    height: 20,
-    borderRadius: 4,
+    height: 12,
+    borderRadius: 6,
   },
-  descripcion: {
-    width: "70%",
-    height: 16,
-    borderRadius: 4,
+  subjectLine: {
+    width: "58%",
+    height: 14,
+    borderRadius: 6,
   },
-  materiaNombre: {
-    width: "60%",
-    height: 16,
-    borderRadius: 4,
-    marginBottom: 12,
-  },
-  statsContainer: {
+  statsRow: {
     flexDirection: "row",
-    gap: 8,
+    alignItems: "center",
+    gap: 10,
+    marginTop: 2,
   },
-  statChip: {
-    width: 60,
-    height: 28,
-    borderRadius: 14,
+  statPill: {
+    width: 46,
+    height: 12,
+    borderRadius: 6,
   },
 });

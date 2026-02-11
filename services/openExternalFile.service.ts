@@ -18,9 +18,7 @@ const sanitizeFileName = (name: string): string =>
 
 const hashUrl = (url: string): number =>
   url.split("").reduce((acc, ch) => {
-    // eslint-disable-next-line no-bitwise
     acc = (acc << 5) - acc + ch.charCodeAt(0);
-    // eslint-disable-next-line no-bitwise
     return acc & acc;
   }, 0);
 
@@ -111,4 +109,3 @@ export const openRemoteFileExternally = async (params: {
 
   await Linking.openURL(uri.startsWith("file://") ? uri : `file://${uri}`);
 };
-

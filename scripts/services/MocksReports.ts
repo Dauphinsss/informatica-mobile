@@ -7,7 +7,7 @@ const generateUID = (): string => {
 
 export const crearDatosMock = async () => {
   try {
-    // Crear usuario mock
+    
     const usuarioRef = await addDoc(collection(db, "usuarios"), {
       correo: "juan@example.com",
       creadoEn: new Date(),
@@ -27,7 +27,7 @@ export const crearDatosMock = async () => {
         creadoEn: new Date(),
     });
 
-    // Crear publicación mock
+    
     const publicacionRef = await addDoc(collection(db, "publicaciones"), {
       uid: generateUID(),
       autorUid: usuarioRef.id,

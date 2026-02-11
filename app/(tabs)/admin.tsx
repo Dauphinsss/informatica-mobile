@@ -1,5 +1,4 @@
-// src/screens/admin/AdminScreen.tsx
-import { ActivitySectionSkeleton, StatCardSkeleton } from "@/app/(tabs)/components/AdminSkeleton";
+
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import { ActivityLog } from "@/scripts/types/Activity.type";
@@ -8,13 +7,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Appbar, Button, Card, Text } from "react-native-paper";
+import { ActivityListSkeleton } from "../admin/components/SkeletonLoaders";
 import ActivityCard from "../admin/components/ActivityCard";
 import ActivityDetailModal from "../admin/components/ActivityDetailModal";
 
-// Definir el tipo de navegación para el stack de admin
+
 type AdminStackParamList = {
   Admin: undefined;
   ManageUsers: undefined;
@@ -28,11 +28,90 @@ type AdminScreenNavigationProp = StackNavigationProp<
   "Admin"
 >;
 
+function AnimatedStatNumber({
+  value,
+  loading,
+  style,
+}: {
+  value: number;
+  loading: boolean;
+  style?: any;
+}) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const currentValueRef = useRef(0);
+  const randomTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const animateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    currentValueRef.current = displayValue;
+  }, [displayValue]);
+
+  useEffect(() => {
+    if (randomTimerRef.current) {
+      clearInterval(randomTimerRef.current);
+      randomTimerRef.current = null;
+    }
+    if (animateTimerRef.current) {
+      clearInterval(animateTimerRef.current);
+      animateTimerRef.current = null;
+    }
+
+    if (loading) {
+      randomTimerRef.current = setInterval(() => {
+        const top = Math.max(20, value + 25);
+        const next = Math.floor(Math.random() * top);
+        currentValueRef.current = next;
+        setDisplayValue(next);
+      }, 90);
+
+      return () => {
+        if (randomTimerRef.current) clearInterval(randomTimerRef.current);
+      };
+    }
+
+    const start = currentValueRef.current;
+    const end = value;
+    const delta = end - start;
+    if (delta === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const steps = 22;
+    let step = 0;
+    animateTimerRef.current = setInterval(() => {
+      step += 1;
+      const progress = step / steps;
+      const next = Math.round(start + delta * progress);
+      currentValueRef.current = next;
+      setDisplayValue(next);
+
+      if (step >= steps) {
+        if (animateTimerRef.current) clearInterval(animateTimerRef.current);
+        animateTimerRef.current = null;
+        currentValueRef.current = end;
+        setDisplayValue(end);
+      }
+    }, 30);
+
+    return () => {
+      if (randomTimerRef.current) clearInterval(randomTimerRef.current);
+      if (animateTimerRef.current) clearInterval(animateTimerRef.current);
+    };
+  }, [loading, value]);
+
+  return (
+    <Text variant="displaySmall" style={style}>
+      {displayValue}
+    </Text>
+  );
+}
+
 export default function AdminScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<AdminScreenNavigationProp>();
 
-  // Estados para estadísticas
+  
   const [totalMaterias, setTotalMaterias] = useState(0);
   const [totalUsuarios, setTotalUsuarios] = useState(0);
   const [totalDenuncias, setTotalDenuncias] = useState(0);
@@ -40,51 +119,47 @@ export default function AdminScreen() {
   const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [statsLoaded, setStatsLoaded] = useState({
+    materias: false,
+    usuarios: false,
+    denuncias: false,
+    pendientes: false,
+  });
   const [selectedActivity, setSelectedActivity] = useState<ActivityLog | null>(null);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
 
-  // Obtener estadísticas en tiempo real
+  
   useEffect(() => {
     let mounted = true;
-    let loadedCount = 0;
-    const totalLoads = 4; // materias, usuarios, denuncias, pendientes
 
-    const checkAllLoaded = () => {
-      loadedCount++;
-      if (loadedCount === totalLoads && mounted) {
-        // Pequeño delay para efecto visual suave
-        setTimeout(() => setLoadingStats(false), 300);
-      }
-    };
-
-    // Contar materias
+    
     const materiasRef = collection(db, "materias");
     const unsubMaterias = onSnapshot(materiasRef, (snapshot) => {
       if (mounted) {
         setTotalMaterias(snapshot.size);
-        checkAllLoaded();
+        setStatsLoaded((prev) => ({ ...prev, materias: true }));
       }
     });
 
-    // Contar usuarios
+    
     const usuariosRef = collection(db, "usuarios");
     const unsubUsuarios = onSnapshot(usuariosRef, (snapshot) => {
       if (mounted) {
         setTotalUsuarios(snapshot.size);
-        checkAllLoaded();
+        setStatsLoaded((prev) => ({ ...prev, usuarios: true }));
       }
     });
 
-    // Contar denuncias totales
+    
     const denunciasRef = collection(db, "reportes");
     const unsubDenuncias = onSnapshot(denunciasRef, (snapshot) => {
       if (mounted) {
         setTotalDenuncias(snapshot.size);
-        checkAllLoaded();
+        setStatsLoaded((prev) => ({ ...prev, denuncias: true }));
       }
     });
 
-    // Contar denuncias pendientes
+    
     const denunciasPendientesQuery = query(
       collection(db, "reportes"),
       where("estado", "==", "pendiente")
@@ -92,7 +167,7 @@ export default function AdminScreen() {
     const unsubPendientes = onSnapshot(denunciasPendientesQuery, (snapshot) => {
       if (mounted) {
         setDenunciasPendientes(snapshot.size);
-        checkAllLoaded();
+        setStatsLoaded((prev) => ({ ...prev, pendientes: true }));
       }
     });
 
@@ -106,6 +181,17 @@ export default function AdminScreen() {
   }, []);
 
   useEffect(() => {
+    const allLoaded =
+      statsLoaded.materias &&
+      statsLoaded.usuarios &&
+      statsLoaded.denuncias &&
+      statsLoaded.pendientes;
+    if (allLoaded) {
+      setLoadingStats(false);
+    }
+  }, [statsLoaded]);
+
+  useEffect(() => {
     setLoadingActivities(true);
     
     let unsubscribe: (() => void) | undefined;
@@ -115,7 +201,7 @@ export default function AdminScreen() {
         10,
         (activities) => {
           setRecentActivities(activities);
-          // Pequeño delay para transición suave
+          
           setTimeout(() => setLoadingActivities(false), 300);
         }
       );
@@ -138,20 +224,14 @@ export default function AdminScreen() {
       </Appbar.Header>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Título para las tarjetas */}
+        {}
         <Text variant="titleMedium" style={styles.mainTitle}>
           Gestión del Sistema
         </Text>
 
-        {/* Grid de cards con estadísticas - Primera fila */}
-        {loadingStats ? (
-          <View style={styles.statsGrid}>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </View>
-        ) : (
-          <View style={styles.statsGrid}>
-            {/* Card de Materias */}
+        {}
+        <View style={styles.statsGrid}>
+            {}
             <TouchableOpacity
               style={styles.statCard}
               activeOpacity={0.7}
@@ -172,9 +252,11 @@ export default function AdminScreen() {
                     />
                   </View>
                   <View style={styles.statContent}>
-                    <Text variant="displaySmall" style={styles.statNumber}>
-                      {totalMaterias}
-                    </Text>
+                    <AnimatedStatNumber
+                      value={totalMaterias}
+                      loading={loadingStats || !statsLoaded.materias}
+                      style={styles.statNumber}
+                    />
                     <Text
                       variant="bodyLarge"
                       style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
@@ -192,7 +274,7 @@ export default function AdminScreen() {
               </Card>
             </TouchableOpacity>
 
-            {/* Card de Usuarios */}
+            {}
             <TouchableOpacity
               style={styles.statCard}
               activeOpacity={0.7}
@@ -213,9 +295,11 @@ export default function AdminScreen() {
                     />
                   </View>
                   <View style={styles.statContent}>
-                    <Text variant="displaySmall" style={styles.statNumber}>
-                      {totalUsuarios}
-                    </Text>
+                    <AnimatedStatNumber
+                      value={totalUsuarios}
+                      loading={loadingStats || !statsLoaded.usuarios}
+                      style={styles.statNumber}
+                    />
                     <Text
                       variant="bodyLarge"
                       style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
@@ -233,17 +317,10 @@ export default function AdminScreen() {
               </Card>
             </TouchableOpacity>
           </View>
-        )}
 
-        {/* Segunda fila de cards */}
-        {loadingStats ? (
-          <View style={styles.statsGrid}>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </View>
-        ) : (
-          <View style={styles.statsGrid}>
-            {/* Card de Denuncias */}
+        {}
+        <View style={styles.statsGrid}>
+            {}
             <TouchableOpacity
               style={styles.statCard}
               activeOpacity={0.7}
@@ -264,9 +341,11 @@ export default function AdminScreen() {
                     />
                   </View>
                   <View style={styles.statContent}>
-                    <Text variant="displaySmall" style={styles.statNumber}>
-                      {denunciasPendientes}
-                    </Text>
+                    <AnimatedStatNumber
+                      value={denunciasPendientes}
+                      loading={loadingStats || !statsLoaded.pendientes}
+                      style={styles.statNumber}
+                    />
                     <Text
                       variant="bodyLarge"
                       style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
@@ -277,7 +356,9 @@ export default function AdminScreen() {
                       variant="bodySmall"
                       style={[styles.subLabel, { color: theme.colors.onSurfaceVariant }]}
                     >
-                      {totalDenuncias} total
+                      {loadingStats || !statsLoaded.denuncias
+                        ? "cargando..."
+                        : `${totalDenuncias} total`}
                     </Text>
                   </View>
                   <MaterialCommunityIcons
@@ -327,9 +408,8 @@ export default function AdminScreen() {
               </Card>
             </TouchableOpacity>
           </View>
-        )}
 
-        {/* Actividad Reciente */}
+        {}
         <View style={styles.activitySection}>
           <View style={styles.activityHeader}>
             <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -345,7 +425,7 @@ export default function AdminScreen() {
           </View>
 
           {loadingActivities ? (
-            <ActivitySectionSkeleton />
+            <ActivityListSkeleton count={4} />
           ) : recentActivities.length > 0 ? (
             <View style={styles.activityList}>
               {recentActivities.map((activity) => (

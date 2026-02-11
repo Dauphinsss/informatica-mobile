@@ -1,4 +1,4 @@
-// app/components/filters/PublicationFilters.tsx
+
 import React from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import type { MD3Theme } from "react-native-paper";
@@ -87,10 +87,8 @@ export const PublicationFilters: React.FC<PublicationFiltersProps> = ({
 
   const handleChipPress = (key: SortBy) => {
     if (sortBy === key) {
-      // Si ya está seleccionado, alternar el orden
       onFilterChange(key, sortOrder === "asc" ? "desc" : "asc");
     } else {
-      // Si no está seleccionado, seleccionarlo con el orden actual
       onFilterChange(key, sortOrder);
     }
   };

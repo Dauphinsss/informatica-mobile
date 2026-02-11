@@ -28,7 +28,7 @@ export const getStyles = (theme: MD3Theme) =>
     },
     headerCard: {
       marginHorizontal: "4%",
-      marginTop: 10,
+      marginTop: 12,
       marginBottom: 8,
       elevation: 2,
       borderRadius: 12,
@@ -48,13 +48,14 @@ export const getStyles = (theme: MD3Theme) =>
     },
     autorNombre: {
       fontWeight: "500",
-      fontSize: 16,
+      fontSize: 14,
+      lineHeight: 21,
       color: theme.colors.onSurface,
     },
     fecha: {
       opacity: 0.7,
       marginTop: 1,
-      fontSize: 12,
+      fontSize: 11,
       color: theme.colors.onSurface,
     },
     divider: {
@@ -70,7 +71,7 @@ export const getStyles = (theme: MD3Theme) =>
     },
     descripcion: {
       color: theme.colors.onSurfaceVariant,
-      fontSize: 16,
+      fontSize: 14,
       lineHeight: 24,
       letterSpacing: 0.1,
       marginBottom: 12,
@@ -80,22 +81,26 @@ export const getStyles = (theme: MD3Theme) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 12,
+      gap: 8,
       marginTop: 2,
     },
     statsContainer: {
       flexDirection: "row",
-      gap: 6,
-      flexWrap: "wrap",
+      gap: 12,
+      flexWrap: "nowrap",
       marginLeft: "auto",
+      flexShrink: 1,
+      alignItems: "center",
     },
-    statChip: {
-      backgroundColor: "transparent",
-      borderWidth: 0,
-      elevation: 0,
+    statsInlineItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
     },
-    statText: {
+    statsInlineText: {
       color: theme.colors.onSurfaceVariant,
+      fontSize: 14,
+      lineHeight: 18,
     },
     archivosContainer: {
       marginHorizontal: H_MARGIN,
@@ -154,6 +159,12 @@ export const getStyles = (theme: MD3Theme) =>
       fontSize: 11,
     },
     openingProgressBar: {
+      marginTop: 6,
+      height: 3,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    downloadingProgressBar: {
       marginTop: 6,
       height: 3,
       borderRadius: 999,
@@ -298,13 +309,16 @@ export const getStyles = (theme: MD3Theme) =>
     downloadChip: {
       borderRadius: 999,
       backgroundColor: theme.colors.secondaryContainer,
-      height: 28,
+      height: 32,
       justifyContent: "center",
-      paddingHorizontal: 0,
+      paddingHorizontal: 8,
+      minWidth: 116,
+      flexShrink: 0,
     },
     downloadChipText: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: "600",
+      lineHeight: 16,
       color: theme.colors.onSecondaryContainer,
     },
     downloadProgressOverlay: {
@@ -331,7 +345,9 @@ export const getStyles = (theme: MD3Theme) =>
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: "rgba(255, 255, 255, 0.85)",
+      backgroundColor: theme.dark
+        ? "rgba(0, 0, 0, 0.45)"
+        : "rgba(255, 255, 255, 0.78)",
       justifyContent: "center",
       alignItems: "center",
       zIndex: 25,
@@ -349,7 +365,9 @@ export const getStyles = (theme: MD3Theme) =>
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: "rgba(255, 255, 255, 0.85)",
+      backgroundColor: theme.dark
+        ? "rgba(0, 0, 0, 0.45)"
+        : "rgba(255, 255, 255, 0.78)",
       justifyContent: "center",
       alignItems: "center",
       zIndex: 25,

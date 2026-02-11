@@ -1,4 +1,4 @@
-// src/components/SkeletonLoader.tsx
+
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
@@ -10,9 +10,7 @@ interface SkeletonProps {
   style?: any;
 }
 
-/**
- * Componente base de Skeleton con animación de shimmer
- */
+
 export const Skeleton: React.FC<SkeletonProps> = ({
   width = '100%',
   height = 20,
@@ -63,16 +61,14 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   );
 };
 
-/**
- * Skeleton para las cards de estadísticas del Admin
- */
+
 export const StatCardSkeleton: React.FC = () => {
   const theme = useTheme();
 
   return (
     <View style={[styles.statCard, { backgroundColor: 'transparent', shadowColor: 'transparent' }]}>
       <View style={styles.statCardContent}>
-        {/* Ícono */}
+        {}
         <View
           style={[
             styles.iconContainer,
@@ -82,13 +78,13 @@ export const StatCardSkeleton: React.FC = () => {
           <Skeleton width={32} height={32} borderRadius={8} />
         </View>
 
-        {/* Número y texto */}
+        {}
         <View style={styles.statContent}>
           <Skeleton width={60} height={36} borderRadius={8} style={{ marginBottom: 8 }} />
           <Skeleton width={80} height={20} borderRadius={4} />
         </View>
 
-        {/* Chevron */}
+        {}
         <View style={styles.chevronPosition}>
           <Skeleton width={24} height={24} borderRadius={12} />
         </View>
@@ -97,30 +93,26 @@ export const StatCardSkeleton: React.FC = () => {
   );
 };
 
-/**
- * Skeleton para items de actividad reciente
- */
+
 export const ActivityItemSkeleton: React.FC = () => {
   return (
     <View style={styles.activityItem}>
-      {/* Ícono izquierdo */}
+      {}
       <Skeleton width={40} height={40} borderRadius={10} />
 
-      {/* Contenido */}
+      {}
       <View style={styles.activityContent}>
         <Skeleton width="70%" height={16} borderRadius={4} style={{ marginBottom: 6 }} />
         <Skeleton width="50%" height={14} borderRadius={4} />
       </View>
 
-      {/* Hora derecha */}
+      {}
       <Skeleton width={50} height={14} borderRadius={4} />
     </View>
   );
 };
 
-/**
- * Skeleton completo para la sección de actividad reciente
- */
+
 export const ActivitySectionSkeleton: React.FC = () => {
   const theme = useTheme();
 

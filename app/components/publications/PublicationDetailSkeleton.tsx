@@ -1,34 +1,32 @@
-// src/components/skeletons/PublicationDetailSkeleton.tsx
-import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, ScrollView, StyleSheet, View } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import React, { useEffect, useRef } from "react";
+import { Animated, ScrollView, StyleSheet, View } from "react-native";
+import { Card, useTheme } from "react-native-paper";
 
-const { width } = Dimensions.get('window');
+const H_MARGIN = 16;
 
-// Skeleton atómico con animación mejorada
 const SkeletonElement: React.FC<{
   width?: number | string;
   height?: number;
   borderRadius?: number;
   style?: any;
-}> = ({ width = '100%', height = 16, borderRadius = 4, style }) => {
-  const pulseAnim = useRef(new Animated.Value(0.5)).current;
+}> = ({ width = "100%", height = 14, borderRadius = 6, style }) => {
+  const pulseAnim = useRef(new Animated.Value(0.45)).current;
   const theme = useTheme();
 
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 0.8,
-          duration: 1200,
+          toValue: 0.78,
+          duration: 900,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
-          toValue: 0.5,
-          duration: 1200,
+          toValue: 0.45,
+          duration: 900,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     pulse.start();
     return () => pulse.stop();
@@ -50,107 +48,86 @@ const SkeletonElement: React.FC<{
   );
 };
 
-// Skeleton para el header de la publicación
-const PublicationHeaderSkeleton: React.FC = () => {
+const HeaderSkeleton: React.FC = () => {
   const theme = useTheme();
-  
   return (
-    <View style={[styles.headerCard, { backgroundColor: 'transparent', shadowColor: 'transparent' }]}>
-      {/* Autor info */}
-      <View style={styles.autorContainer}>
-        <SkeletonElement width={48} height={48} borderRadius={24} />
-        <View style={styles.autorInfo}>
-          <SkeletonElement width="70%" height={20} />
-          <SkeletonElement width="50%" height={14} style={{ marginTop: 4 }} />
+    <Card
+      style={[
+        styles.headerCard,
+        { backgroundColor: theme.colors.elevation.level1 },
+      ]}
+      elevation={2}
+    >
+      <Card.Content style={styles.headerContent}>
+        <View style={styles.authorRow}>
+          <SkeletonElement width={42} height={42} borderRadius={21} />
+          <View style={styles.authorText}>
+            <SkeletonElement width="72%" height={14} />
+            <SkeletonElement width="48%" height={10} style={{ marginTop: 6 }} />
+          </View>
         </View>
-      </View>
 
-      {/* Divider */}
-      <View style={[styles.divider, { backgroundColor: theme.colors.surfaceVariant }]} />
+        <SkeletonElement
+          height={1}
+          borderRadius={1}
+          style={{ opacity: 0.45, marginVertical: 2 }}
+        />
 
-      {/* Título y descripción */}
-      <SkeletonElement height={28} borderRadius={6} />
-      <SkeletonElement height={18} style={{ marginTop: 12 }} />
-      <SkeletonElement width="90%" height={18} style={{ marginTop: 4 }} />
-      <SkeletonElement width="80%" height={18} style={{ marginTop: 4 }} />
+        <SkeletonElement width="84%" height={22} borderRadius={7} />
+        <SkeletonElement width="95%" height={15} style={{ marginTop: 8 }} />
+        <SkeletonElement width="88%" height={15} style={{ marginTop: 4 }} />
 
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <SkeletonElement width={32} height={32} borderRadius={16} />
+        <View style={styles.statsRow}>
+          <SkeletonElement width={110} height={30} borderRadius={15} />
+          <View style={styles.statsRight}>
+            <SkeletonElement width={34} height={12} borderRadius={6} />
+            <SkeletonElement width={34} height={12} borderRadius={6} />
+            <SkeletonElement width={34} height={12} borderRadius={6} />
+          </View>
         </View>
-        <View style={styles.statItem}>
-          <SkeletonElement width={32} height={32} borderRadius={16} />
-        </View>
-        <View style={styles.statItem}>
-          <SkeletonElement width={32} height={32} borderRadius={16} />
-        </View>
-      </View>
-    </View>
+      </Card.Content>
+    </Card>
   );
 };
 
-// Skeleton para archivos individuales
-const FileCardSkeleton: React.FC = () => {
+const FileRowSkeleton: React.FC = () => {
   const theme = useTheme();
-  const cardWidth = (width - 64) / 2; // 2 columnas con padding
-
   return (
-    <View style={[styles.fileCard, { width: cardWidth }]}>
-      {/* Preview del archivo */}
-      <View style={styles.filePreview}>
-        <SkeletonElement width={cardWidth - 24} height={cardWidth - 24} borderRadius={8} />
-        
-      </View>
-
-      {/* Información del archivo */}
-      <View style={styles.fileInfo}>
-        <View style={styles.fileIconRow}>
-          <SkeletonElement width={16} height={16} borderRadius={8} />
-          <SkeletonElement width="70%" height={14} style={{ marginLeft: 6 }} />
+    <Card
+      style={[
+        styles.fileCard,
+        { backgroundColor: theme.colors.elevation.level1 },
+      ]}
+      elevation={2}
+    >
+      <View style={styles.fileRow}>
+        <SkeletonElement width={48} height={48} borderRadius={12} />
+        <View style={styles.fileMeta}>
+          <SkeletonElement width="82%" height={14} />
+          <SkeletonElement width="30%" height={11} style={{ marginTop: 5 }} />
         </View>
+        <SkeletonElement width={20} height={20} borderRadius={10} />
       </View>
-    </View>
+    </Card>
   );
 };
 
-// Skeleton para la sección de archivos
-const FilesSectionSkeleton: React.FC = () => {
-  const theme = useTheme();
-
-  return (
-    <View style={styles.filesSection}>
-      {/* Header de archivos */}
-      <View style={styles.filesHeader}>
-        <SkeletonElement width="40%" height={30} borderRadius={12} style={{marginLeft: '3%'}}/>
-        <SkeletonElement width={120} height={30} borderRadius={6} style={{marginRight: '3%'}} />
-      </View>
-
-      {/* Grid de archivos */}
-      <View style={styles.filesGrid}>
-        {[1, 2, 3, 4, 5, 6].map((item) => (
-          <FileCardSkeleton key={item} />
-        ))}
-      </View>
-    </View>
-  );
-};
-
-// Componente principal mejorado
 export const PublicationDetailSkeleton: React.FC = () => {
-  const theme = useTheme();
-
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    <ScrollView
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      <PublicationHeaderSkeleton />
-      <FilesSectionSkeleton />
-      
-      {/* Espacio adicional al final */}
-      <View style={styles.bottomSpace} />
+      <HeaderSkeleton />
+
+      <View style={styles.filesContainer}>
+        <FileRowSkeleton />
+        <FileRowSkeleton />
+        <FileRowSkeleton />
+      </View>
+
+      <View style={{ height: 28 }} />
     </ScrollView>
   );
 };
@@ -160,85 +137,56 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    flexGrow: 1,
-    padding: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
   headerCard: {
+    marginHorizontal: "4%",
+    marginBottom: 8,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    elevation: 2,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
-  autorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+  headerContent: {
+    paddingHorizontal: 18,
+    paddingVertical: 16,
   },
-  autorInfo: {
+  authorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  authorText: {
     flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center',
+    minWidth: 0,
   },
-  divider: {
-    height: 1,
-    marginVertical: 16,
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    marginTop: 16,
+  statsRight: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
-  statItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filesSection: {
-    marginTop: 2,
-  },
-  filesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  filesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+  filesContainer: {
+    marginHorizontal: H_MARGIN,
+    gap: 8,
   },
   fileCard: {
-    marginBottom: 16,
-  },
-  filePreview: {
-    position: 'relative',
-    alignItems: 'center',
-  },
-  downloadButtonSkeleton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
-    padding: 4,
+    overflow: "hidden",
   },
-  fileInfo: {
-    marginTop: 8,
+  fileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 10,
   },
-  fileIconRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addFileButtonSpace: {
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  bottomSpace: {
-    height: 40,
+  fileMeta: {
+    flex: 1,
+    minWidth: 0,
   },
 });
+

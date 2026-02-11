@@ -8,6 +8,7 @@ interface ImageUploaderProps {
   onImageSelected?: (localUri: string) => void;
   onImageRemoved?: () => void;
   uploading?: boolean;
+  hideImagePreview?: boolean;
 }
 
 const CARD_ASPECT_RATIO: [number, number] = [21, 9];
@@ -19,6 +20,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   onImageSelected,
   onImageRemoved,
   uploading = false,
+  hideImagePreview = false,
 }) => {
   const [imageUri, setImageUri] = useState<string | null>(currentImageUrl || null);
   const theme = useTheme();
@@ -100,52 +102,50 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         Imagen de la materia
       </Text>
 
-      {imageUri ? (
-        <View style={styles.imageContainer}>
-          <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
-
-          <View style={styles.overlay}>
-            <View style={styles.overlayButtons}>
-              <Button
-                mode="contained"
-                onPress={pickImage}
-                style={styles.button}
-                compact
-                icon="camera"
-                disabled={uploading}
-              >
-                Cambiar
-              </Button>
-              <Button
-                mode="outlined"
-                onPress={handleRemove}
-                style={[styles.button, { backgroundColor: "rgba(255,255,255,0.95)" }]}
-                compact
-                icon="delete"
-                disabled={uploading}
-                textColor="#B00020"
-              >
-                Eliminar
-              </Button>
-            </View>
-
+      {imageUri && !hideImagePreview ? (
+        <>
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
             {!isRemote && !uploading && (
-              <View style={{ marginTop: 8 }}>
-                <Text variant="bodySmall" style={{ color: "white" }}>
-                  Imagen seleccionada (recortada al formato 21:9)
+              <View style={styles.hintOverlay}>
+                <Text variant="bodySmall" style={styles.hintOverlayText}>
+                  Recorte 21:9 aplicado
                 </Text>
               </View>
             )}
-          </View>
 
-          {uploading && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.loadingText}>Subiendo imagen...</Text>
-            </View>
-          )}
-        </View>
-      ) : (
+            {uploading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>Subiendo imagen...</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.actionsRow}>
+            <Button
+              mode="contained-tonal"
+              onPress={pickImage}
+              style={styles.actionButton}
+              compact
+              icon="camera"
+              disabled={uploading}
+            >
+              Cambiar foto
+            </Button>
+            <Button
+              mode="text"
+              onPress={handleRemove}
+              style={styles.actionButton}
+              compact
+              icon="trash-can-outline"
+              disabled={uploading}
+              textColor={theme.colors.error}
+            >
+              Quitar foto
+            </Button>
+          </View>
+        </>
+      ) : !imageUri ? (
         <View style={styles.emptyContainer}>
           <Button
             mode="outlined"
@@ -161,7 +161,33 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             Formato recortado 21:9, tamano maximo 5MB.
           </Text>
         </View>
-      )}
+      ) : null}
+
+      {hideImagePreview && imageUri ? (
+        <View style={styles.actionsRow}>
+          <Button
+            mode="contained-tonal"
+            onPress={pickImage}
+            style={styles.actionButton}
+            compact
+            icon="camera"
+            disabled={uploading}
+          >
+            Cambiar foto
+          </Button>
+          <Button
+            mode="text"
+            onPress={handleRemove}
+            style={styles.actionButton}
+            compact
+            icon="trash-can-outline"
+            disabled={uploading}
+            textColor={theme.colors.error}
+          >
+            Quitar foto
+          </Button>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -181,18 +207,28 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   image: { width: "100%", aspectRatio: CARD_ASPECT },
-  overlay: {
+  hintOverlay: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
+    left: 10,
+    bottom: 10,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  overlayButtons: { flexDirection: "row", gap: 8 },
-  button: { marginHorizontal: 4 },
+  hintOverlayText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+  actionButton: {
+    borderRadius: 10,
+  },
   emptyContainer: { alignItems: "flex-start" },
   uploadButton: { marginBottom: 8 },
   hint: { fontStyle: "italic", fontSize: 12 },

@@ -112,7 +112,7 @@ export const getStyles = (theme: MD3Theme) =>
       textAlign: "center",
       marginTop: 32,
     },
-    // Estilos para FiltroFlotante
+    
     filtroContainer: {
       position: 'relative',
       marginLeft: 2,

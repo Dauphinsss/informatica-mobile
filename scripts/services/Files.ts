@@ -305,7 +305,7 @@ export const eliminarArchivo = async (archivoId: string): Promise<void> => {
     } else {
     }
 
-    // 3. Marcar como inactivo en Firestore
+    
     await updateDoc(doc(db, "archivos", archivoId), {
       activo: false
     });

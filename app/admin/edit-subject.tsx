@@ -286,11 +286,12 @@ export default function EditSubjectScreen() {
             onImageSelected={handleImageSelected}
             onImageRemoved={handleImageRemoved}
             uploading={uploadingImage}
+            hideImagePreview
           />
 
           <View style={styles.previewSection}>
             <Text variant="labelLarge" style={styles.previewLabel}>
-              Previsualizacion en Home
+              Previsualizacion
             </Text>
             <SubjectHomePreviewCard
               nombre={formData.nombre}

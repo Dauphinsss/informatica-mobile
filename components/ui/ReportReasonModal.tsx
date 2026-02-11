@@ -4,12 +4,12 @@ import { Button, Chip, IconButton, Modal, Portal, Text, TextInput, useTheme } fr
 
 type Props = {
   visible: boolean;
-  // onDismiss: called when modal is dismissed. If saved===true, motivo contains the saved reason (backdrop press).
-  // If saved===false, the caller should treat it as cancel/reset.
+  
+  
   onDismiss: (saved: boolean, motivo?: string) => void;
   onConfirm: (motivo: string) => Promise<void> | void;
   initialSelection?: string;
-  motives?: string[]; // list of preset motives to show (defaults to built-in MOTIVOS)
+  motives?: string[]; 
   title?: string;
   confirmLabel?: string;
   cancelLabel?: string;

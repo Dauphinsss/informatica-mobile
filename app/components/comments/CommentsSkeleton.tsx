@@ -1,4 +1,4 @@
-// src/components/skeletons/CommentsModalSkeleton.tsx
+
 import React, { useEffect, useRef } from 'react';
 import {
     Animated,
@@ -12,7 +12,7 @@ import { useTheme } from 'react-native-paper';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MODAL_HEIGHT = SCREEN_HEIGHT * 0.6;
 
-// Skeleton element con animación mejorada
+
 const SkeletonElement: React.FC<{
   width?: number | string;
   height?: number;
@@ -57,7 +57,7 @@ const SkeletonElement: React.FC<{
   );
 };
 
-// Skeleton para un comentario individual
+
 const CommentSkeletonItem: React.FC<{ hasReply?: boolean }> = ({ hasReply = false }) => {
   const theme = useTheme();
   
@@ -127,7 +127,7 @@ const CommentSkeletonItem: React.FC<{ hasReply?: boolean }> = ({ hasReply = fals
   );
 };
 
-// Componente principal del skeleton del modal de comentarios
+
 export const CommentsModalSkeleton: React.FC = () => {
   const theme = useTheme();
 
@@ -199,37 +199,37 @@ export const CommentsModalSkeleton: React.FC = () => {
       <View style={styles.overlay} />
       
       <View style={styles.modalContainer}>
-        {/* Handle */}
+        {}
         <View style={[styles.handle, { backgroundColor: theme.colors.surfaceVariant }]} />
         
-        {/* Header */}
+        {}
         <View style={styles.header}>
           <SkeletonElement width="40%" height={24} borderRadius={6} />
         </View>
 
-        {/* Contenido - Lista de comentarios */}
+        {}
         <View style={styles.content}>
           <ScrollView 
             style={styles.commentsList}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingVertical: 16 }}
           >
-            {/* Comentarios principales */}
+            {}
             <CommentSkeletonItem />
             <CommentSkeletonItem />
             
-            {/* Comentario con respuesta */}
+            {}
             <CommentSkeletonItem />
             <CommentSkeletonItem hasReply={true} />
             <CommentSkeletonItem hasReply={true} />
             
-            {/* Más comentarios */}
+            {}
             <CommentSkeletonItem />
             <CommentSkeletonItem />
           </ScrollView>
         </View>
 
-        {/* Input para comentar */}
+        {}
         <View style={styles.inputContainer}>
           <View style={styles.inputRow}>
             <SkeletonElement width={36} height={36} borderRadius={18} />

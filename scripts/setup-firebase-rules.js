@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// Verificar si Firebase CLI está instalado
+
 function checkFirebaseCLI() {
   try {
     execSync('firebase --version', { stdio: 'pipe' });
@@ -14,7 +14,7 @@ function checkFirebaseCLI() {
   }
 }
 
-// Instalar Firebase CLI si no está presente
+
 function installFirebaseCLI() {
   console.log('Instalando Firebase CLI...');
   try {
@@ -27,7 +27,7 @@ function installFirebaseCLI() {
   }
 }
 
-// Configurar proyecto Firebase
+
 function setupFirebaseProject() {
   const firebaserc = {
     projects: {
@@ -39,7 +39,7 @@ function setupFirebaseProject() {
   console.log('Archivo .firebaserc creado');
 }
 
-// Crear firebase.json
+
 function createFirebaseConfig() {
   const firebaseConfig = {
     firestore: {
@@ -51,11 +51,11 @@ function createFirebaseConfig() {
   console.log('Archivo firebase.json creado');
 }
 
-// Función principal
+
 async function deployRules() {
   console.log('Configurando reglas de Firestore...\n');
   
-  // Verificar Firebase CLI
+  
   if (!checkFirebaseCLI()) {
     console.log('Firebase CLI no encontrado');
     if (!installFirebaseCLI()) {
@@ -67,7 +67,7 @@ async function deployRules() {
     console.log('Firebase CLI encontrado');
   }
   
-  // Configurar archivos de proyecto
+  
   setupFirebaseProject();
   createFirebaseConfig();
   

@@ -219,7 +219,7 @@ export default function ReportsScreen() {
     setReporteSeleccionado(reporte);
     setModalVisible(true);
     setComentariosDesplegados(false);
-    setComentarios([]); // Limpiar comentarios anteriores
+    setComentarios([]); 
 
     setCargandoArchivos(true);
     try {
@@ -787,7 +787,6 @@ export default function ReportsScreen() {
         )}
       </ScrollView>
 
-      {/* Modal de Detalles */}
       <Portal>
         <Modal
           visible={modalVisible}
@@ -828,7 +827,6 @@ export default function ReportsScreen() {
                   </Text>
                   <Divider style={styles.divider} />
 
-                  {/* Publicación */}
                   <Card style={styles.modalCard}>
                     <Card.Content>
                       <Text
@@ -846,7 +844,6 @@ export default function ReportsScreen() {
                     </Card.Content>
                   </Card>
 
-                  {/* Archivos Adjuntos */}
                   <Card style={styles.modalCard}>
                     <Card.Content>
                       <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -939,7 +936,6 @@ export default function ReportsScreen() {
                     </Card.Content>
                   </Card>
 
-                  {/* Decisión Tomada */}
                   {reporteSeleccionado.estado === "completado" && (
                     <Card style={styles.modalCard}>
                       <Card.Content>
@@ -961,7 +957,6 @@ export default function ReportsScreen() {
                     </Card>
                   )}
 
-                  {/* Información de la denuncia */}
                   <Card style={styles.modalCard}>
                     <Card.Content>
                       <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -1000,7 +995,6 @@ export default function ReportsScreen() {
                     />
                   </Card>
 
-                  {/* Denunciantes */}
                   <Card style={styles.modalCard}>
                     <Card.Content>
                       <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -1043,7 +1037,6 @@ export default function ReportsScreen() {
                     )}
                   </Card>
 
-                  {/* Administración */}
                   {reporteSeleccionado.estado !== "completado" && (
                     <View style={styles.accionesContainer}>
                       <Text variant="titleMedium" style={styles.sectionTitle}>

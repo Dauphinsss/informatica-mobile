@@ -8,19 +8,13 @@ interface SharePublicationParams {
   materiaNombre?: string;
 }
 
-/**
- * Obtiene el enlace profundo (deep link) para una publicación
- * Usa HTTPS (App Links) para que funcione al compartir (WhatsApp/Chrome).
- */
+
 export const obtenerDeepLinkPublicacion = async (publicacionId: string): Promise<string> => {
-  // App Links (Android): abre la app si está instalada y el dominio está verificado.
-  // Fallback: si no está instalada, abre la web.
+  
+  
   return `https://informatica.art/publicacion/${publicacionId}`;
 };
 
-/**
- * Crea el mensaje amigable para compartir con estudiantes
- */
 const crearMensajeCompartir = (
   params: SharePublicationParams,
   deepLink: string
@@ -49,11 +43,6 @@ const crearMensajeCompartir = (
   return lines.join("\n\n");
 };
 
-/**
- * Función principal para compartir publicaciones
- * Usa TinyURL para acortar el link y que sea clickeable en WhatsApp
- * Sin dependencias externas, sin servidores propios
- */
 export const compartirPublicacionMejorado = async (
   params: SharePublicationParams
 ): Promise<void> => {
@@ -61,7 +50,6 @@ export const compartirPublicacionMejorado = async (
     const deepLink = await obtenerDeepLinkPublicacion(params.publicacionId);
     const mensaje = crearMensajeCompartir(params, deepLink);
 
-    // Abrir el diálogo nativo de compartir
     const result = await Share.share({
       message: mensaje,
       title: params.titulo,

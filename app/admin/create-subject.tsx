@@ -20,6 +20,7 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
+import ImageUploader from "./components/ImageUploader";
 import { auth, db, storage } from "../../firebase";
 import { AdminStackParamList } from "./_types";
 import SubjectHomePreviewCard from "./components/SubjectHomePreviewCard";
@@ -27,7 +28,6 @@ import {
   normalizeText,
   validateSubjectFields,
 } from "./_utils/subjectValidations";
-import ImageUploader from "./components/ImageUploader";
 
 type CreateSubjectNavigationProp = StackNavigationProp<
   AdminStackParamList,
@@ -144,7 +144,6 @@ export default function CreateSubjectScreen() {
 
       const docRef = await addDoc(collection(db, "materias"), newSubject);
 
-      // Notificación
       try {
         const { notificarCreacionMateria } = await import(
           "@/services/notifications"
@@ -292,11 +291,12 @@ export default function CreateSubjectScreen() {
             onImageSelected={handleImageSelected}
             onImageRemoved={handleImageRemoved}
             uploading={uploadingImage}
+            hideImagePreview
           />
 
           <View style={styles.previewSection}>
             <Text variant="labelLarge" style={styles.previewLabel}>
-              Previsualizacion en Home
+              Previsualizacion
             </Text>
             <SubjectHomePreviewCard
               nombre={formData.nombre}

@@ -41,16 +41,16 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
   const [uploadingImage, setUploadingImage] = React.useState(false);
   const scrollViewRef = React.useRef<ScrollView>(null);
 
-  // Cerrar teclado cuando se abre el modal
+  
   React.useEffect(() => {
     if (visible) {
       Keyboard.dismiss();
     }
   }, [visible]);
 
-  // ... (rest of your functions remain the same)
+  
 
-  // Función para hacer scroll cuando un input se enfoca
+  
   const handleInputFocus = (yOffset: number) => {
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: yOffset, animated: true });

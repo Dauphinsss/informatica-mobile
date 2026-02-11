@@ -55,16 +55,16 @@ interface Subject {
   estado: "active" | "inactive";
 }
 
-// Colores para las tarjetas estilo Classroom
+
 const SUBJECT_COLORS = [
-  { bg: "#1976d2", accent: "#0d47a1" }, // Azul
-  { bg: "#388e3c", accent: "#1b5e20" }, // Verde
-  { bg: "#f57c00", accent: "#ef6c00" }, // Naranja
-  { bg: "#7b1fa2", accent: "#4a148c" }, // Morado
-  { bg: "#d32f2f", accent: "#b71c1c" }, // Rojo
-  { bg: "#303f9f", accent: "#1a237e" }, // Azul índigo
-  { bg: "#0097a7", accent: "#006064" }, // Cian
-  { bg: "#689f38", accent: "#33691e" }, // Verde lima
+  { bg: "#1976d2", accent: "#0d47a1" }, 
+  { bg: "#388e3c", accent: "#1b5e20" }, 
+  { bg: "#f57c00", accent: "#ef6c00" }, 
+  { bg: "#7b1fa2", accent: "#4a148c" }, 
+  { bg: "#d32f2f", accent: "#b71c1c" }, 
+  { bg: "#303f9f", accent: "#1a237e" }, 
+  { bg: "#0097a7", accent: "#006064" }, 
+  { bg: "#689f38", accent: "#33691e" }, 
 ];
 
 type SortMode = "semestre" | "nombre";
@@ -73,7 +73,7 @@ type SortDir = "asc" | "desc";
 const SORT_STORAGE_KEY = "@home_sort_mode";
 const SORT_DIR_KEY = "@home_sort_dir";
 
-// Componente para animar la entrada de cada card
+
 function AnimatedCard({
   children,
   index,
@@ -160,7 +160,6 @@ export default function HomeScreen() {
     return labels[n] || `${n}º Semestre`;
   };
 
-  // Cargar datos del cache al instante
   useEffect(() => {
     (async () => {
       try {
@@ -193,7 +192,6 @@ export default function HomeScreen() {
     })();
   }, []);
 
-  // Cargar preferencias de ordenamiento al montar
   useEffect(() => {
     const loadSortPreferences = async () => {
       try {
@@ -210,7 +208,6 @@ export default function HomeScreen() {
     loadSortPreferences();
   }, []);
 
-  // Ciclar modo de ordenamiento: semestre↑ → semestre↓ → nombre↑ → nombre↓
   const cycleSortMode = useCallback(async () => {
     let newMode = sortMode;
     let newDir = sortDir;
@@ -239,11 +236,9 @@ export default function HomeScreen() {
     }
   }, [sortMode, sortDir]);
 
-  // Pull to refresh — fuerza re-suscripción de todos los listeners
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setRefreshKey((k) => k + 1);
-    // Pequeño delay para feedback visual
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setRefreshing(false);
   }, []);
@@ -260,7 +255,6 @@ export default function HomeScreen() {
     return allSubjects.filter((subject) => validIds.has(subject.id));
   }, [allSubjects, enrolledSubjectIds]);
 
-  // Materias ordenadas
   const enrolledSubjects = useMemo(() => {
     const subjects = [...enrolledSubjectsRaw];
     const dir = sortDir === "asc" ? 1 : -1;
@@ -270,7 +264,6 @@ export default function HomeScreen() {
         (a, b) => dir * (a.nombre || "").localeCompare(b.nombre || ""),
       );
     }
-    // semestre (default)
     return subjects.sort((a, b) => {
       const sa = Number(a.semestre ?? 0);
       const sb = Number(b.semestre ?? 0);
@@ -383,7 +376,6 @@ export default function HomeScreen() {
     const publicacionesRef = collection(db, "publicaciones");
     const unsubscribes: (() => void)[] = [];
 
-    // Crear un listener para cada materia inscrita
     uniqueSubjectIds.forEach((subjectId) => {
       const publicacionesQuery = query(
         publicacionesRef,
@@ -411,7 +403,6 @@ export default function HomeScreen() {
       unsubscribes.push(unsubscribe);
     });
 
-    // Cleanup: desuscribir todos los listeners
     return () => {
       unsubscribes.forEach((unsub) => unsub());
     };
@@ -524,7 +515,6 @@ export default function HomeScreen() {
         }
         ListHeaderComponent={
           <>
-            {/* Header con saludo y estadísticas */}
             <Surface style={styles.headerCard}>
               <View style={styles.headerContent}>
                 <Text variant="headlineSmall">
@@ -726,7 +716,6 @@ export default function HomeScreen() {
         }
       />
 
-      {/* Botón Flotante para ver todas las materias */}
       <FAB
         icon="tune"
         style={styles.fab}
@@ -734,7 +723,6 @@ export default function HomeScreen() {
         label="Materias"
       />
 
-      {/* Modal de todas las materias */}
       <SubjectsModal
         visible={modalVisible}
         onDismiss={handleCloseModal}
@@ -744,7 +732,6 @@ export default function HomeScreen() {
         newSubjectsNotifIds={newSubjectsNotifIds}
       />
 
-      {/* Modal de perfil de usuario */}
       <UserProfileModal
         visible={userMenuVisible}
         onDismiss={() => setUserMenuVisible(false)}
@@ -782,16 +769,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     aspectRatio: 21 / 9,
   },
-  /* background color block when no image */
   cardHeaderColor: {
     ...StyleSheet.absoluteFillObject,
   },
-  /* image that fills header (covers the same area as the color block) */
   cardHeaderImage: {
     ...StyleSheet.absoluteFillObject,
     resizeMode: "cover",
   },
-  /* dark overlay on top of image for contrast */
   cardHeaderImageOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.35)",

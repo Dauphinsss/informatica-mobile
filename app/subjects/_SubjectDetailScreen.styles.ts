@@ -62,9 +62,10 @@ export const getStyles = (theme: MD3Theme) =>
     statsRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
+      gap: 10,
       flexShrink: 1,
-      flexWrap: "wrap",
+      flexWrap: "nowrap",
+      minWidth: 0,
     },
     statsRowWithDate: {
       flexDirection: "row",
@@ -76,6 +77,7 @@ export const getStyles = (theme: MD3Theme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 3,
+      flexShrink: 0,
     },
     fileTypesRow: {
       flexDirection: "row",

@@ -1,8 +1,7 @@
-// src/components/NotificationItemSkeleton.tsx
+
 import { useTheme } from "@/contexts/ThemeContext";
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
-import { Divider } from "react-native-paper";
 
 export default function NotificationItemSkeleton() {
   const { theme } = useTheme();
@@ -31,9 +30,9 @@ export default function NotificationItemSkeleton() {
   });
 
   return (
-    <View>
+    <View style={[styles.notifCard, { backgroundColor: theme.colors.elevation.level1 }]}>
       <View style={styles.notifItem}>
-        {/* Icono */}
+        {}
         <Animated.View
           style={[
             styles.icon,
@@ -41,7 +40,7 @@ export default function NotificationItemSkeleton() {
           ]}
         />
 
-        {/* Contenido */}
+        {}
         <View style={styles.notifContent}>
           <View style={styles.notifHeader}>
             <Animated.View
@@ -103,7 +102,7 @@ export function NotificationSectionSkeleton() {
 
   return (
     <View style={styles.section}>
-      {/* Header de sección */}
+      {}
       <View style={styles.sectionHeader}>
         <Animated.View
           style={[
@@ -113,7 +112,7 @@ export function NotificationSectionSkeleton() {
         />
       </View>
 
-      {/* Items de notificación */}
+      {}
       <NotificationItemSkeleton />
       <NotificationItemSkeleton />
       <NotificationItemSkeleton />
@@ -124,12 +123,12 @@ export function NotificationSectionSkeleton() {
 const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
+    paddingHorizontal: 16,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
     marginBottom: 8,
   },
   sectionTitle: {
@@ -137,11 +136,16 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
   },
+  notifCard: {
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
   notifItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     gap: 12,
   },
   icon: {

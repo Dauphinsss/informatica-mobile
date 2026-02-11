@@ -214,7 +214,7 @@ export const getStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
       fontStyle: "italic",
     },
-    // Nuevos estilos para comentarios expandidos sin límite
+    
     comentariosLoading: {
       justifyContent: "center",
       alignItems: "center",
@@ -236,7 +236,7 @@ export const getStyles = (theme: MD3Theme) =>
       textAlign: "center",
     },
     comentariosExpanded: {
-      // Sin altura fija - ocupa el espacio necesario
+      
       marginTop: 8,
     },
     comentarioItem: {

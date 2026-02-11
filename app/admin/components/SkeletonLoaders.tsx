@@ -274,34 +274,47 @@ export function ActivityListSkeleton({ count = 5, fullWidth = false }: { count?:
   });
 
   return (
-    <View style={[activityStyles.container, { paddingHorizontal: fullWidth ? 0 : 12 }]}>
+    <View style={[activityStyles.container, { paddingHorizontal: fullWidth ? 0 : 4 }]}>
       {Array.from({ length: count }).map((_, index) => (
-        <View key={index} style={[activityStyles.item, { paddingHorizontal: fullWidth ? 0 : 8 }]}>
-          <Animated.View
-            style={[
-              activityStyles.iconSquarePlaceholder,
-              { backgroundColor: theme.colors.surfaceVariant, opacity },
-            ]}
-          />
-          <View style={activityStyles.content}>
+        <View
+          key={index}
+          style={[
+            activityStyles.card,
+            {
+              backgroundColor: theme.colors.elevation.level1,
+              paddingHorizontal: fullWidth ? 12 : 12,
+            },
+          ]}
+        >
+          <View style={activityStyles.item}>
             <Animated.View
               style={[
-                activityStyles.titlePlaceholder,
+                activityStyles.iconCirclePlaceholder,
                 { backgroundColor: theme.colors.surfaceVariant, opacity },
               ]}
             />
-            <Animated.View
-              style={[
-                activityStyles.subtitlePlaceholder,
-                { backgroundColor: theme.colors.surfaceVariant, opacity },
-              ]}
-            />
-            <Animated.View
-              style={[
-                activityStyles.timePlaceholder,
-                { backgroundColor: theme.colors.surfaceVariant, opacity },
-              ]}
-            />
+            <View style={activityStyles.content}>
+              <View style={activityStyles.topRow}>
+                <Animated.View
+                  style={[
+                    activityStyles.titlePlaceholder,
+                    { backgroundColor: theme.colors.surfaceVariant, opacity },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    activityStyles.timePlaceholder,
+                    { backgroundColor: theme.colors.surfaceVariant, opacity },
+                  ]}
+                />
+              </View>
+              <Animated.View
+                style={[
+                  activityStyles.subtitlePlaceholder,
+                  { backgroundColor: theme.colors.surfaceVariant, opacity },
+                ]}
+              />
+            </View>
           </View>
         </View>
       ))}
@@ -311,39 +324,46 @@ export function ActivityListSkeleton({ count = 5, fullWidth = false }: { count?:
 
 const activityStyles = StyleSheet.create({
   container: {
+    gap: 8,
+  },
+  card: {
     borderRadius: 12,
-    overflow: 'hidden',
-    paddingHorizontal: 12,
+    overflow: "hidden",
+    paddingVertical: 10,
   },
   item: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 16,
-    paddingHorizontal: 8,
+    alignItems: "center",
     gap: 12,
   },
-  iconSquarePlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  iconCirclePlaceholder: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   content: {
     flex: 1,
+    gap: 6,
+    minWidth: 0,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   titlePlaceholder: {
-    width: "100%",
-    height: 16,
-    borderRadius: 4,
-  },
-  subtitlePlaceholder: {
-    width: "85%",
+    flex: 1,
     height: 14,
     borderRadius: 4,
   },
+  subtitlePlaceholder: {
+    width: "82%",
+    height: 13,
+    borderRadius: 4,
+  },
   timePlaceholder: {
-    width: "65%",
-    height: 12,
+    width: 52,
+    height: 11,
     borderRadius: 4,
   },
 });

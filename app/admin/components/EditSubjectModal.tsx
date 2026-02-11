@@ -1,4 +1,4 @@
-// app/admin/components/EditSubjectModal.tsx
+
 import React from "react";
 import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import {
@@ -100,13 +100,11 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
       : String(semestre);
   };
 
-  // Función para normalizar opción a valor interno (string). "Electiva" => "10"
   const optionValue = (opt: SemestreOption) => {
     if (opt === "Electiva") return "10";
     return String(opt);
   };
 
-  // valor seleccionado actual normalizado
   const selectedValue = optionValue(formData.semestre);
 
   return (

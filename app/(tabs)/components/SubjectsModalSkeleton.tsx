@@ -32,7 +32,7 @@ export default function SubjectsModalSkeleton() {
     <View style={styles.container}>
       {[1, 2, 3, 4, 5, 6, 7, 8].map((groupIndex) => (
         <View key={groupIndex} style={styles.accordionGroup}>
-          {/* Header del acordeón */}
+          {}
           <View style={styles.accordionHeader}>
             <Animated.View
               style={[
@@ -54,7 +54,7 @@ export default function SubjectsModalSkeleton() {
             />
           </View>
 
-          {/* Items del acordeón (solo el primero expandido con más items) */}
+          {}
           {groupIndex === 1 && (
             <View style={styles.accordionContent}>
               {[1, 2, 3, 4, 5, 6].map((itemIndex) => (

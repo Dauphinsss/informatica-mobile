@@ -23,7 +23,7 @@ export const PublicationActions: React.FC<PublicationActionsProps> = ({
     container: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between", // Cambiado para separar los elementos
+      justifyContent: "space-between", 
       paddingHorizontal: 16,
       paddingVertical: 8,
     },
@@ -32,7 +32,7 @@ export const PublicationActions: React.FC<PublicationActionsProps> = ({
       alignItems: "center",
     },
     actionButton: {
-      marginHorizontal: 0, // Eliminamos el margen horizontal original
+      marginHorizontal: 0, 
     },
     likesContainer: {
       flexDirection: "row",

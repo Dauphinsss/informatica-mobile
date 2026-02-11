@@ -1,6 +1,7 @@
 import { AdminBadge } from "@/components/ui/AdminBadge";
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   eliminarArchivo,
   guardarEnlaceExterno,
@@ -55,6 +56,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Platform,
+  Pressable,
   ScrollView,
   View,
 } from "react-native";
@@ -249,7 +251,7 @@ export default function PublicationDetailScreen() {
       data[k] = increment(v);
     });
 
-    // opcional: escribir uid/usuarioUid en caso de que el doc no exista aún
+    
     data.uid = usuarioUid;
     data.usuarioUid = usuarioUid;
 
@@ -368,7 +370,6 @@ export default function PublicationDetailScreen() {
   const cargarPublicacion = useCallback(async () => {
     setCargando(true);
     try {
-      // Intentar cargar del cache primero
       const cachedPub = await getCache<any>(
         CACHE_KEYS.publicationDetail(publicacionId),
       );
@@ -392,11 +393,9 @@ export default function PublicationDetailScreen() {
         );
       }
 
-      // Luego cargar datos frescos de la red
       const pub = await obtenerPublicacionPorId(publicacionId);
       if (pub) {
         setPublicacion(pub);
-        // Cachear publicación
         setCache(CACHE_KEYS.publicationDetail(publicacionId), {
           ...pub,
           fechaPublicacion: pub.fechaPublicacion.toISOString(),
@@ -405,7 +404,6 @@ export default function PublicationDetailScreen() {
         await incrementarVistas(publicacionId);
         const archivosData = await obtenerArchivosConTipo(publicacionId);
         setArchivos(archivosData);
-        // Cachear archivos
         setCache(
           CACHE_KEYS.publicationFiles(publicacionId),
           archivosData.map((a) => ({
@@ -626,6 +624,12 @@ export default function PublicationDetailScreen() {
     return archivo.tipoNombre.toLowerCase().includes("pdf");
   };
 
+  const getOpeningLabel = (archivo: ArchivoPublicacion): string => {
+    if (archivo.esEnlaceExterno) return "Abriendo enlace...";
+    if (esPdf(archivo)) return "Abriendo PDF...";
+    return "Abriendo archivo...";
+  };
+
   const setTempInlineFileStatus = (
     fileId: string,
     message: string,
@@ -653,19 +657,16 @@ export default function PublicationDetailScreen() {
       return;
     }
 
-    // PDFs: usar cache persistente, solo descargar la 1ra vez
     if (esPdf(archivo)) {
       setOpeningFileId(archivo.id);
       setOpeningProgress(0);
       try {
-        // Verificar si ya está en cache
         const cachedPath = await getPdfFromCache(
           archivo.webUrl,
           archivo.titulo,
         );
 
         if (cachedPath) {
-          // Ya está en cache: abrir instantáneo
           setOpeningProgress(1);
           const filePath = cachedPath.replace("file://", "");
           if (Platform.OS === "android") {
@@ -677,7 +678,7 @@ export default function PublicationDetailScreen() {
             await Linking.openURL(`file://${filePath}`);
           }
         } else {
-          // No está en cache: descargar y guardar
+          
           const downloadedPath = await downloadAndCachePdf(
             archivo.webUrl,
             archivo.titulo,
@@ -706,7 +707,6 @@ export default function PublicationDetailScreen() {
       return;
     }
 
-    // Documentos (Word/Excel/PPT/TXT/ZIP/RAR): abrir en el visor por defecto
     if (esDocumentoAbribleExterno(archivo)) {
       setOpeningFileId(archivo.id);
       setOpeningProgress(0);
@@ -1023,7 +1023,6 @@ export default function PublicationDetailScreen() {
 
       await eliminarPublicacionYArchivos(publicacionId);
 
-      // Registrar actividad si un admin borró publicación de otro usuario
       if (wasAdminDelete && usuario) {
         registrarActividadCliente(
           "publicacion_eliminada",
@@ -1064,42 +1063,30 @@ export default function PublicationDetailScreen() {
       return;
     }
 
-    let mensaje = `¿Deseas descargar "${archivo.titulo}"?`;
+    setDownloadingFileId(archivo.id);
+    setDownloadProgress(0);
 
-    showAlert("Descargar archivo", mensaje, "confirm", [
-      { text: "Cancelar", onPress: () => {}, mode: "text" },
-      {
-        text: "Descargar",
-        onPress: async () => {
-          setAlertVisible(false);
-          setDownloadingFileId(archivo.id);
-          setDownloadProgress(0);
-
-          const result = await downloadsService.descargarArchivo(
-            archivo,
-            (progress: any) => {
-              setDownloadProgress(Math.round(progress.progress * 100));
-            },
-          );
-
-          setDownloadingFileId(null);
-          setDownloadProgress(0);
-
-          if (result.success) {
-            if (result.requiresShare && result.shareUri) {
-              await downloadsService.compartirArchivo(result.shareUri);
-            }
-          } else {
-            showAlert(
-              "Error al descargar",
-              result.error || "No se pudo descargar el archivo",
-              "error",
-            );
-          }
-        },
-        mode: "contained",
+    const result = await downloadsService.descargarArchivo(
+      archivo,
+      (progress: any) => {
+        setDownloadProgress(Math.round(progress.progress * 100));
       },
-    ]);
+    );
+
+    setDownloadingFileId(null);
+    setDownloadProgress(0);
+
+    if (result.success) {
+      if (result.requiresShare && result.shareUri) {
+        await downloadsService.compartirArchivo(result.shareUri);
+      }
+    } else {
+      showAlert(
+        "Error al descargar",
+        result.error || "No se pudo descargar el archivo",
+        "error",
+      );
+    }
   };
 
   const descargarTodosLosArchivos = async () => {
@@ -1119,17 +1106,32 @@ export default function PublicationDetailScreen() {
       return;
     }
 
+    const totalBytes = archivosDescargables.reduce(
+      (sum, file) => sum + (file.tamanoBytes || 0),
+      0,
+    );
+    const formatBytes = (bytes: number): string => {
+      if (!bytes || bytes <= 0) return "No disponible";
+      const sizes = ["B", "KB", "MB", "GB"];
+      const index = Math.min(
+        Math.floor(Math.log(bytes) / Math.log(1024)),
+        sizes.length - 1,
+      );
+      const value = bytes / Math.pow(1024, index);
+      return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${sizes[index]}`;
+    };
+
     showAlert(
-      "Descargar Todos",
-      `¿Deseas descargar ${archivosDescargables.length} archivo(s)?`,
+      "Descargar todo",
+      `Se descargarán ${archivosDescargables.length} archivo(s).\nTamaño estimado: ${formatBytes(totalBytes)}.`,
       "confirm",
       [
         { text: "Cancelar", onPress: () => {}, mode: "text" },
         {
           text: "Descargar",
+          mode: "contained",
           onPress: async () => {
             setAlertVisible(false);
-            await new Promise((resolve) => setTimeout(resolve, 100));
             setDownloadingAll(true);
             setDownloadAllProgress({
               current: 0,
@@ -1158,9 +1160,9 @@ export default function PublicationDetailScreen() {
               let message = `Se descargaron ${result.downloadedCount} archivo(s) correctamente`;
 
               if (result.failedCount > 0) {
-                message += `\n\n ${
-                  result.failedCount
-                } fallaron:\n${result.errors.join("\n")}`;
+                message += `\n\n ${result.failedCount} fallaron:\n${result.errors.join(
+                  "\n",
+                )}`;
               }
 
               const buttons =
@@ -1175,9 +1177,7 @@ export default function PublicationDetailScreen() {
                         text: "Guardar documentos",
                         onPress: async () => {
                           for (const doc of result.pendingShare!) {
-                            await downloadsService.compartirArchivo(
-                              doc.shareUri,
-                            );
+                            await downloadsService.compartirArchivo(doc.shareUri);
                           }
                         },
                         mode: "contained" as const,
@@ -1205,7 +1205,6 @@ export default function PublicationDetailScreen() {
               );
             }
           },
-          mode: "contained",
         },
       ],
     );
@@ -1466,31 +1465,19 @@ export default function PublicationDetailScreen() {
 
         {publicacion && usuario && (canEdit || canDelete) && (
           <View style={{ flexDirection: "row" }}>
-            {canEdit &&
-              (!editMode ? (
-                <Appbar.Action
-                  icon="pencil"
-                  onPress={() => {
-                    setEditMode(true);
-                    setEditTitle(publicacion.titulo);
-                    setEditDescription(publicacion.descripcion || "");
-                  }}
-                  style={{ marginHorizontal: 4 }}
-                />
-              ) : (
-                <View style={{ flexDirection: "row" }}>
-                  <Appbar.Action
-                    icon="close"
-                    onPress={handleCancelEdit}
-                    style={{ marginHorizontal: 4 }}
-                  />
-                  <Appbar.Action
-                    icon="content-save"
-                    onPress={handleSaveEdits}
-                    style={{ marginHorizontal: 4 }}
-                  />
-                </View>
-              ))}
+            {canEdit && (
+              <Appbar.Action
+                icon="pencil"
+                onPress={() =>
+                  (navigation as any).navigate("CreatePublication", {
+                    materiaId: publicacion.materiaId,
+                    materiaNombre: displayedMateriaNombre,
+                    publicacionId: publicacion.id,
+                  })
+                }
+                style={{ marginHorizontal: 4 }}
+              />
+            )}
 
             {canDelete && (
               <Appbar.Action
@@ -1560,7 +1547,7 @@ export default function PublicationDetailScreen() {
                       />
                     </View>
                     <View style={styles.autorInfo}>
-                      <Text variant="bodyLarge" style={styles.autorNombre}>
+                      <Text variant="bodyMedium" style={styles.autorNombre}>
                         {publicacion.autorNombre}
                       </Text>
                       <Text variant="bodySmall" style={styles.fecha}>
@@ -1616,46 +1603,52 @@ export default function PublicationDetailScreen() {
                         style={styles.downloadChip}
                         textStyle={styles.downloadChipText}
                       >
-                        {downloadingAll
-                          ? "Descargando..."
-                          : downloadableFilesCount > 1
-                            ? "Descargar todo"
-                            : "Descargar"}
+                        Descargar
                       </Chip>
                     ) : (
                       <View />
                     )}
 
                     <View style={styles.statsContainer}>
-                      <Chip
-                        icon="eye"
-                        compact
-                        style={styles.statChip}
-                        textStyle={styles.statText}
-                      >
-                        {publicacion.vistas}
-                      </Chip>
+                      <View style={styles.statsInlineItem}>
+                        <MaterialCommunityIcons
+                          name="eye"
+                          size={16}
+                          color={theme.colors.primary}
+                        />
+                        <Text style={styles.statsInlineText}>{publicacion.vistas}</Text>
+                      </View>
 
-                      <Chip
-                        icon="comment"
-                        compact
-                        style={styles.statChip}
-                        textStyle={styles.statText}
+                      <Pressable
                         onPress={() => setCommentsModalVisible(true)}
+                        style={({ pressed }) => [
+                          styles.statsInlineItem,
+                          { opacity: pressed ? 0.7 : 1 },
+                        ]}
                       >
-                        {realTimeCommentCount}
-                      </Chip>
+                        <MaterialCommunityIcons
+                          name="comment"
+                          size={16}
+                          color={theme.colors.primary}
+                        />
+                        <Text style={styles.statsInlineText}>{realTimeCommentCount}</Text>
+                      </Pressable>
 
-                      <Chip
-                        icon={userLiked ? "heart" : "heart-outline"}
-                        compact
-                        style={styles.statChip}
-                        textStyle={styles.statText}
+                      <Pressable
                         onPress={toggleLike}
                         disabled={likeLoading}
+                        style={({ pressed }) => [
+                          styles.statsInlineItem,
+                          { opacity: likeLoading ? 0.5 : pressed ? 0.7 : 1 },
+                        ]}
                       >
-                        {likeCount}
-                      </Chip>
+                        <MaterialCommunityIcons
+                          name={userLiked ? "heart" : "heart-outline"}
+                          size={16}
+                          color={theme.colors.primary}
+                        />
+                        <Text style={styles.statsInlineText}>{likeCount}</Text>
+                      </Pressable>
                     </View>
                   </View>
                 </Card.Content>
@@ -1702,14 +1695,28 @@ export default function PublicationDetailScreen() {
                                   style={styles.archivoSubtitle}
                                   numberOfLines={1}
                                 >
-                                  {isOpening
-                                    ? "Abriendo PDF..."
+                                  {isDownloading
+                                    ? `Descargando... ${downloadProgress}%`
+                                    : isOpening
+                                    ? getOpeningLabel(archivo)
                                     : fileStatusText
                                       ? fileStatusText
                                     : archivo.esEnlaceExterno
                                     ? "Enlace"
                                     : archivo.tipoNombre || "Archivo"}
                                 </Text>
+                                {isDownloading && (
+                                  <ProgressBar
+                                    progress={
+                                      downloadProgress > 0
+                                        ? downloadProgress / 100
+                                        : undefined
+                                    }
+                                    indeterminate={downloadProgress <= 0}
+                                    color={theme.colors.primary}
+                                    style={styles.downloadingProgressBar}
+                                  />
+                                )}
                                 {isOpening && (
                                   <ProgressBar
                                     progress={openingProgress > 0 ? openingProgress : undefined}

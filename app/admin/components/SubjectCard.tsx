@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { Card, Text, useTheme } from "react-native-paper";
+import { Text } from "react-native-paper";
 import SubjectHomePreviewCard from "./SubjectHomePreviewCard";
 import { Subject } from "../_types";
 
@@ -22,8 +22,6 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   onEdit,
   isUpdating = false,
 }) => {
-  const theme = useTheme();
-
   const handlePress = () => {
     onEdit(subject);
   };
@@ -33,17 +31,6 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
     if (!isUpdating) {
       onToggleStatus(subject.id, subject.estado);
     }
-  };
-
-  const getSemestreText = (semestre: Subject["semestre"]) => {
-    if (semestre === 10 || String(semestre).toLowerCase() === "electiva") {
-      return "Electiva";
-    }
-    const n = Number(semestre);
-    if (!Number.isNaN(n) && n > 0) {
-      return `${n}º Semestre`;
-    }
-    return "Semestre por definir";
   };
 
   return (
@@ -73,25 +60,17 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
             </Text>
           </View>
         </TouchableOpacity>
+        <View style={styles.editHintOverlay}>
+          <Text style={styles.editHintText}>Toca para editar</Text>
+        </View>
       </View>
-
-      <Card style={[styles.metaCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Card.Content style={styles.metaContent}>
-          <Text variant="bodyMedium" style={styles.metaText} numberOfLines={1}>
-            {getSemestreText(subject.semestre)}
-          </Text>
-          <Text variant="labelSmall" style={styles.tapToEditText}>
-            Toca la tarjeta para editar
-          </Text>
-        </Card.Content>
-      </Card>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   previewContainer: {
-    marginBottom: 16,
+    marginBottom: 14,
     position: "relative",
   },
   statusToggleOverlay: {
@@ -99,6 +78,20 @@ const styles = StyleSheet.create({
     right: 12,
     bottom: 10,
     alignItems: "flex-end",
+  },
+  editHintOverlay: {
+    position: "absolute",
+    left: 12,
+    top: 10,
+    backgroundColor: "rgba(0,0,0,0)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  editHintText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   statusTogglePill: {
     borderRadius: 999,
@@ -112,24 +105,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: "#FFFFFF",
-  },
-  metaCard: {
-    marginTop: -8,
-    marginBottom: 16,
-    borderRadius: 12,
-  },
-  metaContent: {
-    paddingTop: 14,
-    paddingBottom: 12,
-  },
-  metaText: {
-    opacity: 0.7,
-    fontWeight: "600",
-  },
-  tapToEditText: {
-    marginTop: 8,
-    opacity: 0.7,
-    fontWeight: "600",
   },
 });
 
