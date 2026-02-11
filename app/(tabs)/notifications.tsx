@@ -595,7 +595,9 @@ export default function NotificationsScreen() {
                 textAlign: "center",
               }}
             >
-              ¿Estás seguro de que deseas eliminar "{notifToDelete?.titulo}"?
+              ¿Estás seguro de que deseas eliminar{" "}
+              {`"${notifToDelete?.titulo ?? ""}"`}
+              ?
             </Text>
           </Dialog.Content>
           <Dialog.Actions>

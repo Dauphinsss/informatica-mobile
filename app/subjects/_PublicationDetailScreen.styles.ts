@@ -1,10 +1,8 @@
-import { Dimensions, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { MD3Theme } from "react-native-paper";
 
-const { width } = Dimensions.get("window");
 const H_MARGIN = 16;
-const GAP = 12;
-const cardWidth = (width - (H_MARGIN * 2) - GAP) / 2;
+const THUMB = 56;
 
 export const getStyles = (theme: MD3Theme) =>
   StyleSheet.create({
@@ -86,24 +84,66 @@ export const getStyles = (theme: MD3Theme) =>
       marginBottom: 12,
     },
     archivosGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 12,
-      justifyContent: "flex-start",
+      flexDirection: "column",
+      gap: 10,
     },
     archivoCardWrapper: {
-      width: cardWidth,
-      minWidth: 140,
-      maxWidth: "48%",
+      width: "100%",
     },
     archivoCard: {
       width: "100%",
-      height: cardWidth * 0.75,
-      minHeight: 120,
       elevation: 2,
       borderRadius: 12,
       overflow: "hidden",
       position: "relative",
+    },
+    archivoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 12,
+      gap: 12,
+    },
+    archivoThumb: {
+      width: THUMB,
+      height: THUMB,
+      borderRadius: 12,
+      overflow: "hidden",
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    archivoMeta: {
+      flex: 1,
+      gap: 2,
+      minWidth: 0,
+    },
+    archivoTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    archivoTitle: {
+      flex: 1,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    archivoSubtitle: {
+      color: theme.colors.onSurfaceVariant,
+      opacity: 0.85,
+      fontSize: 12,
+    },
+    archivoTrailing: {
+      marginRight: -6,
+    },
+    addFileCard: {
+      borderRadius: 12,
+      elevation: 1,
+      overflow: "hidden",
+    },
+    addFileRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      gap: 10,
     },
     downloadButton: {
       position: "absolute",

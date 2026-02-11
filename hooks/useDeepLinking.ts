@@ -9,9 +9,10 @@ export const useDeepLinking = () => {
     const esDeepLinkPublicacion = (url: string): boolean => {
       if (!url) return false;
       
-      // SOLO acepta URLs con el formato exacto de compartir
-      const regex = /^informatica:\/\/publicacion\/[a-zA-Z0-9_-]+$/;
-      return regex.test(url);
+      // Acepta tanto el scheme nativo como el App Link https del dominio.
+      const schemeRegex = /^informatica:\/\/publicacion\/[a-zA-Z0-9_-]+$/;
+      const httpsRegex = /^https:\/\/informatica\.art\/publicacion\/[a-zA-Z0-9_-]+$/;
+      return schemeRegex.test(url) || httpsRegex.test(url);
     };
 
     const navegarAPublicacion = (publicacionId: string) => {

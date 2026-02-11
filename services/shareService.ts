@@ -1,4 +1,4 @@
-import { Alert, Platform, Share } from 'react-native';
+import { Alert, Platform, Share } from "react-native";
 
 interface SharePublicationParams {
   publicacionId: string;
@@ -9,25 +9,12 @@ interface SharePublicationParams {
 
 /**
  * Obtiene el enlace profundo (deep link) para una publicación
- * Usa TinyURL para acortar y que se vea azul en WhatsApp
+ * Usa HTTPS (App Links) para que funcione al compartir (WhatsApp/Chrome).
  */
 export const obtenerDeepLinkPublicacion = async (publicacionId: string): Promise<string> => {
-  const deepLink = `informatica://publicacion/${publicacionId}`;
-  
-  try {
-    // Usar TinyURL API (gratis, sin cuenta)
-    const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(deepLink)}`);
-    const shortUrl = await response.text();
-    
-    if (shortUrl && shortUrl.startsWith('http')) {
-      return shortUrl; // Retorna link acortado (azul en WhatsApp)
-    }
-  } catch (error) {
-    console.log('Error acortando link, usando deep link directo:', error);
-  }
-  
-  // Fallback al deep link normal
-  return deepLink;
+  // App Links (Android): abre la app si está instalada y el dominio está verificado.
+  // Fallback: si no está instalada, abre la web.
+  return `https://informatica.art/publicacion/${publicacionId}`;
 };
 
 /**
@@ -37,16 +24,24 @@ const crearMensajeCompartir = (
   params: SharePublicationParams,
   deepLink: string
 ): string => {
-  const truncatedDesc = params.descripcion.substring(0, 100).trim();
-  const desc = truncatedDesc.length < params.descripcion.length 
-    ? truncatedDesc + '...' 
-    : truncatedDesc;
+  const title = (params.titulo || "").trim();
+  const author = (params.autorNombre || "").trim();
+  const descRaw = (params.descripcion || "").trim().replace(/\s+/g, " ");
+  const desc =
+    descRaw.length > 0
+      ? descRaw.length > 140
+        ? `${descRaw.slice(0, 140)}...`
+        : descRaw
+      : "";
 
-  if (Platform.OS === 'android') {
-    return `━━━━━━━━━━━━━━━━━━━\n*${params.titulo}*\n━━━━━━━━━━━━━━━━━━━\n\n${desc}\n\n📚 Por: ${params.autorNombre}\n\n¡Abre este contenido en la app!\n${deepLink}`;
-  } else {
-    return `━━━━━━━━━━━━━━━━━━━\n${params.titulo}\n━━━━━━━━━━━━━━━━━━━\n\n${desc}\n\n📚 Por: ${params.autorNombre}\n\n¡Abre este contenido en la app!\n${deepLink}`;
-  }
+  const lines = [
+    title.length ? title : "Publicacion",
+    author.length ? `Por ${author}` : undefined,
+    desc.length ? desc : undefined,
+    deepLink,
+  ].filter(Boolean) as string[];
+
+  return lines.join("\n\n");
 };
 
 /**
@@ -64,8 +59,8 @@ export const compartirPublicacionMejorado = async (
     // Abrir el diálogo nativo de compartir
     const result = await Share.share({
       message: mensaje,
-      title: `${params.titulo} - ${params.autorNombre}`,
-      url: Platform.OS === 'ios' ? deepLink : undefined,
+      title: params.titulo,
+      url: Platform.OS === "ios" ? deepLink : undefined,
     });
 
     if (result.action === Share.dismissedAction) {

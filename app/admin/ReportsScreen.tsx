@@ -12,6 +12,7 @@ import {
 import { ArchivoPublicacion } from "@/scripts/types/Publication.type";
 import { registrarActividadCliente } from "@/services/activity.service";
 import { comentariosService } from "@/services/comments.service";
+import { openRemoteFileExternally } from "@/services/openExternalFile.service";
 import {
   notificarDecisionAdminAutor,
   notificarDecisionAdminDenunciantes,
@@ -308,14 +309,25 @@ export default function ReportsScreen() {
 
     const tipo = archivo.tipoNombre.toLowerCase();
     return (
-      tipo.includes("pdf") ||
       tipo.includes("imagen") ||
       tipo.includes("video") ||
-      tipo.includes("audio") ||
+      tipo.includes("audio")
+    );
+  };
+
+  const esDocumentoAbribleExterno = (archivo: ArchivoPublicacion): boolean => {
+    if (archivo.esEnlaceExterno) return false;
+
+    const tipo = archivo.tipoNombre.toLowerCase();
+    return (
+      tipo.includes("pdf") ||
       tipo.includes("word") ||
+      tipo.includes("excel") ||
       tipo.includes("presentación") ||
       tipo.includes("powerpoint") ||
-      tipo.includes("texto")
+      tipo.includes("texto") ||
+      tipo.includes("zip") ||
+      tipo.includes("rar")
     );
   };
 
@@ -336,6 +348,33 @@ export default function ReportsScreen() {
         console.error("Error al abrir enlace:", error);
         setAlertTitle("Error");
         setAlertMessage("No se pudo abrir el enlace");
+        setAlertType("error");
+        setAlertButtons([{ text: "OK", onPress: () => {} }]);
+        setAlertVisible(true);
+      }
+      return;
+    }
+
+    if (esDocumentoAbribleExterno(archivo)) {
+      try {
+        setAlertTitle(undefined);
+        setAlertMessage("Preparando archivo...");
+        setAlertType("info");
+        setAlertButtons([]);
+        setAlertVisible(true);
+
+        await openRemoteFileExternally({
+          url: archivo.webUrl,
+          titulo: archivo.titulo,
+          tipoNombre: archivo.tipoNombre,
+        });
+
+        setAlertVisible(false);
+      } catch (error) {
+        console.error("Error al abrir documento:", error);
+        setAlertVisible(false);
+        setAlertTitle("Error");
+        setAlertMessage("No se pudo abrir el archivo");
         setAlertType("error");
         setAlertButtons([{ text: "OK", onPress: () => {} }]);
         setAlertVisible(true);

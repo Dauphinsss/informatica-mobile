@@ -10,6 +10,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -312,6 +313,14 @@ export default function LoginScreen() {
     }
   };
 
+  const handleGithubPress = () => {
+    Linking.openURL("https://github.com/Dauphinsss").catch(() => {});
+  };
+
+  const handleEmailPress = () => {
+    Linking.openURL("mailto:marcosvelasquezvela123@gmail.com").catch(() => {});
+  };
+
   if (loading) {
     return (
       <View
@@ -534,6 +543,36 @@ export default function LoginScreen() {
         >
           v{Constants.expoConfig?.version || "1.0.0"}
         </Text>
+        <View style={styles.footerRow}>
+          <Text
+            variant="labelSmall"
+            style={[styles.footerText, { color: theme.colors.onSurfaceVariant }]}
+          >
+            Desarrollado por Marko
+          </Text>
+          <MaterialCommunityIcons
+            name="heart"
+            size={12}
+            color={theme.colors.primary}
+            style={styles.footerHeart}
+          />
+          <Pressable onPress={handleGithubPress} style={styles.footerIconHit}>
+            <MaterialCommunityIcons
+              name="github"
+              size={14}
+              color={theme.colors.onSurfaceVariant}
+              style={{ opacity: 0.75 }}
+            />
+          </Pressable>
+          <Pressable onPress={handleEmailPress} style={styles.footerIconHit}>
+            <MaterialCommunityIcons
+              name="email-outline"
+              size={14}
+              color={theme.colors.onSurfaceVariant}
+              style={{ opacity: 0.75 }}
+            />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -630,6 +669,23 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     paddingBottom: 16,
+    gap: 6,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+  },
+  footerHeart: {
+    marginLeft: 6,
+    opacity: 0.9,
+  },
+  footerIconHit: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginLeft: 2,
   },
   footerText: {
     opacity: 0.4,

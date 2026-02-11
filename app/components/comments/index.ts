@@ -1,5 +1,6 @@
-export { CommentInput } from './CommentInput';
-export { CommentItem } from './CommentItem';
-export { CommentList } from './CommentList';
-export { LikeButton } from './LikeButton';
+export { CommentItem } from "./CommentItem";
+export { CommentsModal } from "./CommentsModal";
+export { default as CommentsModalReadOnly } from "./CommentsModalReadOnly";
+export { CommentsSkeleton } from "./CommentsSkeleton";
+export { LikeButton } from "./LikeButton";
 

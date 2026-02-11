@@ -29,6 +29,7 @@ import {
 import { comentariosService } from "@/services/comments.service";
 import * as downloadsService from "@/services/downloads.service";
 import { likesService } from "@/services/likes.service";
+import { openRemoteFileExternally } from "@/services/openExternalFile.service";
 import { compartirPublicacionMejorado } from "@/services/shareService";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getAuth } from "firebase/auth";
@@ -572,11 +573,22 @@ export default function PublicationDetailScreen() {
     return (
       tipo.includes("imagen") ||
       tipo.includes("video") ||
-      tipo.includes("audio") ||
+      tipo.includes("audio")
+    );
+  };
+
+  const esDocumentoAbribleExterno = (archivo: ArchivoPublicacion): boolean => {
+    if (archivo.esEnlaceExterno) return false;
+
+    const tipo = archivo.tipoNombre.toLowerCase();
+    return (
       tipo.includes("word") ||
+      tipo.includes("excel") ||
       tipo.includes("presentación") ||
       tipo.includes("powerpoint") ||
-      tipo.includes("texto")
+      tipo.includes("texto") ||
+      tipo.includes("zip") ||
+      tipo.includes("rar")
     );
   };
 
@@ -645,6 +657,36 @@ export default function PublicationDetailScreen() {
         showAlert(
           "Error",
           "No se pudo abrir el PDF. ¿Deseas descargarlo?",
+          "confirm",
+          [
+            { text: "Cancelar", onPress: () => {}, mode: "text" },
+            {
+              text: "Descargar",
+              onPress: () => descargarArchivo(archivo),
+              mode: "contained",
+            },
+          ],
+        );
+      }
+      return;
+    }
+
+    // Documentos (Word/Excel/PPT/TXT/ZIP/RAR): abrir en el visor por defecto
+    if (esDocumentoAbribleExterno(archivo)) {
+      try {
+        showAlert(undefined, "Preparando archivo...", "info");
+        await openRemoteFileExternally({
+          url: archivo.webUrl,
+          titulo: archivo.titulo,
+          tipoNombre: archivo.tipoNombre,
+        });
+        setAlertVisible(false);
+      } catch (error) {
+        console.error("Error al abrir documento:", error);
+        setAlertVisible(false);
+        showAlert(
+          "Error",
+          "No se pudo abrir el archivo. ¿Deseas descargarlo?",
           "confirm",
           [
             { text: "Cancelar", onPress: () => {}, mode: "text" },
@@ -1278,11 +1320,19 @@ export default function PublicationDetailScreen() {
   const renderArchivoPreview = (
     archivo: ArchivoPublicacion,
     isDownloading: boolean = false,
+    compact: boolean = false,
   ) => {
     const tipo = archivo.tipoNombre.toLowerCase();
     const icono = obtenerIconoPorTipo(archivo.tipoNombre || "");
 
     if (archivo.esEnlaceExterno) {
+      if (compact) {
+        return (
+          <View style={styles.iconFallbackContainer}>
+            <IconButton icon="link-variant" size={28} iconColor={theme.colors.primary} />
+          </View>
+        );
+      }
       return <LinkPreview url={archivo.webUrl} />;
     }
 
@@ -1297,8 +1347,13 @@ export default function PublicationDetailScreen() {
           <View style={styles.imageOverlay} />
           {isDownloading && (
             <View style={styles.imageLoadingOverlay}>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.imageLoadingText}>{downloadProgress}%</Text>
+              <ActivityIndicator
+                size={compact ? "small" : "large"}
+                color={theme.colors.primary}
+              />
+              {!compact && (
+                <Text style={styles.imageLoadingText}>{downloadProgress}%</Text>
+              )}
             </View>
           )}
         </View>
@@ -1306,16 +1361,32 @@ export default function PublicationDetailScreen() {
     }
 
     if (tipo.includes("texto") || tipo.includes("md")) {
+      if (compact) {
+        return (
+          <View style={styles.iconFallbackContainer}>
+            <IconButton icon={icono} size={28} iconColor={theme.colors.primary} />
+          </View>
+        );
+      }
       return <TextFilePreview url={archivo.webUrl} />;
     }
 
     return (
       <View style={styles.iconFallbackContainer}>
-        <IconButton icon={icono} size={64} iconColor={theme.colors.primary} />
+        <IconButton
+          icon={icono}
+          size={compact ? 28 : 64}
+          iconColor={theme.colors.primary}
+        />
         {isDownloading && (
           <View style={styles.iconLoadingOverlay}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.imageLoadingText}>{downloadProgress}%</Text>
+            <ActivityIndicator
+              size={compact ? "small" : "large"}
+              color={theme.colors.primary}
+            />
+            {!compact && (
+              <Text style={styles.imageLoadingText}>{downloadProgress}%</Text>
+            )}
           </View>
         )}
       </View>
@@ -1558,94 +1629,78 @@ export default function PublicationDetailScreen() {
                           <Card
                             style={[
                               styles.archivoCard,
-                              { position: "relative" },
                               isMarked ? { opacity: 0.45 } : undefined,
                             ]}
                             onPress={() => abrirArchivo(archivo)}
                             onLongPress={() => descargarArchivo(archivo)}
                           >
-                            {!editMode ? (
-                              <View>
-                                {!archivo.esEnlaceExterno && (
-                                  <IconButton
-                                    icon="download"
-                                    size={18}
-                                    onPress={() => descargarArchivo(archivo)}
-                                    style={styles.downloadButton}
-                                    iconColor={theme.colors.onSurface}
-                                    disabled={isDownloading}
-                                  />
-                                )}
+                            <View style={styles.archivoRow}>
+                              <View style={styles.archivoThumb}>
+                                {renderArchivoPreview(archivo, isDownloading, true)}
+                              </View>
 
-                                {archivo.esEnlaceExterno && (
-                                  <IconButton
-                                    icon="link-variant"
-                                    size={18}
-                                    style={styles.downloadButton}
-                                    iconColor={theme.colors.onSurface}
-                                    onPress={() => {}}
-                                  />
+                              <View style={styles.archivoMeta}>
+                                <View style={styles.archivoTitleRow}>
+                                  <Text
+                                    variant="bodyLarge"
+                                    style={styles.archivoTitle}
+                                    numberOfLines={1}
+                                  >
+                                    {archivo.titulo}
+                                  </Text>
+                                </View>
+                                <Text
+                                  style={styles.archivoSubtitle}
+                                  numberOfLines={1}
+                                >
+                                  {archivo.esEnlaceExterno
+                                    ? "Enlace"
+                                    : archivo.tipoNombre || "Archivo"}
+                                </Text>
+                                {isMarked && (
+                                  <Text
+                                    style={{
+                                      color: theme.colors.error,
+                                      fontSize: 12,
+                                      marginTop: 4,
+                                    }}
+                                    numberOfLines={1}
+                                  >
+                                    Se eliminará al guardar
+                                  </Text>
                                 )}
                               </View>
-                            ) : (
-                              <IconButton
-                                icon={isMarked ? "check" : "close"}
-                                size={16}
-                                onPress={() =>
-                                  confirmarEliminarArchivo(archivo.id)
-                                }
-                                style={{
-                                  margin: 0,
-                                  position: "absolute",
-                                  top: 6,
-                                  right: 6,
-                                  backgroundColor: theme.colors.primary,
-                                  width: 28,
-                                  height: 28,
-                                  borderRadius: 14,
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  zIndex: 50,
-                                  elevation: 6,
-                                }}
-                                iconColor={theme.colors.onPrimary || "#fff"}
-                              />
-                            )}
 
-                            {renderArchivoPreview(archivo, isDownloading)}
-                          </Card>
-
-                          <View style={styles.archivoInfoContainer}>
-                            <View style={styles.archivoInfoRow}>
-                              <IconButton
-                                icon={obtenerIconoPorTipo(
-                                  archivo.tipoNombre || "",
-                                )}
-                                size={20}
-                                iconColor={theme.colors.primary}
-                                style={{ margin: 0, marginRight: 4 }}
-                              />
-                              <Text
-                                variant="bodyMedium"
-                                style={styles.archivoTitulo}
-                                numberOfLines={2}
-                              >
-                                {archivo.titulo}
-                              </Text>
+                              {!editMode ? (
+                                <IconButton
+                                  icon={archivo.esEnlaceExterno ? "link-variant" : "download"}
+                                  size={20}
+                                  onPress={() =>
+                                    archivo.esEnlaceExterno
+                                      ? abrirArchivo(archivo)
+                                      : descargarArchivo(archivo)
+                                  }
+                                  style={styles.archivoTrailing}
+                                  iconColor={theme.colors.onSurface}
+                                  disabled={isDownloading}
+                                />
+                              ) : (
+                                <IconButton
+                                  icon={isMarked ? "check" : "close"}
+                                  size={18}
+                                  onPress={() =>
+                                    confirmarEliminarArchivo(archivo.id)
+                                  }
+                                  style={styles.archivoTrailing}
+                                  iconColor={
+                                    isMarked
+                                      ? theme.colors.primary
+                                      : theme.colors.onSurfaceVariant
+                                  }
+                                />
+                              )}
                             </View>
-                            {isMarked && (
-                              <Text
-                                style={{
-                                  color: theme.colors.error,
-                                  fontSize: 12,
-                                  marginTop: 4,
-                                  textAlign: "center",
-                                }}
-                              >
-                                Se eliminará al guardar
-                              </Text>
-                            )}
-                          </View>
+                          </Card>
                         </View>
                       );
                     })}
@@ -1656,145 +1711,85 @@ export default function PublicationDetailScreen() {
                           <Card
                             style={[
                               styles.archivoCard,
-                              { position: "relative" },
                             ]}
                           >
-                            <IconButton
-                              icon="close"
-                              size={16}
-                              onPress={() =>
-                                setStagedAdds((prev) =>
-                                  prev.filter((x) => x.id !== s.id),
-                                )
-                              }
-                              style={{
-                                margin: 0,
-                                position: "absolute",
-                                top: 6,
-                                right: 6,
-                                backgroundColor: theme.colors.primary,
-                                width: 28,
-                                height: 28,
-                                borderRadius: 14,
-                                alignItems: "center",
-                                justifyContent: "center",
-                                zIndex: 50,
-                                elevation: 6,
-                              }}
-                              iconColor={theme.colors.onPrimary || "#fff"}
-                            />
+                            <View style={styles.archivoRow}>
+                              <View style={styles.archivoThumb}>
+                                <View style={styles.iconFallbackContainer}>
+                                  <IconButton
+                                    icon={s.esEnlaceExterno ? "link-variant" : "file-document"}
+                                    size={28}
+                                    iconColor={theme.colors.primary}
+                                    style={{ margin: 0 }}
+                                  />
+                                </View>
+                              </View>
 
-                            <View style={{ padding: 12, alignItems: "center" }}>
-                              <IconButton
-                                icon={
-                                  s.esEnlaceExterno
-                                    ? "link-variant"
-                                    : "file-document"
-                                }
-                                size={24}
-                                iconColor={theme.colors.primary}
-                                style={{ margin: 0 }}
-                              />
-                              <Text
-                                variant="bodyMedium"
-                                style={{
-                                  textAlign: "center",
-                                  marginTop: 4,
-                                  color: theme.colors.onSurface,
-                                  fontSize: 14,
-                                  fontWeight: "500",
-                                }}
-                                numberOfLines={2}
-                                ellipsizeMode="tail"
-                                onLayout={(event) => {
-                                  const { width, height } =
-                                    event.nativeEvent.layout;
-                                }}
-                              >
-                                {(() => {
-                                  const texto =
-                                    s.name ||
-                                    s.nombreEnlace ||
-                                    s.file?.name ||
-                                    "Nuevo archivo";
-                                  return texto;
-                                })()}
-                              </Text>
-                              {s.esEnlaceExterno && s.url && (
+                              <View style={styles.archivoMeta}>
                                 <Text
-                                  style={{
-                                    color: theme.colors.secondary,
-                                    fontSize: 11,
-                                    marginTop: 2,
-                                  }}
+                                  variant="bodyLarge"
+                                  style={styles.archivoTitle}
                                   numberOfLines={1}
                                 >
-                                  {s.url}
+                                  {s.name || s.nombreEnlace || s.file?.name || "Nuevo archivo"}
                                 </Text>
-                              )}
-                              {s.subiendo ? (
-                                <>
-                                  <Text
-                                    style={{
-                                      color: theme.colors.primary,
-                                      fontSize: 12,
-                                      marginTop: 4,
-                                    }}
-                                  >
-                                    Subiendo... {s.progreso || 0}%
+                                {s.esEnlaceExterno && s.url ? (
+                                  <Text style={styles.archivoSubtitle} numberOfLines={1}>
+                                    {s.url}
                                   </Text>
-                                </>
-                              ) : (
-                                <Text
-                                  style={{
-                                    color: theme.colors.primary,
-                                    fontSize: 12,
-                                    marginTop: 4,
-                                  }}
-                                >
-                                  {s.progreso === 100 ? "Subido ✓" : ""}
-                                </Text>
-                              )}
+                                ) : (
+                                  <Text style={styles.archivoSubtitle} numberOfLines={1}>
+                                    {s.subiendo
+                                      ? `Subiendo... ${s.progreso || 0}%`
+                                      : s.progreso === 100
+                                        ? "Subido"
+                                        : "Pendiente"}
+                                  </Text>
+                                )}
+                              </View>
+
+                              <IconButton
+                                icon="close"
+                                size={18}
+                                onPress={() =>
+                                  setStagedAdds((prev) =>
+                                    prev.filter((x) => x.id !== s.id),
+                                  )
+                                }
+                                style={styles.archivoTrailing}
+                                iconColor={theme.colors.onSurfaceVariant}
+                              />
                             </View>
                           </Card>
-
-                          <View style={styles.archivoInfoContainer} />
                         </View>
                       );
                     })}
 
                     {editMode && (
                       <View style={styles.archivoCardWrapper}>
-                        <View
+                        <Card
                           style={[
-                            styles.archivoCard,
-                            {
-                              alignItems: "center",
-                              justifyContent: "center",
-                              backgroundColor: "transparent",
-                              elevation: 0,
-                              shadowColor: "transparent",
-                              borderWidth: 0,
-                            },
+                            styles.addFileCard,
+                            { backgroundColor: theme.colors.elevation.level1 },
                           ]}
+                          onPress={mostrarDialogoSeleccion}
                         >
-                          <IconButton
-                            icon="plus"
-                            size={28}
-                            onPress={mostrarDialogoSeleccion}
-                            disabled={fileProcessing}
-                            style={{
-                              backgroundColor: theme.colors.primary,
-                              width: width * 0.15,
-                              height: width * 0.15,
-                              borderRadius: 28,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              padding: 0,
-                            }}
-                            iconColor={theme.colors.onPrimary}
-                          />
-                        </View>
+                          <View style={styles.addFileRow}>
+                            <IconButton
+                              icon="plus"
+                              size={20}
+                              disabled={fileProcessing}
+                              iconColor={theme.colors.primary}
+                              style={{ margin: 0 }}
+                            />
+                            <Text
+                              variant="bodyLarge"
+                              style={{ color: theme.colors.onSurface, fontWeight: "600" }}
+                            >
+                              Agregar archivo
+                            </Text>
+                          </View>
+                        </Card>
                       </View>
                     )}
                   </View>

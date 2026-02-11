@@ -2,7 +2,7 @@
   "expo": {
     "name": "Informática Art",
     "slug": "informatica",
-    "version": "1.1.0",
+    "version": "1.1.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "informatica",
@@ -12,7 +12,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.informatica.app",
-      "associatedDomains": ["applinks:mobile-1dae0.firebaseapp.com"]
+      "associatedDomains": [
+        "applinks:informatica.art"
+      ]
     },
     "android": {
       "package": "com.informatica.app",
@@ -34,7 +36,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "mobile-1dae0.firebaseapp.com",
+              "host": "informatica.art",
               "pathPrefix": "/"
             },
             {
