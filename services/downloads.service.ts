@@ -125,7 +125,12 @@ interface DownloadResult {
   error?: string;
   requiresShare?: boolean;
   shareUri?: string;
+  cancelled?: boolean;
 }
+
+let currentDownloadResumable: FileSystem.DownloadResumable | null = null;
+let currentTempPath: string | null = null;
+let currentDownloadCancelled = false;
 
 export const compartirArchivo = async (fileUri: string): Promise<void> => {
   try {
@@ -164,6 +169,7 @@ export const descargarArchivo = async (
     const tipoArchivo = getTipoArchivo(archivo.tipoNombre);
     
     const tempPath = `${FileSystem.cacheDirectory}${fileName}`;
+    currentDownloadCancelled = false;
     
     const downloadResumable = FileSystem.createDownloadResumable(
       archivo.webUrl,
@@ -179,9 +185,22 @@ export const descargarArchivo = async (
       }
     );
     
+    currentDownloadResumable = downloadResumable;
+    currentTempPath = tempPath;
+
     const downloadResult = await downloadResumable.downloadAsync();
+    currentDownloadResumable = null;
+    currentTempPath = null;
     
     if (!downloadResult) {
+      if (currentDownloadCancelled) {
+        currentDownloadCancelled = false;
+        return {
+          success: false,
+          cancelled: true,
+          error: 'Descarga cancelada',
+        };
+      }
       return { success: false, error: 'No se pudo completar la descarga' };
     }
     
@@ -231,7 +250,13 @@ export const descargarArchivo = async (
           await enviarNotificacionLocal(
             'Descarga Completada',
             `El archivo "${archivo.titulo}" se descargó correctamente`,
-            { tipo: 'descarga', archivo: fileName, ubicacion: ubicacionFinal }
+            {
+              tipo: 'descarga',
+              accion: 'abrir_archivo',
+              archivo: fileName,
+              ubicacion: ubicacionFinal,
+              fileUri: contentUri,
+            }
           );
         } catch (notifError) {
           console.warn('No se pudo enviar notificación:', notifError);
@@ -255,11 +280,62 @@ export const descargarArchivo = async (
     }
     
   } catch (error) {
+    currentDownloadResumable = null;
+    const tempFileToClean = currentTempPath;
+    currentTempPath = null;
+    if (tempFileToClean) {
+      try {
+        await FileSystem.deleteAsync(tempFileToClean, { idempotent: true });
+      } catch {}
+    }
+
+    if (currentDownloadCancelled) {
+      currentDownloadCancelled = false;
+      return {
+        success: false,
+        cancelled: true,
+        error: 'Descarga cancelada',
+      };
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isCancelled =
+      errorMessage.toLowerCase().includes('cancel') ||
+      errorMessage.toLowerCase().includes('abort');
+
+    if (isCancelled) {
+      return {
+        success: false,
+        cancelled: true,
+        error: 'Descarga cancelada',
+      };
+    }
+
     console.error('Error al descargar:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Error desconocido',
     };
+  }
+};
+
+export const cancelarDescargaActual = async (): Promise<boolean> => {
+  if (!currentDownloadResumable) return false;
+  try {
+    currentDownloadCancelled = true;
+    await currentDownloadResumable.pauseAsync();
+    currentDownloadResumable = null;
+    if (currentTempPath) {
+      try {
+        await FileSystem.deleteAsync(currentTempPath, { idempotent: true });
+      } catch {}
+      currentTempPath = null;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error al cancelar descarga:', error);
+    currentDownloadCancelled = false;
+    return false;
   }
 };
 

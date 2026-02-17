@@ -4,7 +4,7 @@ import { auth } from "@/firebase";
 import { obtenerArchivosConTipo } from "@/scripts/services/Publications";
 import {
   aplicarStrikeAlAutor,
-  banearUsuarioPorNombre,
+  banearUsuarioPorUid,
   completarReportesDePublicacion,
   eliminarPublicacionYArchivos,
   escucharReportes,
@@ -236,6 +236,14 @@ export default function ReportsScreen() {
     } finally {
       setCargandoArchivos(false);
     }
+  };
+
+  const abrirDetallePublicacionReportada = (reporte: Report) => {
+    (navigation.navigate as any)("PublicationDetail", {
+      publicacionId: reporte.publicacionId,
+      materiaNombre: "Denuncia",
+      adminReportMode: true,
+    });
   };
   const cargarComentarios = async () => {
     if (!reporteSeleccionado || comentarios.length > 0) return;
@@ -653,12 +661,12 @@ export default function ReportsScreen() {
     pedirMotivoYContinuar(async (motivoArg) => {
       if (!reporteSeleccionado) return;
       try {
-        await banearUsuarioPorNombre(reporteSeleccionado.autor);
-        await eliminarPublicacionYArchivos(reporteSeleccionado.publicacionId);
         const motivo =
           motivoArg && motivoArg.trim().length > 0
             ? motivoArg
             : "Sin motivo especificado";
+        await banearUsuarioPorUid(reporteSeleccionado.autorUid, motivo);
+        await eliminarPublicacionYArchivos(reporteSeleccionado.publicacionId);
         const fecha = await completarReportesDePublicacion(
           reporteSeleccionado.publicacionId,
           "Usuario baneado",
@@ -778,7 +786,7 @@ export default function ReportsScreen() {
             <ReportCard
               key={reporte.id}
               reporte={reporte}
-              onPress={abrirDetalles}
+              onPress={abrirDetallePublicacionReportada}
               styles={styles}
               theme={theme}
               getDecisionLabel={getDecisionLabel}

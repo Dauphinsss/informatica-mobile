@@ -22,6 +22,7 @@ function AppContent() {
   const [, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSuspended, setIsSuspended] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState("");
 
   useEffect(() => {
     const inicializarNotificaciones = async () => {
@@ -49,11 +50,18 @@ function AppContent() {
           const userData = doc.data();
           setUserData(userData);
           setIsSuspended(userData.estado === "suspendido");
+          setSuspensionReason(
+            userData.motivoSuspension ||
+              userData.razonSuspension ||
+              userData.motivoBan ||
+              ""
+          );
         }
       });
       return () => unsubscribe();
     } else {
       setIsSuspended(false);
+      setSuspensionReason("");
       setUserData(null);
     }
   }, [user, setUserData]);
@@ -87,7 +95,11 @@ function AppContent() {
     <>
       {user ? <TabsLayout /> : <LoginScreen />}
       {}
-      <SuspendedModal visible={isSuspended} onDismiss={() => {}} />
+      <SuspendedModal
+        visible={isSuspended}
+        reason={suspensionReason}
+        onDismiss={() => {}}
+      />
       <StatusBar style={isDark ? "light" : "dark"} />
     </>
   );

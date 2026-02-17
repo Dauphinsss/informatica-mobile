@@ -15,6 +15,7 @@ export interface Archivo {
   webUrl: string;
   filepath: string | null;
   tamanoBytes: number;
+  orden?: number;
   fechaSubida: Date;
   activo: boolean;
   esEnlaceExterno?: boolean;

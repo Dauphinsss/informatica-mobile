@@ -14,7 +14,11 @@ import {
   obtenerArchivosConTipo,
   obtenerPublicacionPorId,
 } from "@/scripts/services/Publications";
-import { eliminarPublicacionYArchivos } from "@/scripts/services/Reports";
+import {
+  aplicarStrikeAlAutor,
+  completarReportesDePublicacion,
+  eliminarPublicacionYArchivos,
+} from "@/scripts/services/Reports";
 import {
   ArchivoPublicacion,
   Publicacion,
@@ -30,6 +34,12 @@ import {
 import { comentariosService } from "@/services/comments.service";
 import * as downloadsService from "@/services/downloads.service";
 import { likesService } from "@/services/likes.service";
+import {
+  crearNotificacion,
+  notificarDecisionAdminAutor,
+  notificarDecisionAdminDenunciantes,
+  notificarUsuariosMateria,
+} from "@/services/notifications";
 import { openRemoteFileExternally } from "@/services/openExternalFile.service";
 import { compartirPublicacionMejorado } from "@/services/shareService";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -58,6 +68,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   View,
 } from "react-native";
 import ReactNativeBlobUtil from "react-native-blob-util";
@@ -73,6 +84,7 @@ import {
   IconButton,
   Portal,
   ProgressBar,
+  Switch,
   Text,
   TextInput,
 } from "react-native-paper";
@@ -87,6 +99,7 @@ import { PublicationDetailSkeleton } from "../components/publications/Publicatio
 import { getStyles } from "./_PublicationDetailScreen.styles";
 
 const { width } = Dimensions.get("window");
+const MAX_ATTACHMENT_SIZE_BYTES = 100 * 1024 * 1024;
 
 const normalizeAuthorRole = (role?: string | null): "admin" | "usuario" => {
   const normalized = String(role || "").trim().toLowerCase();
@@ -111,10 +124,15 @@ export default function PublicationDetailScreen() {
   const params = route.params as {
     publicacionId?: string;
     materiaNombre?: string;
+    adminReviewMode?: boolean;
+    adminReportMode?: boolean;
   };
 
   const publicacionId = params?.publicacionId || "";
   const materiaNombre = params?.materiaNombre || "Materia";
+  const isAdminReviewMode = !!params?.adminReviewMode;
+  const isAdminReportMode = !!params?.adminReportMode;
+  const isModerationMode = isAdminReviewMode || isAdminReportMode;
 
   const [publicacion, setPublicacion] = useState<Publicacion | null>(null);
   const [displayedMateriaNombre, setDisplayedMateriaNombre] =
@@ -187,12 +205,33 @@ export default function PublicationDetailScreen() {
   } | null>(null);
   const [sharingPublication, setSharingPublication] = useState(false);
   const [userRole, setUserRole] = useState<string>("usuario");
-
+  const [reviewRejectDialogVisible, setReviewRejectDialogVisible] =
+    useState(false);
+  const [reviewBanUserOnReject, setReviewBanUserOnReject] = useState(false);
+  const [reviewRejectReason, setReviewRejectReason] = useState("");
+  const [reviewProcessing, setReviewProcessing] = useState(false);
+  const [reportActionDialogVisible, setReportActionDialogVisible] =
+    useState(false);
+  const [reportActionType, setReportActionType] = useState<
+    "descartar" | "eliminar_strike"
+  >("descartar");
+  const [reportActionReason, setReportActionReason] = useState("");
+  const [reportActionProcessing, setReportActionProcessing] = useState(false);
+  const [reportStatus, setReportStatus] = useState<"pendiente" | "completado">(
+    "pendiente",
+  );
+  const [reportadoresPendientes, setReportadoresPendientes] = useState<any[]>(
+    [],
+  );
   const isOwner =
     publicacion && usuario && publicacion.autorUid === usuario.uid;
   const isAdmin = userRole === "admin";
   const canEdit = isOwner;
   const canDelete = isOwner || isAdmin;
+  const showAdminReviewFooter =
+    isAdminReviewMode && isAdmin && publicacion?.estado === "pendiente";
+  const showAdminReportFooter =
+    isAdminReportMode && isAdmin && reportStatus !== "completado";
 
   const pedirMotivoYContinuar = (accion: (motivo: string) => Promise<void>) => {
     accionPendiente.current = accion;
@@ -401,7 +440,9 @@ export default function PublicationDetailScreen() {
           fechaPublicacion: pub.fechaPublicacion.toISOString(),
         });
 
-        await incrementarVistas(publicacionId);
+        if (!isModerationMode) {
+          await incrementarVistas(publicacionId);
+        }
         const archivosData = await obtenerArchivosConTipo(publicacionId);
         setArchivos(archivosData);
         setCache(
@@ -415,7 +456,7 @@ export default function PublicationDetailScreen() {
           })),
         );
 
-        if (usuario) {
+        if (usuario && !isModerationMode) {
           const likeQuery = query(
             collection(db, "likes"),
             where("publicacionId", "==", publicacionId),
@@ -430,7 +471,7 @@ export default function PublicationDetailScreen() {
     } finally {
       setCargando(false);
     }
-  }, [publicacionId, usuario]);
+  }, [publicacionId, usuario, isModerationMode]);
 
   useEffect(() => {
     if (!publicacionId) return;
@@ -479,7 +520,7 @@ export default function PublicationDetailScreen() {
   }, [publicacionId]);
 
   useEffect(() => {
-    if (!publicacionId || !usuario) return;
+    if (!publicacionId || !usuario || isModerationMode) return;
     const likeQuery = query(
       collection(db, "likes"),
       where("publicacionId", "==", publicacionId),
@@ -489,7 +530,7 @@ export default function PublicationDetailScreen() {
       setUserLiked(!snapshot.empty);
     });
     return () => unsubscribe();
-  }, [publicacionId, usuario]);
+  }, [publicacionId, usuario, isModerationMode]);
 
   useEffect(() => {
     cargarPublicacion();
@@ -518,6 +559,30 @@ export default function PublicationDetailScreen() {
     }
   }, [publicacion]);
 
+  useEffect(() => {
+    if (!isAdminReportMode || !publicacionId) return;
+    const loadReportData = async () => {
+      try {
+        const reportesSnap = await getDocs(
+          query(collection(db, "reportes"), where("publicacionId", "==", publicacionId)),
+        );
+        if (reportesSnap.empty) {
+          setReportadoresPendientes([]);
+          return;
+        }
+        const preferido =
+          reportesSnap.docs.find((d) => (d.data() as any).estado === "pendiente") ||
+          reportesSnap.docs[0];
+        const data = preferido.data() as any;
+        setReportStatus(data.estado === "completado" ? "completado" : "pendiente");
+        setReportadoresPendientes(Array.isArray(data.reportadores) ? data.reportadores : []);
+      } catch (error) {
+        console.error("Error cargando metadata de reportes:", error);
+      }
+    };
+    loadReportData();
+  }, [isAdminReportMode, publicacionId]);
+
   const toggleLike = async () => {
     if (!usuario) {
       showAlert("Error", "Debes iniciar sesión para dar like", "error");
@@ -536,7 +601,7 @@ export default function PublicationDetailScreen() {
   };
 
   useEffect(() => {
-    if (!publicacionId) return;
+    if (!publicacionId || isModerationMode) return;
 
     const likesCountQuery = query(
       collection(db, "likes"),
@@ -548,7 +613,7 @@ export default function PublicationDetailScreen() {
     });
 
     return () => unsubscribe();
-  }, [publicacionId]);
+  }, [publicacionId, isModerationMode]);
 
   useEffect(() => {
     if (publicacion) {
@@ -556,7 +621,7 @@ export default function PublicationDetailScreen() {
     }
   }, [publicacion]);
   useEffect(() => {
-    if (!publicacionId) return;
+    if (!publicacionId || isModerationMode) return;
 
     const unsubscribe = comentariosService.suscribirseAContadorComentarios(
       publicacionId,
@@ -566,7 +631,7 @@ export default function PublicationDetailScreen() {
     );
 
     return unsubscribe;
-  }, [publicacionId]);
+  }, [publicacionId, isModerationMode]);
 
   const formatearFecha = (fecha: Date): string => {
     return fecha.toLocaleDateString("es-BO", {
@@ -784,35 +849,66 @@ export default function PublicationDetailScreen() {
     setDialogSeleccionVisible(false);
     try {
       setFileProcessing(true);
-      const archivo = await seleccionarArchivo();
-      if (!archivo) return;
+      const archivosSeleccionados = await seleccionarArchivo();
+      if (!archivosSeleccionados || archivosSeleccionados.length === 0) return;
 
-      const tipoId = detectarTipoArchivoLocal(
-        archivo.mimeType || "",
-        archivo.name,
-      );
-      if (!tipoId) {
-        showAlert(
-          "Tipo no soportado",
-          "El tipo de archivo seleccionado no está soportado.",
-          "error",
+      const stagedNuevos: {
+        id: string;
+        file?: any;
+        tipoId: string;
+        tipoArchivoId?: string;
+        name?: string;
+        esEnlaceExterno?: boolean;
+        progreso?: number;
+      }[] = [];
+      let omitidosPorTipo = 0;
+      let omitidosPorTamano = 0;
+
+      for (const archivo of archivosSeleccionados) {
+        const tipoId = detectarTipoArchivoLocal(
+          archivo.mimeType || "",
+          archivo.name,
         );
-        return;
+        if (!tipoId) {
+          omitidosPorTipo++;
+          continue;
+        }
+
+        const tamanoArchivo = archivo.size || 0;
+        if (tamanoArchivo > MAX_ATTACHMENT_SIZE_BYTES) {
+          omitidosPorTamano++;
+          continue;
+        }
+
+        stagedNuevos.push({
+          id: `staged-${Date.now()}-${stagedNuevos.length}`,
+          file: archivo,
+          tipoId,
+          tipoArchivoId: tipoId,
+          name: archivo.name,
+          esEnlaceExterno: false,
+          progreso: 0,
+        });
       }
 
-      const staged = {
-        id: `staged-${Date.now()}`,
-        file: archivo,
-        tipoId,
-        tipoArchivoId: tipoId,
-        name: archivo.name,
-        esEnlaceExterno: false,
-        progreso: 0,
-      };
-      setStagedAdds((prev) => {
-        const nuevo = [...prev, staged];
-        return nuevo;
-      });
+      if (stagedNuevos.length > 0) {
+        setStagedAdds((prev) => [...prev, ...stagedNuevos]);
+      }
+
+      if (omitidosPorTipo > 0 || omitidosPorTamano > 0) {
+        const partes: string[] = [];
+        if (omitidosPorTipo > 0) {
+          partes.push(`${omitidosPorTipo} por tipo no soportado`);
+        }
+        if (omitidosPorTamano > 0) {
+          partes.push(`${omitidosPorTamano} por superar 100 MB`);
+        }
+        showAlert(
+          "Algunos archivos no se agregaron",
+          `Se omitieron ${partes.join(" y ")}.`,
+          "info",
+        );
+      }
     } catch (error) {
       console.error("Error al agregar archivo (staged):", error);
       showAlert("Error", "No se pudo preparar el archivo", "error");
@@ -1052,6 +1148,215 @@ export default function PublicationDetailScreen() {
     }
   };
 
+  const handleApprovePendingPublication = async () => {
+    if (!usuario || !publicacion || !showAdminReviewFooter) return;
+
+    setReviewProcessing(true);
+    try {
+      await updateDoc(doc(db, "publicaciones", publicacionId), {
+        estado: "activo",
+        aprobadaEn: Timestamp.now(),
+        aprobadaPorUid: usuario.uid,
+        aprobadaPorNombre: usuario.displayName || usuario.email || "Admin",
+      });
+
+      await crearNotificacion(
+        publicacion.autorUid,
+        "Publicación aprobada",
+        "Felicitaciones. Tu publicación fue aprobada.",
+        "exito",
+        "check-circle-outline",
+        {
+          accion: "admin_decision",
+          tipo: "admin_decision",
+          publicacionId: publicacion.id,
+          decision: "aprobada",
+        },
+        true,
+      );
+
+      await notificarUsuariosMateria(
+        publicacion.materiaId,
+        displayedMateriaNombre || "Materia",
+        "Nueva publicación",
+        `${publicacion.autorNombre} publicó: ${publicacion.titulo}`,
+        "info",
+        "newspaper",
+        publicacion.id,
+        {
+          uid: publicacion.autorUid,
+          nombre: publicacion.autorNombre,
+          foto: null,
+        },
+      );
+
+      await registrarActividadCliente(
+        "publicacion_aprobada",
+        "Publicación aprobada",
+        `Se aprobó la publicación "${publicacion.titulo}" de ${publicacion.autorNombre}.`,
+        usuario.uid,
+        usuario.displayName || usuario.email || "Admin",
+        publicacion.id,
+        {
+          autorUid: publicacion.autorUid,
+          materiaId: publicacion.materiaId,
+        },
+      );
+
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error aprobando publicación pendiente:", error);
+      showAlert("Error", "No se pudo aprobar la publicación", "error");
+    } finally {
+      setReviewProcessing(false);
+    }
+  };
+
+  const handleRejectPendingPublication = async () => {
+    if (!usuario || !publicacion || !showAdminReviewFooter) return;
+
+    setReviewProcessing(true);
+    try {
+      await eliminarPublicacionYArchivos(publicacion.id);
+
+      if (reviewBanUserOnReject && publicacion.autorUid) {
+        const suspensionReason =
+          reviewRejectReason.trim() || "Incumplimiento de normas de la comunidad.";
+        await updateDoc(doc(db, "usuarios", publicacion.autorUid), {
+          estado: "suspendido",
+          motivoSuspension: suspensionReason,
+          razonSuspension: suspensionReason,
+          motivoBan: suspensionReason,
+          suspendidoEn: Timestamp.now(),
+        });
+
+        await registrarActividadCliente(
+          "usuario_baneado",
+          "Usuario suspendido",
+          `Se suspendió a ${publicacion.autorNombre} al rechazar una publicación pendiente.`,
+          usuario.uid,
+          usuario.displayName || usuario.email || "Admin",
+          publicacion.autorUid,
+          {
+            motivo: suspensionReason,
+            publicacionId: publicacion.id,
+          },
+        );
+      }
+
+      await registrarActividadCliente(
+        "publicacion_eliminada",
+        "Publicación rechazada",
+        `Se rechazó y eliminó la publicación "${publicacion.titulo}" de ${publicacion.autorNombre}.`,
+        usuario.uid,
+        usuario.displayName || usuario.email || "Admin",
+        publicacion.id,
+        {
+          motivo: reviewRejectReason || "No cumple lineamientos",
+          baneado: reviewBanUserOnReject,
+        },
+      );
+
+      setReviewRejectDialogVisible(false);
+      setReviewBanUserOnReject(false);
+      setReviewRejectReason("");
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error rechazando publicación pendiente:", error);
+      showAlert("Error", "No se pudo rechazar la publicación", "error");
+    } finally {
+      setReviewProcessing(false);
+    }
+  };
+
+  const executeReportAction = async () => {
+    if (!usuario || !publicacion || !showAdminReportFooter) return;
+    const motivo = reportActionReason.trim() || "Sin motivo especificado";
+    setReportActionProcessing(true);
+    try {
+      if (reportActionType === "descartar") {
+        await completarReportesDePublicacion(
+          publicacion.id,
+          "Reporte descartado",
+          motivo,
+        );
+
+        await registrarActividadCliente(
+          "publicacion_aprobada",
+          "Publicación aprobada por administrador",
+          `La publicación "${publicacion.titulo}" de ${publicacion.autorNombre} fue aprobada: ${motivo}`,
+          usuario.uid,
+          usuario.displayName || usuario.email || "Admin",
+          publicacion.id,
+          {
+            motivo,
+            decision: "Reporte descartado",
+          },
+        );
+
+        await notificarDecisionAdminAutor({
+          autorUid: publicacion.autorUid,
+          publicacionTitulo: publicacion.titulo,
+          motivo,
+          decision: "Reporte descartado",
+          tipoAccion: "quitar",
+        });
+        await notificarDecisionAdminDenunciantes({
+          reportadores: reportadoresPendientes,
+          publicacionTitulo: publicacion.titulo,
+          motivo,
+          decision: "Reporte descartado",
+          tipoAccion: "quitar",
+        });
+      } else {
+        await eliminarPublicacionYArchivos(publicacion.id);
+        await aplicarStrikeAlAutor(publicacion.autorUid);
+        await completarReportesDePublicacion(
+          publicacion.id,
+          "Publicación eliminada + strike",
+          motivo,
+        );
+
+        await registrarActividadCliente(
+          "publicacion_eliminada",
+          "Publicación eliminada",
+          `La publicación "${publicacion.titulo}" de ${publicacion.autorNombre} fue eliminada por ${motivo}`,
+          usuario.uid,
+          usuario.displayName || usuario.email || "Admin",
+          publicacion.id,
+          {
+            motivo,
+            decision: "Publicación eliminada + strike",
+          },
+        );
+
+        await notificarDecisionAdminAutor({
+          autorUid: publicacion.autorUid,
+          publicacionTitulo: publicacion.titulo,
+          motivo,
+          decision: "Publicación eliminada + strike",
+          tipoAccion: "strike",
+        });
+        await notificarDecisionAdminDenunciantes({
+          reportadores: reportadoresPendientes,
+          publicacionTitulo: publicacion.titulo,
+          motivo,
+          decision: "Publicación eliminada + strike",
+          tipoAccion: "strike",
+        });
+      }
+
+      setReportActionDialogVisible(false);
+      setReportActionReason("");
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error aplicando acción de reporte:", error);
+      showAlert("Error", "No se pudo completar la acción", "error");
+    } finally {
+      setReportActionProcessing(false);
+    }
+  };
+
   const descargarArchivo = async (archivo: ArchivoPublicacion) => {
     if (archivo.esEnlaceExterno) {
       abrirArchivo(archivo);
@@ -1076,6 +1381,10 @@ export default function PublicationDetailScreen() {
     setDownloadingFileId(null);
     setDownloadProgress(0);
 
+    if (result.cancelled) {
+      return;
+    }
+
     if (result.success) {
       if (result.requiresShare && result.shareUri) {
         await downloadsService.compartirArchivo(result.shareUri);
@@ -1087,6 +1396,12 @@ export default function PublicationDetailScreen() {
         "error",
       );
     }
+  };
+
+  const cancelarDescargaArchivo = async () => {
+    await downloadsService.cancelarDescargaActual();
+    setDownloadingFileId(null);
+    setDownloadProgress(0);
   };
 
   const descargarTodosLosArchivos = async () => {
@@ -1399,6 +1714,32 @@ export default function PublicationDetailScreen() {
       );
     }
 
+    if (tipo.includes("pdf")) {
+      return (
+        <View style={styles.pdfPreviewContainer}>
+          <View style={styles.iconFallbackContainer}>
+            <MaterialCommunityIcons
+              name="file-pdf-box"
+              size={compact ? 28 : 62}
+              color={theme.colors.primary}
+            />
+          </View>
+
+          {isDownloading && (
+            <View style={styles.iconLoadingOverlay}>
+              <ActivityIndicator
+                size={compact ? "small" : "large"}
+                color={theme.colors.primary}
+              />
+              {!compact && (
+                <Text style={styles.imageLoadingText}>{downloadProgress}%</Text>
+              )}
+            </View>
+          )}
+        </View>
+      );
+    }
+
     if (tipo.includes("texto") || tipo.includes("md")) {
       if (compact) {
         return (
@@ -1442,7 +1783,7 @@ export default function PublicationDetailScreen() {
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={displayedMateriaNombre} />
 
-        {publicacion && (
+        {publicacion && !isModerationMode && (
           <Appbar.Action
             icon="share-variant"
             onPress={handleCompartirPublicacion}
@@ -1453,6 +1794,7 @@ export default function PublicationDetailScreen() {
 
         {publicacion &&
           usuario &&
+          !isModerationMode &&
           !canEdit &&
           !canDelete &&
           publicacion.autorUid !== usuario.uid && (
@@ -1463,7 +1805,7 @@ export default function PublicationDetailScreen() {
             />
           )}
 
-        {publicacion && usuario && (canEdit || canDelete) && (
+        {publicacion && usuario && (canEdit || canDelete) && !isModerationMode && (
           <View style={{ flexDirection: "row" }}>
             {canEdit && (
               <Appbar.Action
@@ -1518,7 +1860,7 @@ export default function PublicationDetailScreen() {
               style={{ flex: 1 }}
               contentContainerStyle={{
                 flexGrow: 1,
-                paddingBottom: 24,
+                paddingBottom: showAdminReviewFooter || showAdminReportFooter ? 110 : 24,
               }}
               showsVerticalScrollIndicator={false}
             >
@@ -1589,68 +1931,70 @@ export default function PublicationDetailScreen() {
                     </View>
                   )}
 
-                  <View style={styles.statsRowWithDownload}>
-                    {!editMode && downloadableFilesCount > 0 ? (
-                      <Chip
-                        icon="download-multiple"
-                        compact
-                        onPress={descargarTodosLosArchivos}
-                        disabled={
-                          downloadingAll ||
-                          downloadingFileId !== null ||
-                          downloadableFilesCount === 0
-                        }
-                        style={styles.downloadChip}
-                        textStyle={styles.downloadChipText}
-                      >
-                        Descargar
-                      </Chip>
-                    ) : (
-                      <View />
-                    )}
+                  {!isModerationMode && (
+                    <View style={styles.statsRowWithDownload}>
+                      {!editMode && downloadableFilesCount > 0 ? (
+                        <Chip
+                          icon="download-multiple"
+                          compact
+                          onPress={descargarTodosLosArchivos}
+                          disabled={
+                            downloadingAll ||
+                            downloadingFileId !== null ||
+                            downloadableFilesCount === 0
+                          }
+                          style={styles.downloadChip}
+                          textStyle={styles.downloadChipText}
+                        >
+                          Descargar
+                        </Chip>
+                      ) : (
+                        <View />
+                      )}
 
-                    <View style={styles.statsContainer}>
-                      <View style={styles.statsInlineItem}>
-                        <MaterialCommunityIcons
-                          name="eye"
-                          size={16}
-                          color={theme.colors.primary}
-                        />
-                        <Text style={styles.statsInlineText}>{publicacion.vistas}</Text>
+                      <View style={styles.statsContainer}>
+                        <View style={styles.statsInlineItem}>
+                          <MaterialCommunityIcons
+                            name="eye"
+                            size={16}
+                            color={theme.colors.primary}
+                          />
+                          <Text style={styles.statsInlineText}>{publicacion.vistas}</Text>
+                        </View>
+
+                        <Pressable
+                          onPress={() => setCommentsModalVisible(true)}
+                          style={({ pressed }) => [
+                            styles.statsInlineItem,
+                            { opacity: pressed ? 0.7 : 1 },
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name="comment"
+                            size={16}
+                            color={theme.colors.primary}
+                          />
+                          <Text style={styles.statsInlineText}>{realTimeCommentCount}</Text>
+                        </Pressable>
+
+                        <Pressable
+                          onPress={toggleLike}
+                          disabled={likeLoading}
+                          style={({ pressed }) => [
+                            styles.statsInlineItem,
+                            { opacity: likeLoading ? 0.5 : pressed ? 0.7 : 1 },
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name={userLiked ? "heart" : "heart-outline"}
+                            size={16}
+                            color={theme.colors.primary}
+                          />
+                          <Text style={styles.statsInlineText}>{likeCount}</Text>
+                        </Pressable>
                       </View>
-
-                      <Pressable
-                        onPress={() => setCommentsModalVisible(true)}
-                        style={({ pressed }) => [
-                          styles.statsInlineItem,
-                          { opacity: pressed ? 0.7 : 1 },
-                        ]}
-                      >
-                        <MaterialCommunityIcons
-                          name="comment"
-                          size={16}
-                          color={theme.colors.primary}
-                        />
-                        <Text style={styles.statsInlineText}>{realTimeCommentCount}</Text>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={toggleLike}
-                        disabled={likeLoading}
-                        style={({ pressed }) => [
-                          styles.statsInlineItem,
-                          { opacity: likeLoading ? 0.5 : pressed ? 0.7 : 1 },
-                        ]}
-                      >
-                        <MaterialCommunityIcons
-                          name={userLiked ? "heart" : "heart-outline"}
-                          size={16}
-                          color={theme.colors.primary}
-                        />
-                        <Text style={styles.statsInlineText}>{likeCount}</Text>
-                      </Pressable>
                     </View>
-                  </View>
+                  )}
                 </Card.Content>
               </Card>
 
@@ -1741,16 +2085,28 @@ export default function PublicationDetailScreen() {
 
                               {!editMode ? (
                                 <IconButton
-                                  icon={archivo.esEnlaceExterno ? "link-variant" : "download"}
+                                  icon={
+                                    archivo.esEnlaceExterno
+                                      ? "link-variant"
+                                      : isDownloading
+                                      ? "close"
+                                      : "download"
+                                  }
                                   size={20}
                                   onPress={() =>
                                     archivo.esEnlaceExterno
                                       ? abrirArchivo(archivo)
+                                      : isDownloading
+                                      ? cancelarDescargaArchivo()
                                       : descargarArchivo(archivo)
                                   }
                                   style={styles.archivoTrailing}
-                                  iconColor={theme.colors.onSurface}
-                                  disabled={isDownloading || isOpening}
+                                  iconColor={
+                                    isDownloading
+                                      ? theme.colors.error
+                                      : theme.colors.onSurface
+                                  }
+                                  disabled={isOpening}
                                 />
                               ) : (
                                 <IconButton
@@ -1854,7 +2210,7 @@ export default function PublicationDetailScreen() {
                               variant="bodyMedium"
                               style={{ color: theme.colors.onSurface, fontWeight: "600" }}
                             >
-                              Agregar archivo
+                              Agregar archivos
                             </Text>
                           </View>
                         </Card>
@@ -1865,6 +2221,91 @@ export default function PublicationDetailScreen() {
               )}
             </ScrollView>
           </KeyboardAvoidingView>
+        )}
+
+        {showAdminReviewFooter && (
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              flexDirection: "row",
+              gap: 10,
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              paddingBottom: 16,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: "rgba(255,255,255,0.12)",
+              backgroundColor: theme.colors.background,
+            }}
+          >
+            <Button
+              mode="outlined"
+              icon="close"
+              onPress={() => setReviewRejectDialogVisible(true)}
+              disabled={reviewProcessing}
+              style={{ flex: 1 }}
+            >
+              Rechazar
+            </Button>
+            <Button
+              mode="contained"
+              icon="check"
+              onPress={handleApprovePendingPublication}
+              loading={reviewProcessing}
+              disabled={reviewProcessing}
+              style={{ flex: 1 }}
+            >
+              Aceptar
+            </Button>
+          </View>
+        )}
+        {showAdminReportFooter && (
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              flexDirection: "row",
+              gap: 10,
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              paddingBottom: 16,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: "rgba(255,255,255,0.12)",
+              backgroundColor: theme.colors.background,
+            }}
+          >
+            <Button
+              mode="outlined"
+              icon="check-circle-outline"
+              onPress={() => {
+                setReportActionType("descartar");
+                setReportActionReason("");
+                setReportActionDialogVisible(true);
+              }}
+              disabled={reportActionProcessing}
+              style={{ flex: 1 }}
+            >
+              Descartar
+            </Button>
+            <Button
+              mode="contained"
+              icon="delete"
+              onPress={() => {
+                setReportActionType("eliminar_strike");
+                setReportActionReason("");
+                setReportActionDialogVisible(true);
+              }}
+              disabled={reportActionProcessing}
+              loading={reportActionProcessing}
+              style={{ flex: 1 }}
+            >
+              Eliminar + strike
+            </Button>
+          </View>
         )}
 
         <CommentsModal
@@ -1955,6 +2396,102 @@ export default function PublicationDetailScreen() {
         />
         <Portal>
           <Dialog
+            visible={reportActionDialogVisible}
+            onDismiss={() => setReportActionDialogVisible(false)}
+          >
+            <Dialog.Title>
+              {reportActionType === "descartar"
+                ? "Descartar denuncia"
+                : "Eliminar publicación + strike"}
+            </Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium" style={{ marginBottom: 10 }}>
+                {reportActionType === "descartar"
+                  ? "Se cerrará la denuncia y la publicación permanecerá activa."
+                  : "Se eliminará la publicación y se aplicará un strike al autor."}
+              </Text>
+              <TextInput
+                label="Motivo (opcional)"
+                mode="outlined"
+                value={reportActionReason}
+                onChangeText={setReportActionReason}
+                multiline
+                numberOfLines={3}
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button
+                onPress={() => setReportActionDialogVisible(false)}
+                disabled={reportActionProcessing}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onPress={executeReportAction}
+                mode="contained"
+                loading={reportActionProcessing}
+                disabled={reportActionProcessing}
+              >
+                Confirmar
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+
+        <Portal>
+          <Dialog
+            visible={reviewRejectDialogVisible}
+            onDismiss={() => setReviewRejectDialogVisible(false)}
+          >
+            <Dialog.Title>Rechazar publicación</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium" style={{ marginBottom: 12 }}>
+                La publicación será eliminada.
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text variant="bodyMedium">Banear usuario</Text>
+                <Switch
+                  value={reviewBanUserOnReject}
+                  onValueChange={setReviewBanUserOnReject}
+                />
+              </View>
+              <TextInput
+                label="Motivo (opcional)"
+                mode="outlined"
+                value={reviewRejectReason}
+                onChangeText={setReviewRejectReason}
+                multiline
+                numberOfLines={3}
+                style={{ marginTop: 12 }}
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button
+                onPress={() => setReviewRejectDialogVisible(false)}
+                disabled={reviewProcessing}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onPress={handleRejectPendingPublication}
+                mode="contained"
+                loading={reviewProcessing}
+                disabled={reviewProcessing}
+              >
+                Confirmar
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+
+        <Portal>
+          <Dialog
             visible={dialogSeleccionVisible}
             onDismiss={() => setDialogSeleccionVisible(false)}
           >
@@ -1966,7 +2503,7 @@ export default function PublicationDetailScreen() {
                 onPress={agregarArchivo}
                 style={{ marginBottom: 12 }}
               >
-                Subir archivo
+                Subir archivos
               </Button>
               <Button
                 mode="outlined"

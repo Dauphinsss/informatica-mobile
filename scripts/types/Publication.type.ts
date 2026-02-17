@@ -11,7 +11,7 @@ export interface Publicacion {
   vistas: number;
   totalCalificaciones: number;
   totalComentarios: number;
-  estado: "activo" | "eliminado";
+  estado: "activo" | "pendiente" | "eliminado";
 }
 
 export interface ArchivoPublicacion {
@@ -23,6 +23,7 @@ export interface ArchivoPublicacion {
   webUrl: string;
   filepath: string | null;
   tamanoBytes: number;
+  orden?: number;
   fechaSubida: Date;
   activo: boolean;
   tipoNombre: string;

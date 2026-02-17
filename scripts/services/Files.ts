@@ -20,6 +20,8 @@ import { db, storage } from "@/firebase";
 import * as DocumentPicker from 'expo-document-picker';
 import { Archivo, TipoArchivo } from "../types/Files.type";
 
+const MAX_ATTACHMENT_SIZE_BYTES = 100 * 1024 * 1024;
+
 const verificarAutenticacion = async (): Promise<boolean> => {
   const auth = getAuth();
   if (auth.currentUser) {
@@ -78,16 +80,41 @@ export const obtenerTipoArchivoPorId = async (tipoId: string): Promise<TipoArchi
 
 export const seleccionarArchivo = async (tiposPermitidos?: string[]) => {
   try {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: tiposPermitidos || '*/*',
-      copyToCacheDirectory: true
-    });
+    const assetsSeleccionados: DocumentPicker.DocumentPickerAsset[] = [];
 
-    if (result.canceled) {
+    while (true) {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: tiposPermitidos || '*/*',
+        copyToCacheDirectory: true,
+        multiple: true,
+      });
+
+      if (result.canceled) {
+        break;
+      }
+
+      const assets = result.assets || [];
+      if (assets.length === 0) {
+        break;
+      }
+
+      assetsSeleccionados.push(...assets);
+
+      // Si el selector permitió elegir varios en una sola vista, cerramos.
+      // Si solo devolvió uno, reabrimos para permitir agregar más y se sale con "Cancelar".
+      if (assets.length > 1) {
+        break;
+      }
+    }
+
+    if (assetsSeleccionados.length === 0) {
       return null;
     }
 
-    return result.assets[0];
+    const unicos = Array.from(
+      new Map(assetsSeleccionados.map((a) => [a.uri, a])).values(),
+    );
+    return unicos;
   } catch (error) {
     console.error("Error al seleccionar archivo:", error);
     throw error;
@@ -117,7 +144,8 @@ export const subirArchivo = async (
   tipoArchivoId: string,
   titulo: string,
   descripcion?: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  orden?: number
 ): Promise<Archivo> => {
   let detenerProgreso: (() => void) | null = null;
   
@@ -129,6 +157,10 @@ export const subirArchivo = async (
     }
     
     await new Promise(resolve => setTimeout(resolve, 200));
+
+    if (typeof archivo.size === "number" && archivo.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      throw new Error("El archivo supera el tamaño máximo de 100 MB.");
+    }
     
     let blob: Blob;
     
@@ -177,6 +209,9 @@ export const subirArchivo = async (
     if (!blob || blob.size === 0) {
       throw new Error("El archivo no pudo ser leído (tamaño 0)");
     }
+    if (blob.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      throw new Error("El archivo supera el tamaño máximo de 100 MB.");
+    }
 
     const timestamp = Date.now();
     const nombreLimpio = archivo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -213,6 +248,7 @@ export const subirArchivo = async (
       webUrl: downloadURL,
       filepath: downloadURL,
       tamanoBytes: archivo.size || blob.size || 0,
+      ...(typeof orden === "number" ? { orden } : {}),
       fechaSubida: Timestamp.now(),
       activo: true
     };
@@ -319,13 +355,15 @@ export const eliminarArchivo = async (archivoId: string): Promise<void> => {
 export const actualizarArchivo = async (
   archivoId: string,
   titulo?: string,
-  descripcion?: string
+  descripcion?: string,
+  orden?: number
 ): Promise<void> => {
   try {
     const updateData: any = {};
     
     if (titulo !== undefined) updateData.titulo = titulo;
     if (descripcion !== undefined) updateData.descripcion = descripcion;
+    if (orden !== undefined) updateData.orden = orden;
 
     await updateDoc(doc(db, "archivos", archivoId), updateData);
   } catch (error) {
@@ -352,7 +390,8 @@ export const guardarEnlaceExterno = async (
   publicacionId: string,
   tipoArchivoId: string,
   nombreEnlace: string,
-  url: string
+  url: string,
+  orden?: number
 ): Promise<{ id: string }> => {
   try {
 
@@ -367,6 +406,7 @@ export const guardarEnlaceExterno = async (
       titulo: nombreEnlace,
       webUrl: url,
       esEnlaceExterno: true,
+      ...(typeof orden === "number" ? { orden } : {}),
     });
 
     return { id: archivoRef.id };

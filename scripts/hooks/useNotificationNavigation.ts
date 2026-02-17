@@ -9,6 +9,8 @@ interface NotificationData {
   materiaId?: string;
   materiaNombre?: string;
   publicacionId?: string;
+  fileUri?: string;
+  archivo?: string;
   deepLink?: string;
   clickAction?: string;
 }
@@ -261,6 +263,17 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
       case 'admin_decision':
         console.log('Acción: admin_decision');
         goTo('/perfil/notificaciones', data);
+        break;
+
+      case 'abrir_archivo':
+        if (data.fileUri) {
+          Linking.openURL(data.fileUri).catch((err) => {
+            console.warn('No se pudo abrir archivo desde notificación:', err);
+            goTo('/notificaciones');
+          });
+        } else {
+          goTo('/notificaciones');
+        }
         break;
         
       default:

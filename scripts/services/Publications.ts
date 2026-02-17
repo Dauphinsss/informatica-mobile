@@ -78,19 +78,22 @@ export const crearPublicacion = async (
   autorRol?: string,
 ): Promise<string> => {
   try {
+    const autorRolNormalizado = normalizeAuthorRole(autorRol);
+    const estadoInicial = autorRolNormalizado === "admin" ? "activo" : "pendiente";
+
     const publicacionData = {
       materiaId,
       autorUid,
       autorNombre,
       autorFoto: autorFoto || null,
-      autorRol: autorRol || "usuario",
+      autorRol: autorRolNormalizado,
       titulo,
       descripcion,
       fechaPublicacion: Timestamp.now(),
       vistas: 0,
       totalCalificaciones: 0,
       totalComentarios: 0,
-      estado: "activo",
+      estado: estadoInicial,
     };
 
     const docRef = await addDoc(
@@ -201,6 +204,22 @@ export const obtenerArchivosConTipo = async (
         extension: tipoInfo?.extensiones?.[0] || "",
         esEnlaceExterno: data.esEnlaceExterno || false,
       } as ArchivoPublicacion);
+    });
+
+    archivos.sort((a, b) => {
+      const ordenA =
+        typeof a.orden === "number" ? a.orden : Number.MAX_SAFE_INTEGER;
+      const ordenB =
+        typeof b.orden === "number" ? b.orden : Number.MAX_SAFE_INTEGER;
+
+      if (ordenA !== ordenB) {
+        return ordenA - ordenB;
+      }
+
+      return (
+        (a.fechaSubida instanceof Date ? a.fechaSubida.getTime() : 0) -
+        (b.fechaSubida instanceof Date ? b.fechaSubida.getTime() : 0)
+      );
     });
   } catch (error) {
     console.error("Error al obtener archivos:", error);

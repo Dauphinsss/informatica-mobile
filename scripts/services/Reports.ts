@@ -10,6 +10,7 @@ import {
   onSnapshot,
   query,
   QuerySnapshot,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where
@@ -270,10 +271,34 @@ export const banearUsuarioPorNombre = async (nombre: string) => {
     if (usuarioDoc) {
       await updateDoc(doc(db, "usuarios", usuarioDoc.id), {
         estado: "suspendido",
+        motivoSuspension: "Incumplimiento de normas de la comunidad.",
+        razonSuspension: "Incumplimiento de normas de la comunidad.",
+        motivoBan: "Incumplimiento de normas de la comunidad.",
+        suspendidoEn: serverTimestamp(),
       });
     }
   } catch (error) {
     console.error("Error al banear usuario:", error);
+    throw error;
+  }
+};
+
+export const banearUsuarioPorUid = async (
+  uid: string,
+  motivo: string = "Incumplimiento de normas de la comunidad.",
+) => {
+  try {
+    if (!uid) throw new Error("UID de usuario inválido");
+    const motivoFinal = motivo?.trim() || "Incumplimiento de normas de la comunidad.";
+    await updateDoc(doc(db, "usuarios", uid), {
+      estado: "suspendido",
+      motivoSuspension: motivoFinal,
+      razonSuspension: motivoFinal,
+      motivoBan: motivoFinal,
+      suspendidoEn: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error al banear usuario por UID:", error);
     throw error;
   }
 };

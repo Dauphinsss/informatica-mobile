@@ -34,6 +34,7 @@ import SubjectCard from "./components/SubjectCard";
 import { AdminStackParamList, SemestreOption, Subject } from "./_types";
 import {
   normalizeText,
+  SUBJECT_NAME_MAX_LENGTH,
   validateSubjectFields,
 } from "./_utils/subjectValidations";
 
@@ -341,8 +342,8 @@ export default function ManageSubjectsScreen() {
     const nombreRegex = /^[a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑüÜ,.;:()\-]+$/;
     if (!formData.nombre.trim()) {
       errors.nombre = "El nombre es obligatorio";
-    } else if (formData.nombre.length > 30) {
-      errors.nombre = "El nombre no puede tener más de 30 caracteres";
+    } else if (formData.nombre.length > SUBJECT_NAME_MAX_LENGTH) {
+      errors.nombre = `El nombre no puede tener más de ${SUBJECT_NAME_MAX_LENGTH} caracteres`;
     } else if (!nombreRegex.test(formData.nombre)) {
       errors.nombre = "El nombre contiene caracteres no válidos";
     }

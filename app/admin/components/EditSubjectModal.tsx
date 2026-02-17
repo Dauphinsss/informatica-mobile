@@ -12,6 +12,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SemestreOption, Subject } from "../_types";
+import { SUBJECT_NAME_MAX_LENGTH } from "../_utils/subjectValidations";
 import ImageUploader from "./ImageUploader";
 
 interface EditSubjectModalProps {
@@ -135,7 +136,7 @@ const EditSubjectModal: React.FC<EditSubjectModalProps> = ({
             onChangeText={(text) => setFormData({ ...formData, nombre: text })}
             error={!!errors.nombre}
             style={styles.input}
-            maxLength={30}
+            maxLength={SUBJECT_NAME_MAX_LENGTH}
             mode="outlined"
           />
           {errors.nombre ? (

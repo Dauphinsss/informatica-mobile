@@ -18,8 +18,11 @@ import ActivityDetailModal from "../admin/components/ActivityDetailModal";
 type AdminStackParamList = {
   Admin: undefined;
   ManageUsers: undefined;
+  ManageTeachers: undefined;
+  ManageSections: undefined;
   Reports: undefined;
   ManageSubjects: undefined;
+  PendingPublications: undefined;
   Statistics: undefined;
 };
 
@@ -114,8 +117,10 @@ export default function AdminScreen() {
   
   const [totalMaterias, setTotalMaterias] = useState(0);
   const [totalUsuarios, setTotalUsuarios] = useState(0);
-  const [totalDenuncias, setTotalDenuncias] = useState(0);
+  const [totalDocentes, setTotalDocentes] = useState(0);
+  const [totalSecciones, setTotalSecciones] = useState(0);
   const [denunciasPendientes, setDenunciasPendientes] = useState(0);
+  const [publicacionesPendientes, setPublicacionesPendientes] = useState(0);
   const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -124,6 +129,9 @@ export default function AdminScreen() {
     usuarios: false,
     denuncias: false,
     pendientes: false,
+    publicacionesPendientes: false,
+    docentes: false,
+    secciones: false,
   });
   const [selectedActivity, setSelectedActivity] = useState<ActivityLog | null>(null);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
@@ -152,10 +160,25 @@ export default function AdminScreen() {
 
     
     const denunciasRef = collection(db, "reportes");
-    const unsubDenuncias = onSnapshot(denunciasRef, (snapshot) => {
+    const unsubDenuncias = onSnapshot(denunciasRef, () => {
       if (mounted) {
-        setTotalDenuncias(snapshot.size);
         setStatsLoaded((prev) => ({ ...prev, denuncias: true }));
+      }
+    });
+
+    const docentesRef = collection(db, "docentes");
+    const unsubDocentes = onSnapshot(docentesRef, (snapshot) => {
+      if (mounted) {
+        setTotalDocentes(snapshot.size);
+        setStatsLoaded((prev) => ({ ...prev, docentes: true }));
+      }
+    });
+
+    const seccionesRef = collection(db, "secciones");
+    const unsubSecciones = onSnapshot(seccionesRef, (snapshot) => {
+      if (mounted) {
+        setTotalSecciones(snapshot.size);
+        setStatsLoaded((prev) => ({ ...prev, secciones: true }));
       }
     });
 
@@ -171,12 +194,29 @@ export default function AdminScreen() {
       }
     });
 
+    const publicacionesPendientesQuery = query(
+      collection(db, "publicaciones"),
+      where("estado", "==", "pendiente")
+    );
+    const unsubPublicacionesPendientes = onSnapshot(
+      publicacionesPendientesQuery,
+      (snapshot) => {
+        if (mounted) {
+          setPublicacionesPendientes(snapshot.size);
+          setStatsLoaded((prev) => ({ ...prev, publicacionesPendientes: true }));
+        }
+      },
+    );
+
     return () => {
       mounted = false;
       unsubMaterias();
       unsubUsuarios();
       unsubDenuncias();
       unsubPendientes();
+      unsubPublicacionesPendientes();
+      unsubDocentes();
+      unsubSecciones();
     };
   }, []);
 
@@ -185,7 +225,10 @@ export default function AdminScreen() {
       statsLoaded.materias &&
       statsLoaded.usuarios &&
       statsLoaded.denuncias &&
-      statsLoaded.pendientes;
+      statsLoaded.pendientes &&
+      statsLoaded.publicacionesPendientes &&
+      statsLoaded.docentes &&
+      statsLoaded.secciones;
     if (allLoaded) {
       setLoadingStats(false);
     }
@@ -229,185 +272,223 @@ export default function AdminScreen() {
           Gestión del Sistema
         </Text>
 
-        {}
         <View style={styles.statsGrid}>
-            {}
-            <TouchableOpacity
-              style={styles.statCard}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate("ManageSubjects")}
-            >
-              <Card elevation={2} style={styles.card}>
-                <Card.Content style={styles.cardContent}>
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      { backgroundColor: theme.colors.surfaceVariant },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="book-open-variant"
-                      size={32}
-                      color={theme.colors.primary}
-                    />
-                  </View>
-                  <View style={styles.statContent}>
-                    <AnimatedStatNumber
-                      value={totalMaterias}
-                      loading={loadingStats || !statsLoaded.materias}
-                      style={styles.statNumber}
-                    />
-                    <Text
-                      variant="bodyLarge"
-                      style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
-                    >
-                      Materias
-                    </Text>
-                  </View>
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("ManageSubjects")}
+          >
+            <Card elevation={2} style={styles.card}>
+              <Card.Content style={styles.cardContent}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: theme.colors.surfaceVariant },
+                  ]}
+                >
                   <MaterialCommunityIcons
-                    name="chevron-right"
+                    name="book-open-variant"
                     size={24}
-                    color={theme.colors.onSurfaceVariant}
-                    style={styles.chevron}
+                    color={theme.colors.primary}
                   />
-                </Card.Content>
-              </Card>
-            </TouchableOpacity>
+                </View>
+                <View style={styles.statContent}>
+                  <AnimatedStatNumber
+                    value={totalMaterias}
+                    loading={loadingStats || !statsLoaded.materias}
+                    style={styles.statNumber}
+                  />
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    Materias
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          </TouchableOpacity>
 
-            {}
-            <TouchableOpacity
-              style={styles.statCard}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate("ManageUsers")}
-            >
-              <Card elevation={2} style={styles.card}>
-                <Card.Content style={styles.cardContent}>
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      { backgroundColor: theme.colors.surfaceVariant },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="account-group"
-                      size={32}
-                      color={theme.colors.primary}
-                    />
-                  </View>
-                  <View style={styles.statContent}>
-                    <AnimatedStatNumber
-                      value={totalUsuarios}
-                      loading={loadingStats || !statsLoaded.usuarios}
-                      style={styles.statNumber}
-                    />
-                    <Text
-                      variant="bodyLarge"
-                      style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
-                    >
-                      Usuarios
-                    </Text>
-                  </View>
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("ManageSections")}
+          >
+            <Card elevation={2} style={styles.card}>
+              <Card.Content style={styles.cardContent}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: theme.colors.surfaceVariant },
+                  ]}
+                >
                   <MaterialCommunityIcons
-                    name="chevron-right"
+                    name="view-grid-outline"
                     size={24}
-                    color={theme.colors.onSurfaceVariant}
-                    style={styles.chevron}
+                    color={theme.colors.primary}
                   />
-                </Card.Content>
-              </Card>
-            </TouchableOpacity>
-          </View>
+                </View>
+                <View style={styles.statContent}>
+                  <AnimatedStatNumber
+                    value={totalSecciones}
+                    loading={loadingStats || !statsLoaded.secciones}
+                    style={styles.statNumber}
+                  />
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    Secciones
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          </TouchableOpacity>
 
-        {}
-        <View style={styles.statsGrid}>
-            {}
-            <TouchableOpacity
-              style={styles.statCard}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate("Reports")}
-            >
-              <Card elevation={2} style={styles.card}>
-                <Card.Content style={styles.cardContent}>
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      { backgroundColor: theme.colors.surfaceVariant },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="alert-octagon"
-                      size={32}
-                      color={theme.colors.primary}
-                    />
-                  </View>
-                  <View style={styles.statContent}>
-                    <AnimatedStatNumber
-                      value={denunciasPendientes}
-                      loading={loadingStats || !statsLoaded.pendientes}
-                      style={styles.statNumber}
-                    />
-                    <Text
-                      variant="bodyLarge"
-                      style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
-                    >
-                      Denuncias
-                    </Text>
-                    <Text
-                      variant="bodySmall"
-                      style={[styles.subLabel, { color: theme.colors.onSurfaceVariant }]}
-                    >
-                      {loadingStats || !statsLoaded.denuncias
-                        ? "cargando..."
-                        : `${totalDenuncias} total`}
-                    </Text>
-                  </View>
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("ManageTeachers")}
+          >
+            <Card elevation={2} style={styles.card}>
+              <Card.Content style={styles.cardContent}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: theme.colors.surfaceVariant },
+                  ]}
+                >
                   <MaterialCommunityIcons
-                    name="chevron-right"
+                    name="account-tie"
                     size={24}
-                    color={theme.colors.onSurfaceVariant}
-                    style={styles.chevron}
+                    color={theme.colors.primary}
                   />
-                </Card.Content>
-              </Card>
-            </TouchableOpacity>
+                </View>
+                <View style={styles.statContent}>
+                  <AnimatedStatNumber
+                    value={totalDocentes}
+                    loading={loadingStats || !statsLoaded.docentes}
+                    style={styles.statNumber}
+                  />
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    Docentes
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.statCard}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate("Statistics")}
-            >
-              <Card elevation={2} style={styles.card}>
-                <Card.Content style={styles.cardContent}>
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      { backgroundColor: theme.colors.surfaceVariant },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name="chart-bar"
-                      size={32}
-                      color={theme.colors.primary}
-                    />
-                  </View>
-                  <View style={styles.statContent}>
-                    <Text
-                      variant="bodyLarge"
-                      style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
-                    >
-                      Estadísticas
-                    </Text>
-                  </View>
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("ManageUsers")}
+          >
+            <Card elevation={2} style={styles.card}>
+              <Card.Content style={styles.cardContent}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: theme.colors.surfaceVariant },
+                  ]}
+                >
                   <MaterialCommunityIcons
-                    name="chevron-right"
+                    name="account-group"
                     size={24}
-                    color={theme.colors.onSurfaceVariant}
-                    style={styles.chevron}
+                    color={theme.colors.primary}
                   />
-                </Card.Content>
-              </Card>
-            </TouchableOpacity>
-          </View>
+                </View>
+                <View style={styles.statContent}>
+                  <AnimatedStatNumber
+                    value={totalUsuarios}
+                    loading={loadingStats || !statsLoaded.usuarios}
+                    style={styles.statNumber}
+                  />
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    Usuarios
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("Reports")}
+          >
+            <Card elevation={2} style={styles.card}>
+              <Card.Content style={styles.cardContent}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: theme.colors.surfaceVariant },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="alert-octagon"
+                    size={24}
+                    color={theme.colors.primary}
+                  />
+                </View>
+                <View style={styles.statContent}>
+                  <AnimatedStatNumber
+                    value={denunciasPendientes}
+                    loading={loadingStats || !statsLoaded.pendientes}
+                    style={styles.statNumber}
+                  />
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    Denuncias
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("PendingPublications")}
+          >
+            <Card elevation={2} style={styles.card}>
+              <Card.Content style={styles.cardContent}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: theme.colors.surfaceVariant },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="newspaper-variant-multiple"
+                    size={24}
+                    color={theme.colors.primary}
+                  />
+                </View>
+                <View style={styles.statContent}>
+                  <AnimatedStatNumber
+                    value={publicacionesPendientes}
+                    loading={loadingStats || !statsLoaded.publicacionesPendientes}
+                    style={styles.statNumber}
+                  />
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    Pendientes
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          </TouchableOpacity>
+        </View>
 
         {}
         <View style={styles.activitySection}>
@@ -501,51 +582,53 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: "row",
-    gap: 12,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   statCard: {
-    flex: 1,
+    width: "31.5%",
+    marginBottom: 10,
   },
   card: {
     borderRadius: 16,
-    height: 200,
+    height: 138,
   },
   cardContent: {
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: "center",
     position: "relative",
     height: "100%",
     justifyContent: "center",
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+    width: 50,
+    height: 50,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 10,
   },
   statContent: {
     alignItems: "center",
-    minHeight: 80,
+    minHeight: 52,
     justifyContent: "center",
   },
   statNumber: {
     fontWeight: "bold",
-    marginBottom: 4,
+    marginBottom: 2,
+    fontSize: 22,
+    lineHeight: 24,
   },
   statLabel: {
     fontWeight: "500",
+    textAlign: "center",
+    fontSize: 12,
+    lineHeight: 14,
   },
   subLabel: {
     marginTop: 4,
     opacity: 0.6,
-  },
-  chevron: {
-    position: "absolute",
-    top: 12,
-    right: 12,
   },
   disabledCard: {
     opacity: 0.6,

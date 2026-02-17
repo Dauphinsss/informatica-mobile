@@ -26,6 +26,7 @@ import { AdminStackParamList } from "./_types";
 import SubjectHomePreviewCard from "./components/SubjectHomePreviewCard";
 import {
   normalizeText,
+  SUBJECT_NAME_MAX_LENGTH,
   validateSubjectFields,
 } from "./_utils/subjectValidations";
 
@@ -250,7 +251,7 @@ export default function CreateSubjectScreen() {
               }
               error={!!errors.nombre}
               style={styles.input}
-              maxLength={30}
+              maxLength={SUBJECT_NAME_MAX_LENGTH}
               mode="outlined"
               onFocus={() => handleInputFocus(100)}
             />

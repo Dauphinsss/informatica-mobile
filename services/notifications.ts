@@ -1,4 +1,4 @@
-import { db } from "@/firebase";
+import { auth, db } from "@/firebase";
 import { getNotificationSettings } from "@/hooks/useNotificationSettings";
 import {
   addDoc,
@@ -281,20 +281,51 @@ export const eliminarNotificacionUsuario = async (
 export const eliminarNotificacionesUsuarioBatch = async (
   notificacionUsuarioIds: string[]
 ) => {
-  try {
-    const batch = writeBatch(db);
-    
-    notificacionUsuarioIds.forEach((id) => {
-      const notifUsuarioRef = doc(db, "notificacionesUsuario", id);
-      batch.update(notifUsuarioRef, {
-        eliminada: true,
-      });
-    });
+  if (!notificacionUsuarioIds.length) return;
 
-    await batch.commit();
+  const currentUser = auth.currentUser;
+  if (!currentUser?.uid) {
+    throw new Error("Usuario no autenticado para eliminar notificaciones.");
+  }
+
+  const uniqueIds = [...new Set(notificacionUsuarioIds)];
+  const batchSize = 30;
+  const allowedIds: string[] = [];
+
+  try {
+    for (let i = 0; i < uniqueIds.length; i += batchSize) {
+      const idChunk = uniqueIds.slice(i, i + batchSize);
+      const snap = await getDocs(
+        query(
+          collection(db, "notificacionesUsuario"),
+          where("userId", "==", currentUser.uid),
+          where(documentId(), "in", idChunk)
+        )
+      );
+      snap.docs.forEach((d) => allowedIds.push(d.id));
+    }
   } catch (error) {
-    console.error("❌ Error al eliminar notificaciones en batch:", error);
-    throw error;
+    console.warn(
+      "⚠️ No se pudo validar IDs por query; se intentará borrado individual.",
+      error
+    );
+  }
+
+  const idsToDelete = allowedIds.length > 0 ? allowedIds : uniqueIds;
+  let deletedCount = 0;
+
+  for (const id of idsToDelete) {
+    try {
+      const notifUsuarioRef = doc(db, "notificacionesUsuario", id);
+      await updateDoc(notifUsuarioRef, { eliminada: true });
+      deletedCount++;
+    } catch (error) {
+      console.warn(`⚠️ No se pudo eliminar notificación ${id}:`, error);
+    }
+  }
+
+  if (deletedCount === 0) {
+    console.warn("⚠️ No se eliminó ninguna notificación del lote.");
   }
 };
 

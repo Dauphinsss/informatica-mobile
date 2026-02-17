@@ -24,7 +24,7 @@ import ImageUploader from "./components/ImageUploader";
 import SubjectHomePreviewCard from "./components/SubjectHomePreviewCard";
 import { db, storage } from "../../firebase";
 import { AdminStackParamList, SemestreOption } from "./_types";
-import { normalizeText } from "./_utils/subjectValidations";
+import { normalizeText, SUBJECT_NAME_MAX_LENGTH } from "./_utils/subjectValidations";
 
 type EditSubjectNavigationProp = StackNavigationProp<
   AdminStackParamList,
@@ -109,8 +109,8 @@ export default function EditSubjectScreen() {
     const nombreRegex = /^[a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑüÜ,.;:()\-]+$/;
     if (!formData.nombre.trim()) {
       errors.nombre = "El nombre es obligatorio";
-    } else if (formData.nombre.length > 30) {
-      errors.nombre = "El nombre no puede tener más de 30 caracteres";
+    } else if (formData.nombre.length > SUBJECT_NAME_MAX_LENGTH) {
+      errors.nombre = `El nombre no puede tener más de ${SUBJECT_NAME_MAX_LENGTH} caracteres`;
     } else if (!nombreRegex.test(formData.nombre)) {
       errors.nombre = "El nombre contiene caracteres no válidos";
     }
@@ -247,7 +247,7 @@ export default function EditSubjectScreen() {
               }
               error={!!errors.nombre}
               style={styles.input}
-              maxLength={30}
+              maxLength={SUBJECT_NAME_MAX_LENGTH}
               mode="outlined"
               onFocus={() => handleInputFocus(100)}
             />

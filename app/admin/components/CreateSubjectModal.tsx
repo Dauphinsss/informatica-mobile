@@ -4,6 +4,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, View } from 'reac
 import { Button, Dialog, Modal, Portal, RadioButton, Text, TextInput, useTheme } from 'react-native-paper';
 import { storage } from '../../../firebase';
 import ImageUploader from './ImageUploader';
+import { SUBJECT_NAME_MAX_LENGTH } from "../_utils/subjectValidations";
 
 interface CreateSubjectModalProps {
   visible: boolean;
@@ -170,7 +171,7 @@ const CreateSubjectModal: React.FC<CreateSubjectModalProps> = ({
               onChangeText={(text) => setFormData({ ...formData, nombre: text })}
               error={!!errors.nombre}
               style={styles.input}
-              maxLength={30}
+              maxLength={SUBJECT_NAME_MAX_LENGTH}
               mode="outlined"
             onFocus={() => handleInputFocus(100)}
             />

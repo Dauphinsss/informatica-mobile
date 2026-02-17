@@ -56,6 +56,7 @@ export const getStyles = (theme: MD3Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.outlineVariant,
       elevation: 0.5,
+      overflow: "hidden",
     },
     archivoContent: {
       flexDirection: "row",
@@ -121,6 +122,7 @@ export const getStyles = (theme: MD3Theme) =>
     },
     progressBar: {
       height: 3,
+      width: "100%",
     },
     errorText: {
       color: theme.colors.error,

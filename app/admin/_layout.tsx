@@ -2,11 +2,15 @@ import { createStackNavigator } from "@react-navigation/stack";
 import React from "react";
 import AdminScreen from "../(tabs)/admin";
 import FileGalleryScreen from "../subjects/FileGalleryScreen";
+import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
 import AllActivityScreen from "./AllActivityScreen";
 import CreateSubjectScreen from "./create-subject";
 import EditSubjectScreen from "./edit-subject";
+import ManageSectionsScreen from "./manage-sections";
 import ManageSubjectsScreen from "./manage-subjects";
+import ManageTeachersScreen from "./manage-teachers";
 import ManageUsers from "./manage-users";
+import PendingPublicationsScreen from "./pending-publications";
 import ReportsScreen from "./ReportsScreen";
 import StatisticsStack from "./StatisticsStack";
 
@@ -36,6 +40,34 @@ export default function AdminLayOut() {
         component={ManageUsers}
         options={{
           title: "Administrar Usuarios",
+        }}
+      />
+      <Stack.Screen
+        name="ManageTeachers"
+        component={ManageTeachersScreen}
+        options={{
+          title: "Docentes",
+        }}
+      />
+      <Stack.Screen
+        name="ManageSections"
+        component={ManageSectionsScreen}
+        options={{
+          title: "Secciones",
+        }}
+      />
+      <Stack.Screen
+        name="PendingPublications"
+        component={PendingPublicationsScreen}
+        options={{
+          title: "Publicaciones pendientes",
+        }}
+      />
+      <Stack.Screen
+        name="PublicationDetail"
+        component={PublicationDetailScreen}
+        options={{
+          title: "Detalle de publicación",
         }}
       />
       <Stack.Screen

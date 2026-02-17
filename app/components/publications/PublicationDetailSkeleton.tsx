@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
 import { Card, useTheme } from "react-native-paper";
 
 const H_MARGIN = 16;
+const FILE_PLACEHOLDER_COUNT = 6;
 
 const SkeletonElement: React.FC<{
   width?: number | string;
@@ -60,7 +61,7 @@ const HeaderSkeleton: React.FC = () => {
     >
       <Card.Content style={styles.headerContent}>
         <View style={styles.authorRow}>
-          <SkeletonElement width={42} height={42} borderRadius={21} />
+          <SkeletonElement width={40} height={40} borderRadius={20} />
           <View style={styles.authorText}>
             <SkeletonElement width="72%" height={14} />
             <SkeletonElement width="48%" height={10} style={{ marginTop: 6 }} />
@@ -70,7 +71,7 @@ const HeaderSkeleton: React.FC = () => {
         <SkeletonElement
           height={1}
           borderRadius={1}
-          style={{ opacity: 0.45, marginVertical: 2 }}
+          style={{ opacity: 0.45, marginVertical: 2, width: "100%" }}
         />
 
         <SkeletonElement width="84%" height={22} borderRadius={7} />
@@ -114,40 +115,35 @@ const FileRowSkeleton: React.FC = () => {
 
 export const PublicationDetailSkeleton: React.FC = () => {
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.container}>
       <HeaderSkeleton />
 
       <View style={styles.filesContainer}>
-        <FileRowSkeleton />
-        <FileRowSkeleton />
-        <FileRowSkeleton />
+        {Array.from({ length: FILE_PLACEHOLDER_COUNT }).map((_, idx) => (
+          <FileRowSkeleton key={`file-skeleton-${idx}`} />
+        ))}
       </View>
 
-      <View style={{ height: 28 }} />
-    </ScrollView>
+      <View style={{ height: 24 }} />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  contentContainer: {
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 24,
   },
   headerCard: {
     marginHorizontal: "4%",
+    marginTop: 12,
     marginBottom: 8,
     borderRadius: 12,
   },
   headerContent: {
     paddingHorizontal: 18,
     paddingVertical: 16,
+    gap: 10,
   },
   authorRow: {
     flexDirection: "row",
@@ -171,6 +167,7 @@ const styles = StyleSheet.create({
   },
   filesContainer: {
     marginHorizontal: H_MARGIN,
+    marginBottom: 8,
     gap: 8,
   },
   fileCard: {
@@ -189,4 +186,3 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
 });
-

@@ -43,43 +43,87 @@ export default function PublicationCardSkeleton({
         { marginHorizontal: withHorizontalMargin ? 16 : 0 },
       ]}
     >
-      <Card style={{ borderRadius: 16, backgroundColor: theme.colors.elevation.level1 }}>
-        <Card.Content style={styles.cardContent}>
-          <View style={styles.topRow}>
-            <Animated.View
-              style={[styles.avatar, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
-            />
-            <View style={styles.infoBlock}>
+      <Card
+        style={{
+          backgroundColor: theme.colors.elevation.level1,
+          elevation: 1,
+          borderRadius: 16,
+          overflow: "hidden",
+        }}
+      >
+        <Card.Content>
+          <View style={styles.wrapper}>
+            <View style={styles.topRow}>
               <Animated.View
-                style={[styles.titleLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
+                style={[
+                  styles.avatar,
+                  { backgroundColor: theme.colors.surfaceVariant, opacity },
+                ]}
               />
+              <View style={styles.infoBlock}>
+                <Animated.View
+                  style={[
+                    styles.titleLine,
+                    { backgroundColor: theme.colors.surfaceVariant, opacity },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.authorLine,
+                    { backgroundColor: theme.colors.surfaceVariant, opacity },
+                  ]}
+                />
+              </View>
+            </View>
+
+            <Animated.View
+              style={[
+                styles.descriptionLine,
+                { backgroundColor: theme.colors.surfaceVariant, opacity },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.descriptionLineShort,
+                { backgroundColor: theme.colors.surfaceVariant, opacity },
+              ]}
+            />
+
+            <View
+              style={[
+                styles.divider,
+                { backgroundColor: theme.colors.outlineVariant, opacity: 0.5 },
+              ]}
+            />
+
+            <View style={styles.statsRow}>
+              <View style={styles.statsLeft}>
+                <Animated.View
+                  style={[
+                    styles.statItem,
+                    { backgroundColor: theme.colors.surfaceVariant, opacity },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.statItem,
+                    { backgroundColor: theme.colors.surfaceVariant, opacity },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.statItem,
+                    { backgroundColor: theme.colors.surfaceVariant, opacity },
+                  ]}
+                />
+              </View>
               <Animated.View
-                style={[styles.authorLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
+                style={[
+                  styles.dateLine,
+                  { backgroundColor: theme.colors.surfaceVariant, opacity },
+                ]}
               />
             </View>
-            <Animated.View
-              style={[styles.dateLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
-            />
-          </View>
-
-          <Animated.View
-            style={[styles.descriptionLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
-          />
-
-          <Animated.View
-            style={[styles.subjectLine, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
-          />
-
-          <View style={styles.statsRow}>
-            <Animated.View
-              style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
-            />
-            <Animated.View
-              style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
-            />
-            <Animated.View
-              style={[styles.statPill, { backgroundColor: theme.colors.surfaceVariant, opacity }]}
-            />
           </View>
         </Card.Content>
       </Card>
@@ -91,7 +135,7 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
   },
-  cardContent: {
+  wrapper: {
     paddingVertical: 16,
     gap: 12,
   },
@@ -107,43 +151,52 @@ const styles = StyleSheet.create({
   },
   infoBlock: {
     flex: 1,
-    gap: 8,
     minWidth: 0,
+    gap: 6,
   },
   titleLine: {
-    width: "85%",
-    height: 14,
+    width: "92%",
+    height: 20,
     borderRadius: 4,
   },
   authorLine: {
-    width: "65%",
-    height: 11,
-    borderRadius: 4,
-  },
-  dateLine: {
-    width: 52,
-    height: 10,
-    borderRadius: 5,
-  },
-  descriptionLine: {
-    width: "90%",
-    height: 12,
-    borderRadius: 6,
-  },
-  subjectLine: {
     width: "58%",
     height: 14,
-    borderRadius: 6,
+    borderRadius: 4,
+  },
+  descriptionLine: {
+    width: "96%",
+    height: 15,
+    borderRadius: 4,
+  },
+  descriptionLineShort: {
+    width: "76%",
+    height: 15,
+    borderRadius: 4,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
   },
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginTop: 2,
+    justifyContent: "space-between",
+    gap: 8,
   },
-  statPill: {
-    width: 46,
-    height: 12,
+  statsLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  dateLine: {
+    width: 82,
+    height: 13,
+    borderRadius: 5,
+  },
+  statItem: {
+    width: 42,
+    height: 14,
     borderRadius: 6,
   },
 });

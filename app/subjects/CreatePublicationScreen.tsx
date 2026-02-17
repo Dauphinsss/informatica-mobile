@@ -1,6 +1,7 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/firebase";
 import {
+  actualizarArchivo,
   eliminarArchivo,
   guardarEnlaceExterno,
   obtenerTiposArchivo,
@@ -49,6 +50,7 @@ interface ArchivoTemp {
   id?: string;
   asset?: DocumentPicker.DocumentPickerAsset;
   tipoArchivoId: string;
+  orden?: number;
   progreso: number;
   subiendo: boolean;
   error?: string;
@@ -58,6 +60,8 @@ interface ArchivoTemp {
   nombrePersonalizado?: string;
   tamanoBytes?: number;
 }
+
+const MAX_ATTACHMENT_SIZE_BYTES = 100 * 1024 * 1024;
 
 export default function CreatePublicationScreen() {
   const { theme } = useTheme();
@@ -92,6 +96,7 @@ export default function CreatePublicationScreen() {
     number | null
   >(null);
   const [nuevoNombreArchivo, setNuevoNombreArchivo] = useState("");
+  const [extensionBloqueada, setExtensionBloqueada] = useState<string>("");
   const [dialogSeleccionVisible, setDialogSeleccionVisible] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
@@ -143,9 +148,10 @@ export default function CreatePublicationScreen() {
         const archivosExistentes = await obtenerArchivosConTipo(editPublicacionId);
         if (!cancelled) {
           setArchivos(
-            archivosExistentes.map((archivo) => ({
+            archivosExistentes.map((archivo, index) => ({
               id: archivo.id,
               tipoArchivoId: archivo.tipoArchivoId,
+              orden: archivo.orden ?? index,
               progreso: 100,
               subiendo: false,
               esEnlaceExterno: !!archivo.esEnlaceExterno,
@@ -231,29 +237,63 @@ export default function CreatePublicationScreen() {
     setDialogSeleccionVisible(false);
 
     try {
-      const archivo = await seleccionarArchivo();
-      if (!archivo) return;
+      const archivosSeleccionados = await seleccionarArchivo();
+      if (!archivosSeleccionados || archivosSeleccionados.length === 0) return;
 
-      const tipoId = detectarTipoArchivo(archivo.mimeType || "", archivo.name);
+      const nuevosArchivos: ArchivoTemp[] = [];
+      let omitidosPorTipo = 0;
+      let omitidosPorTamano = 0;
 
-      if (!tipoId) {
-        showAlert(
-          "Tipo no soportado",
-          "El tipo de archivo seleccionado no está soportado.",
-          "error",
-        );
-        return;
+      for (const archivo of archivosSeleccionados) {
+        const tipoId = detectarTipoArchivo(archivo.mimeType || "", archivo.name);
+
+        if (!tipoId) {
+          omitidosPorTipo++;
+          continue;
+        }
+
+        const tamanoArchivo = archivo.size || 0;
+        if (tamanoArchivo > MAX_ATTACHMENT_SIZE_BYTES) {
+          omitidosPorTamano++;
+          continue;
+        }
+
+        nuevosArchivos.push({
+          asset: archivo,
+          tipoArchivoId: tipoId,
+          progreso: 0,
+          subiendo: false,
+          esEnlaceExterno: false,
+        });
       }
 
-      const nuevoArchivo: ArchivoTemp = {
-        asset: archivo,
-        tipoArchivoId: tipoId,
-        progreso: 0,
-        subiendo: false,
-        esEnlaceExterno: false,
-      };
+      if (nuevosArchivos.length > 0) {
+        setArchivos((prev) => {
+          const base = prev.length;
+          return [
+            ...prev,
+            ...nuevosArchivos.map((archivo, idx) => ({
+              ...archivo,
+              orden: base + idx,
+            })),
+          ];
+        });
+      }
 
-      setArchivos((prev) => [...prev, nuevoArchivo]);
+      if (omitidosPorTipo > 0 || omitidosPorTamano > 0) {
+        const partes: string[] = [];
+        if (omitidosPorTipo > 0) {
+          partes.push(`${omitidosPorTipo} por tipo no soportado`);
+        }
+        if (omitidosPorTamano > 0) {
+          partes.push(`${omitidosPorTamano} por superar 100 MB`);
+        }
+        showAlert(
+          "Algunos archivos no se agregaron",
+          `Se omitieron ${partes.join(" y ")}.`,
+          "info",
+        );
+      }
     } catch (error) {
       console.error("Error al agregar archivo:", error);
       showAlert("Error", "No se pudo agregar el archivo", "error");
@@ -300,6 +340,7 @@ export default function CreatePublicationScreen() {
 
     const nuevoEnlace: ArchivoTemp = {
       tipoArchivoId: tipoEnlace.id,
+      orden: archivos.length,
       progreso: 0,
       subiendo: false,
       esEnlaceExterno: true,
@@ -342,6 +383,25 @@ export default function CreatePublicationScreen() {
     setArchivos((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const moverArchivo = (fromIndex: number, toIndex: number) => {
+    setArchivos((prev) => {
+      if (
+        toIndex < 0 ||
+        toIndex >= prev.length ||
+        fromIndex < 0 ||
+        fromIndex >= prev.length ||
+        fromIndex === toIndex
+      ) {
+        return prev;
+      }
+
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next.map((archivo, idx) => ({ ...archivo, orden: idx }));
+    });
+  };
+
   const obtenerNombreArchivo = (archivo: ArchivoTemp) => {
     if (archivo.nombrePersonalizado?.trim()) {
       return archivo.nombrePersonalizado.trim();
@@ -352,20 +412,45 @@ export default function CreatePublicationScreen() {
     return archivo.asset?.name || "Archivo";
   };
 
+  const obtenerExtensionBloqueada = (archivo: ArchivoTemp): string => {
+    if (archivo.esEnlaceExterno) return "";
+
+    const nombreActual = obtenerNombreArchivo(archivo).trim();
+    const ultimoPunto = nombreActual.lastIndexOf(".");
+    if (ultimoPunto <= 0 || ultimoPunto === nombreActual.length - 1) return "";
+    return nombreActual.slice(ultimoPunto).toLowerCase();
+  };
+
   const abrirDialogoRenombrarArchivo = (index: number) => {
     const archivo = archivos[index];
     if (!archivo) return;
     setArchivoRenombrarIndex(index);
     setNuevoNombreArchivo(obtenerNombreArchivo(archivo));
+    setExtensionBloqueada(obtenerExtensionBloqueada(archivo));
     setDialogRenombrarVisible(true);
   };
 
   const guardarNombreArchivo = () => {
     if (archivoRenombrarIndex === null) return;
-    const nombreLimpio = nuevoNombreArchivo.trim();
-    if (!nombreLimpio) {
+    const archivoObjetivo = archivos[archivoRenombrarIndex];
+    if (!archivoObjetivo) return;
+
+    const nombreIngresado = nuevoNombreArchivo.trim();
+    if (!nombreIngresado) {
       showAlert("Error", "El nombre no puede estar vacío", "error");
       return;
+    }
+
+    let nombreFinal = nombreIngresado;
+
+    if (!archivoObjetivo.esEnlaceExterno && extensionBloqueada) {
+      const sufijoRegex = /\.[^./\\\s]+$/;
+      const baseSinSufijo = nombreIngresado.replace(sufijoRegex, "").trim();
+      if (!baseSinSufijo) {
+        showAlert("Error", "El nombre no puede estar vacío", "error");
+        return;
+      }
+      nombreFinal = `${baseSinSufijo}${extensionBloqueada}`;
     }
 
     setArchivos((prev) =>
@@ -374,17 +459,18 @@ export default function CreatePublicationScreen() {
         if (archivo.esEnlaceExterno) {
           return {
             ...archivo,
-            nombrePersonalizado: nombreLimpio,
-            nombreEnlace: nombreLimpio,
+            nombrePersonalizado: nombreFinal,
+            nombreEnlace: nombreFinal,
           };
         }
-        return { ...archivo, nombrePersonalizado: nombreLimpio };
+        return { ...archivo, nombrePersonalizado: nombreFinal };
       }),
     );
 
     setDialogRenombrarVisible(false);
     setArchivoRenombrarIndex(null);
     setNuevoNombreArchivo("");
+    setExtensionBloqueada("");
   };
 
   const actualizarEstadisticasUsuario = async (
@@ -437,6 +523,11 @@ export default function CreatePublicationScreen() {
           autorRol = userDoc.data()?.rol || "usuario";
         }
       } catch (e) {}
+      const autorRolNormalizado = String(autorRol || "").trim().toLowerCase();
+      const autorEsAdmin =
+        autorRolNormalizado === "admin" ||
+        autorRolNormalizado === "administrador" ||
+        autorRolNormalizado === "administrator";
 
       let pubId = publicacionId || "";
       if (isEditMode && editPublicacionId) {
@@ -473,9 +564,17 @@ export default function CreatePublicationScreen() {
       if (archivos.length > 0) {
         for (let i = 0; i < archivos.length; i++) {
           const archivo = archivos[i];
+          const ordenActual = i;
+          const nombreActualizado = obtenerNombreArchivo(archivo).trim() || "Archivo";
 
           
           if (archivo.id) {
+            await actualizarArchivo(
+              archivo.id,
+              nombreActualizado,
+              undefined,
+              ordenActual,
+            );
             continue;
           }
 
@@ -492,8 +591,9 @@ export default function CreatePublicationScreen() {
               const resultado = await guardarEnlaceExterno(
                 pubId,
                 archivo.tipoArchivoId,
-                obtenerNombreArchivo(archivo),
+                nombreActualizado,
                 archivo.urlExterna!,
+                ordenActual,
               );
 
               setArchivos((prev) => {
@@ -513,7 +613,7 @@ export default function CreatePublicationScreen() {
                 pubId,
                 archivo.asset!,
                 archivo.tipoArchivoId,
-                obtenerNombreArchivo(archivo),
+                nombreActualizado,
                 undefined,
                 (progreso) => {
                   setArchivos((prev) => {
@@ -522,6 +622,7 @@ export default function CreatePublicationScreen() {
                     return nuevos;
                   });
                 },
+                ordenActual,
               );
 
               setArchivos((prev) => {
@@ -566,7 +667,7 @@ export default function CreatePublicationScreen() {
         }
       }
 
-      if (!isEditMode) {
+      if (!isEditMode && autorEsAdmin) {
         try {
           await notificarUsuariosMateria(
             materiaId,
@@ -591,7 +692,9 @@ export default function CreatePublicationScreen() {
         "Éxito",
         isEditMode
           ? "Publicación actualizada correctamente"
-          : "Publicación creada correctamente",
+          : autorEsAdmin
+            ? "Publicación creada correctamente"
+            : "Publicación enviada a revisión",
         "success",
         [
         {
@@ -671,6 +774,9 @@ export default function CreatePublicationScreen() {
                 Adjuntar
               </Button>
             </View>
+            <Text variant="bodySmall" style={styles.label}>
+              Tamaño máximo por archivo: 100 MB.
+            </Text>
           </Card.Content>
         </Card>
 
@@ -714,8 +820,34 @@ export default function CreatePublicationScreen() {
                           </Text>
                           <View style={styles.archivoActions}>
                             <TouchableOpacity
+                              onPress={() => moverArchivo(index, index - 1)}
+                              disabled={archivo.subiendo || index === 0 || publicando}
+                              style={styles.archivoActionButton}
+                            >
+                              <MaterialCommunityIcons
+                                name="arrow-up"
+                                size={18}
+                                color={theme.colors.onSurfaceVariant}
+                              />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => moverArchivo(index, index + 1)}
+                              disabled={
+                                archivo.subiendo ||
+                                index === archivos.length - 1 ||
+                                publicando
+                              }
+                              style={styles.archivoActionButton}
+                            >
+                              <MaterialCommunityIcons
+                                name="arrow-down"
+                                size={18}
+                                color={theme.colors.onSurfaceVariant}
+                              />
+                            </TouchableOpacity>
+                            <TouchableOpacity
                               onPress={() => abrirDialogoRenombrarArchivo(index)}
-                              disabled={archivo.subiendo}
+                              disabled={archivo.subiendo || publicando}
                               style={styles.archivoActionButton}
                             >
                               <MaterialCommunityIcons
@@ -726,7 +858,7 @@ export default function CreatePublicationScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={() => eliminarArchivoLocal(index)}
-                              disabled={archivo.subiendo}
+                              disabled={archivo.subiendo || publicando}
                               style={styles.archivoActionButton}
                             >
                               <MaterialCommunityIcons
@@ -792,7 +924,7 @@ export default function CreatePublicationScreen() {
               onPress={agregarArchivo}
               style={{ marginBottom: 12 }}
             >
-              Subir archivo
+              Subir archivos
             </Button>
             <Button
               mode="outlined"
@@ -867,6 +999,7 @@ export default function CreatePublicationScreen() {
             setDialogRenombrarVisible(false);
             setArchivoRenombrarIndex(null);
             setNuevoNombreArchivo("");
+            setExtensionBloqueada("");
           }}
         >
           <Dialog.Title>Editar nombre del archivo</Dialog.Title>
@@ -886,6 +1019,7 @@ export default function CreatePublicationScreen() {
                 setDialogRenombrarVisible(false);
                 setArchivoRenombrarIndex(null);
                 setNuevoNombreArchivo("");
+                setExtensionBloqueada("");
               }}
             >
               Cancelar
