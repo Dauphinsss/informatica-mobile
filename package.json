@@ -6,6 +6,7 @@
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "add-users": "npx tsx ./scripts/addUsers.ts",
+    "firebase:export": "npx tsx ./scripts/export-firestore.ts --sample 100 --max-depth 8",
     "setup-firebase": "node ./scripts/setup-firebase-rules.js",
     "deploy-rules": "firebase deploy --only firestore:rules",
     "android": "expo run:android",

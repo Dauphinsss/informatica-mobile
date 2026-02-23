@@ -75,6 +75,8 @@ export const crearPublicacion = async (
   autorFoto: string | null,
   titulo: string,
   descripcion: string,
+  docenteUid?: string | null,
+  docenteNombre?: string | null,
   autorRol?: string,
 ): Promise<string> => {
   try {
@@ -85,6 +87,8 @@ export const crearPublicacion = async (
       materiaId,
       autorUid,
       autorNombre,
+      docenteUid: docenteUid || null,
+      docenteNombre: docenteNombre || null,
       autorFoto: autorFoto || null,
       autorRol: autorRolNormalizado,
       titulo,

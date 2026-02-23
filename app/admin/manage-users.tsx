@@ -1,3 +1,4 @@
+import { SortOption, SortableChips, SortOrder } from "@/app/components/filters/SortableChips";
 import { useTheme } from "@/contexts/ThemeContext";
 import { registrarActividadCliente } from "@/services/activity.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -41,6 +42,7 @@ const ManageUsers = () => {
   const insets = useSafeAreaInsets();
   const [users, setUsers] = useState<any[]>([]);
   const [filter, setFilter] = useState<"all" | "usuario" | "admin" | "suspendido">("all");
+  const [filterOrder, setFilterOrder] = useState<SortOrder>("asc");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const navigation = useNavigation();
@@ -114,6 +116,12 @@ const ManageUsers = () => {
   const totalUsers = users.filter((user) => user.rol === "usuario").length;
   const totalAdmins = users.filter((user) => user.rol === "admin").length;
   const totalSuspended = users.filter((user) => user.estado === "suspendido").length;
+  const userFilterOptions: SortOption<"all" | "usuario" | "admin" | "suspendido">[] = [
+    { key: "all", label: `Todos ${users.length}` },
+    { key: "usuario", label: `Usuarios ${totalUsers}` },
+    { key: "suspendido", label: `Suspendidos ${totalSuspended}` },
+    { key: "admin", label: `Admins ${totalAdmins}` },
+  ];
 
   const getOrCreateAnimation = (userId: string) => {
     const existing = expandAnimationsRef.current[userId];
@@ -305,111 +313,18 @@ const ManageUsers = () => {
           )}
 
           <View style={styles.filterContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterScrollContent}
-            >
-              <TouchableOpacity
-                onPress={() => setFilter("all")}
-                style={[
-                  styles.filterChip,
-                  filter === "all"
-                    ? { backgroundColor: theme.colors.primaryContainer }
-                    : { backgroundColor: theme.colors.surfaceVariant },
-                ]}
-                activeOpacity={0.75}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color:
-                        filter === "all"
-                          ? theme.colors.onPrimaryContainer
-                          : theme.colors.onSurfaceVariant,
-                    },
-                  ]}
-                >
-                  Todos {users.length}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setFilter("usuario")}
-                style={[
-                  styles.filterChip,
-                  filter === "usuario"
-                    ? { backgroundColor: theme.colors.primaryContainer }
-                    : { backgroundColor: theme.colors.surfaceVariant },
-                ]}
-                activeOpacity={0.75}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color:
-                        filter === "usuario"
-                          ? theme.colors.onPrimaryContainer
-                          : theme.colors.onSurfaceVariant,
-                    },
-                  ]}
-                >
-                  Usuarios {totalUsers}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setFilter("suspendido")}
-                style={[
-                  styles.filterChip,
-                  filter === "suspendido"
-                    ? { backgroundColor: theme.colors.primaryContainer }
-                    : { backgroundColor: theme.colors.surfaceVariant },
-                ]}
-                activeOpacity={0.75}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color:
-                        filter === "suspendido"
-                          ? theme.colors.onPrimaryContainer
-                          : theme.colors.onSurfaceVariant,
-                    },
-                  ]}
-                >
-                  Suspendidos {totalSuspended}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setFilter("admin")}
-                style={[
-                  styles.filterChip,
-                  filter === "admin"
-                    ? { backgroundColor: theme.colors.primaryContainer }
-                    : { backgroundColor: theme.colors.surfaceVariant },
-                ]}
-                activeOpacity={0.75}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color:
-                        filter === "admin"
-                          ? theme.colors.onPrimaryContainer
-                          : theme.colors.onSurfaceVariant,
-                    },
-                  ]}
-                >
-                  Admins {totalAdmins}
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
+            <SortableChips
+              sortBy={filter}
+              sortOrder={filterOrder}
+              onFilterChange={(newFilter, newOrder) => {
+                setFilter(newFilter);
+                setFilterOrder(newOrder);
+              }}
+              options={userFilterOptions}
+              theme={theme}
+              showDirection={false}
+              toggleDirectionOnActive={false}
+            />
           </View>
 
           {loading ? (
@@ -779,25 +694,6 @@ const styles = StyleSheet.create({
   filterContainer: {
     marginBottom: 10,
   },
-  filterScrollContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 0,
-  },
-  filterChip: {
-    height: 38,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    minWidth: 102,
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
   avatarContainer: {
     position: "relative",
     marginLeft: 8,

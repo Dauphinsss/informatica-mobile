@@ -12,16 +12,6 @@ export const getStyles = (theme: MD3Theme) =>
       paddingHorizontal: "4%",
       paddingVertical: 16,
     },
-    card: {
-      marginBottom: 16,
-    },
-    archivosCard: {
-      marginBottom: 10,
-    },
-    archivosCardContent: {
-      paddingVertical: 10,
-      paddingHorizontal: 8,
-    },
     label: {
       opacity: 0.7,
       color: theme.colors.onSurface,
@@ -30,15 +20,67 @@ export const getStyles = (theme: MD3Theme) =>
       marginTop: 16,
       backgroundColor: theme.colors.surface,
     },
+    teacherSelectorWrap: {
+      marginTop: 12,
+      gap: 8,
+      marginBottom: 8,
+    },
+    attachmentsHeaderWrap: {
+      marginTop: 0,
+      marginBottom: 8,
+    },
+    quickTagWrap: {
+      marginTop: 6,
+      gap: 4,
+    },
+    quickTagHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      minHeight: 22,
+    },
+    quickApplyContent: {
+      height: 24,
+    },
+    quickApplyLabel: {
+      marginVertical: 0,
+      fontSize: 12,
+    },
+    teacherChipsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 1,
+    },
+    teacherChip: {
+      height: 30,
+      borderRadius: 15,
+      paddingHorizontal: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "flex-start",
+    },
     archivosHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: 4,
+      minHeight: 40,
+    },
+    archivosHeaderLeft: {
+      flex: 1,
+      minWidth: 0,
+      justifyContent: "center",
+      gap: 0,
     },
     archivosTitle: {
       fontWeight: "bold",
       color: theme.colors.onSurface,
+      lineHeight: 24,
+    },
+    archivosSubtitle: {
+      color: theme.colors.onSurfaceVariant,
+      opacity: 0.8,
     },
     noArchivos: {
       textAlign: "center",
@@ -51,17 +93,18 @@ export const getStyles = (theme: MD3Theme) =>
       marginBottom: 4,
       gap: 6,
     },
-    archivoCard: {
+    archivoItem: {
       backgroundColor: theme.colors.elevation.level1,
       borderWidth: 1,
       borderColor: theme.colors.outlineVariant,
-      elevation: 0.5,
+      borderRadius: 12,
       overflow: "hidden",
     },
     archivoContent: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      paddingHorizontal: 10,
       paddingVertical: 10,
       gap: 6,
     },
@@ -91,6 +134,42 @@ export const getStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurface,
       marginBottom: 4,
       flexWrap: "wrap",
+    },
+    fileSectionMinimalRow: {
+      marginTop: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    fileSectionLabel: {
+      color: theme.colors.onSurfaceVariant,
+      opacity: 0.9,
+    },
+    fileSectionPill: {
+      minHeight: 30,
+      borderRadius: 15,
+      paddingHorizontal: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      maxWidth: "70%",
+    },
+    sectionOptionRow: {
+      minHeight: 42,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      justifyContent: "center",
+      marginBottom: 6,
+    },
+    sectionDialog: {
+      borderRadius: 20,
+      overflow: "hidden",
+    },
+    sectionDialogScrollArea: {
+      borderTopWidth: 0,
+      borderBottomWidth: 0,
+      marginHorizontal: 0,
     },
     archivoFooterRow: {
       flexDirection: "row",
@@ -127,6 +206,10 @@ export const getStyles = (theme: MD3Theme) =>
     errorText: {
       color: theme.colors.error,
       marginTop: 4,
+    },
+    archivoErrorWrap: {
+      paddingHorizontal: 12,
+      paddingBottom: 10,
     },
     publicarButton: {
       marginTop: 8,

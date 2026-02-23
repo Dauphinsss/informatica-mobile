@@ -22,6 +22,7 @@ import { getAuth } from "firebase/auth";
 import { doc, getDoc, increment, setDoc, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -31,7 +32,6 @@ import {
 import {
   Appbar,
   Button,
-  Card,
   Dialog,
   Portal,
   ProgressBar,
@@ -50,6 +50,7 @@ interface ArchivoTemp {
   id?: string;
   asset?: DocumentPicker.DocumentPickerAsset;
   tipoArchivoId: string;
+  seccionId?: string;
   orden?: number;
   progreso: number;
   subiendo: boolean;
@@ -62,6 +63,8 @@ interface ArchivoTemp {
 }
 
 const MAX_ATTACHMENT_SIZE_BYTES = 100 * 1024 * 1024;
+type SubjectTeacher = { id: string; nombre: string };
+type SubjectSection = { id: string; nombre: string };
 
 export default function CreatePublicationScreen() {
   const { theme } = useTheme();
@@ -98,6 +101,8 @@ export default function CreatePublicationScreen() {
   const [nuevoNombreArchivo, setNuevoNombreArchivo] = useState("");
   const [extensionBloqueada, setExtensionBloqueada] = useState<string>("");
   const [dialogSeleccionVisible, setDialogSeleccionVisible] = useState(false);
+  const [dialogSeccionVisible, setDialogSeccionVisible] = useState(false);
+  const [archivoSeccionIndex, setArchivoSeccionIndex] = useState<number | null>(null);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
   const [alertMessage, setAlertMessage] = useState("");
@@ -105,6 +110,11 @@ export default function CreatePublicationScreen() {
   const [alertButtons, setAlertButtons] = useState<
     CustomAlertButton[] | undefined
   >(undefined);
+  const [availableTeachers, setAvailableTeachers] = useState<SubjectTeacher[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
+  const [availableSections, setAvailableSections] = useState<SubjectSection[]>([]);
+  const [quickSectionId, setQuickSectionId] = useState<string>("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const showAlert = (
     title: string | undefined,
@@ -132,6 +142,65 @@ export default function CreatePublicationScreen() {
   }, []);
 
   useEffect(() => {
+    const cargarMetaMateria = async () => {
+      if (!materiaId) return;
+      try {
+        const materiaSnap = await getDoc(doc(db, "materias", materiaId));
+        const materiaData = materiaSnap.data() as any;
+        const teacherIds: string[] = Array.isArray(materiaData?.docentesIds)
+          ? materiaData.docentesIds.filter((id: unknown) => typeof id === "string")
+          : [];
+        const sectionIds: string[] = Array.isArray(materiaData?.seccionesIds)
+          ? materiaData.seccionesIds.filter((id: unknown) => typeof id === "string")
+          : [];
+
+        const [teacherDocs, sectionDocs] = await Promise.all([
+          Promise.all(teacherIds.map((id) => getDoc(doc(db, "docentes", id)))),
+          Promise.all(sectionIds.map((id) => getDoc(doc(db, "secciones", id)))),
+        ]);
+
+        const teachers = teacherDocs
+          .filter((d) => d.exists())
+          .map((d) => {
+            const data = d.data() as any;
+            return {
+              id: d.id,
+              nombre: `${data.nombres || ""} ${data.apellidos || ""}`.trim(),
+            };
+          });
+        const sections = sectionDocs
+          .filter((d) => d.exists())
+          .map((d) => {
+            const data = d.data() as any;
+            return { id: d.id, nombre: data.nombre || "Sección" };
+          });
+
+        setAvailableTeachers(teachers);
+        setAvailableSections(sections);
+
+        setSelectedTeacherId((prev) => {
+          if (teachers.length === 0) return "";
+          if (teachers.some((teacher) => teacher.id === prev)) return prev;
+          return teachers[0].id;
+        });
+        setQuickSectionId((prev) => {
+          if (sections.length === 0) return "";
+          if (sections.some((section) => section.id === prev)) return prev;
+          return sections[0].id;
+        });
+      } catch (error) {
+        console.error("Error cargando meta de la materia:", error);
+        setAvailableTeachers([]);
+        setAvailableSections([]);
+        setSelectedTeacherId("");
+        setQuickSectionId("");
+      }
+    };
+
+    void cargarMetaMateria();
+  }, [materiaId]);
+
+  useEffect(() => {
     if (!isEditMode || !editPublicacionId) return;
     let cancelled = false;
 
@@ -142,6 +211,7 @@ export default function CreatePublicationScreen() {
         if (!cancelled && pub) {
           setTitulo(pub.titulo || "");
           setDescripcion(pub.descripcion || "");
+          setSelectedTeacherId(pub.docenteUid || "");
           setPublicacionId(editPublicacionId);
         }
 
@@ -151,6 +221,7 @@ export default function CreatePublicationScreen() {
             archivosExistentes.map((archivo, index) => ({
               id: archivo.id,
               tipoArchivoId: archivo.tipoArchivoId,
+              seccionId: archivo.seccionId || "",
               orden: archivo.orden ?? index,
               progreso: 100,
               subiendo: false,
@@ -178,6 +249,20 @@ export default function CreatePublicationScreen() {
       cancelled = true;
     };
   }, [isEditMode, editPublicacionId]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardHeight(event.endCoordinates.height || 0);
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const cargarTiposArchivo = async () => {
     const tiposData = await obtenerTiposArchivo();
@@ -261,6 +346,7 @@ export default function CreatePublicationScreen() {
         nuevosArchivos.push({
           asset: archivo,
           tipoArchivoId: tipoId,
+          seccionId: quickSectionId || availableSections[0]?.id || "",
           progreso: 0,
           subiendo: false,
           esEnlaceExterno: false,
@@ -340,6 +426,7 @@ export default function CreatePublicationScreen() {
 
     const nuevoEnlace: ArchivoTemp = {
       tipoArchivoId: tipoEnlace.id,
+      seccionId: quickSectionId || availableSections[0]?.id || "",
       orden: archivos.length,
       progreso: 0,
       subiendo: false,
@@ -421,6 +508,39 @@ export default function CreatePublicationScreen() {
     return nombreActual.slice(ultimoPunto).toLowerCase();
   };
 
+  const obtenerNombreSeccion = (sectionId?: string): string => {
+    if (!sectionId) return "";
+    const section = availableSections.find((s) => s.id === sectionId);
+    return section?.nombre || "";
+  };
+
+  const cambiarSeccionArchivo = (index: number, sectionId: string) => {
+    setArchivos((prev) =>
+      prev.map((archivo, idx) =>
+        idx === index ? { ...archivo, seccionId: sectionId } : archivo,
+      ),
+    );
+  };
+
+  const aplicarSeccionATodos = () => {
+    if (!quickSectionId) return;
+    setArchivos((prev) =>
+      prev.map((archivo) => ({ ...archivo, seccionId: quickSectionId })),
+    );
+  };
+
+  const abrirDialogoSeccionArchivo = (index: number) => {
+    setArchivoSeccionIndex(index);
+    setDialogSeccionVisible(true);
+  };
+
+  const seleccionarSeccionArchivo = (sectionId: string) => {
+    if (archivoSeccionIndex === null) return;
+    cambiarSeccionArchivo(archivoSeccionIndex, sectionId);
+    setDialogSeccionVisible(false);
+    setArchivoSeccionIndex(null);
+  };
+
   const abrirDialogoRenombrarArchivo = (index: number) => {
     const archivo = archivos[index];
     if (!archivo) return;
@@ -498,14 +618,42 @@ export default function CreatePublicationScreen() {
       return;
     }
 
-    if (!descripcion.trim()) {
-      showAlert("Error", "La descripción es obligatoria", "error");
-      return;
-    }
-
     const user = auth.currentUser;
     if (!user) {
       showAlert("Error", "Debes iniciar sesión", "error");
+      return;
+    }
+
+    if (availableTeachers.length === 0) {
+      showAlert(
+        "Docentes requeridos",
+        "Esta materia no tiene docentes configurados. Asigna docentes en Editar materia.",
+        "error",
+      );
+      return;
+    }
+
+    const docenteSeleccionado = availableTeachers.find(
+      (teacher) => teacher.id === selectedTeacherId,
+    );
+    if (!docenteSeleccionado) {
+      showAlert("Error", "Debes seleccionar un docente", "error");
+      return;
+    }
+
+    if (archivos.length > 0 && availableSections.length === 0) {
+      showAlert(
+        "Secciones requeridas",
+        "Esta materia no tiene secciones configuradas. Agrégalas en Editar materia.",
+        "error",
+      );
+      return;
+    }
+
+    const archivoSinSeccion =
+      archivos.length > 0 ? archivos.find((archivo) => !archivo.seccionId) : undefined;
+    if (archivoSinSeccion) {
+      showAlert("Error", "Cada archivo debe tener una etiqueta de sección", "error");
       return;
     }
 
@@ -522,7 +670,7 @@ export default function CreatePublicationScreen() {
         if (userDoc.exists()) {
           autorRol = userDoc.data()?.rol || "usuario";
         }
-      } catch (e) {}
+      } catch {}
       const autorRolNormalizado = String(autorRol || "").trim().toLowerCase();
       const autorEsAdmin =
         autorRolNormalizado === "admin" ||
@@ -535,6 +683,8 @@ export default function CreatePublicationScreen() {
         await updateDoc(doc(db, "publicaciones", editPublicacionId), {
           titulo: titulo.trim(),
           descripcion: descripcion.trim(),
+          docenteUid: docenteSeleccionado.id,
+          docenteNombre: docenteSeleccionado.nombre,
           updatedAt: new Date(),
         });
       } else {
@@ -544,7 +694,9 @@ export default function CreatePublicationScreen() {
           nombreUsuario,
           user.photoURL || null,
           titulo,
-          descripcion,
+          descripcion.trim(),
+          docenteSeleccionado.id,
+          docenteSeleccionado.nombre,
           autorRol,
         );
         setPublicacionId(pubId);
@@ -566,6 +718,8 @@ export default function CreatePublicationScreen() {
           const archivo = archivos[i];
           const ordenActual = i;
           const nombreActualizado = obtenerNombreArchivo(archivo).trim() || "Archivo";
+          const seccionId = archivo.seccionId || "";
+          const seccionNombre = obtenerNombreSeccion(seccionId);
 
           
           if (archivo.id) {
@@ -574,6 +728,8 @@ export default function CreatePublicationScreen() {
               nombreActualizado,
               undefined,
               ordenActual,
+              seccionId,
+              seccionNombre,
             );
             continue;
           }
@@ -594,6 +750,8 @@ export default function CreatePublicationScreen() {
                 nombreActualizado,
                 archivo.urlExterna!,
                 ordenActual,
+                seccionId,
+                seccionNombre,
               );
 
               setArchivos((prev) => {
@@ -623,6 +781,8 @@ export default function CreatePublicationScreen() {
                   });
                 },
                 ordenActual,
+                seccionId,
+                seccionNombre,
               );
 
               setArchivos((prev) => {
@@ -731,54 +891,131 @@ export default function CreatePublicationScreen() {
         style={styles.content}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        <Card style={[styles.card, styles.archivosCard]}>
-          <Card.Content style={styles.archivosCardContent}>
-            <Text variant="labelMedium" style={styles.label}>
-              Materia: {materiaNombre}
-            </Text>
+        <Text variant="labelMedium" style={styles.label}>
+          Materia: {materiaNombre}
+        </Text>
 
-            <TextInput
-              label="Título *"
-              value={titulo}
-              onChangeText={setTitulo}
-              mode="outlined"
-              style={styles.input}
-              disabled={publicando}
-            />
+        <TextInput
+          label="Título *"
+          value={titulo}
+          onChangeText={setTitulo}
+          mode="outlined"
+          style={styles.input}
+          disabled={publicando}
+        />
 
-            <TextInput
-              label="Descripción *"
-              value={descripcion}
-              onChangeText={setDescripcion}
-              mode="outlined"
-              numberOfLines={6}
-              style={styles.input}
-              disabled={publicando}
-            />
-          </Card.Content>
-        </Card>
+        <TextInput
+          label="Descripción (opcional)"
+          value={descripcion}
+          onChangeText={setDescripcion}
+          mode="outlined"
+          numberOfLines={6}
+          style={styles.input}
+          disabled={publicando}
+        />
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.archivosHeader}>
+        <View style={styles.teacherSelectorWrap}>
+          <Text variant="labelMedium" style={styles.label}>
+            Docente del material *
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.teacherChipsRow}>
+              {availableTeachers.map((teacher) => (
+                <TouchableOpacity
+                  key={teacher.id}
+                  onPress={() => setSelectedTeacherId(teacher.id)}
+                  style={[
+                    styles.teacherChip,
+                    selectedTeacherId === teacher.id
+                      ? { backgroundColor: theme.colors.primaryContainer }
+                      : { backgroundColor: theme.colors.surfaceVariant },
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      color:
+                        selectedTeacherId === teacher.id
+                          ? theme.colors.onPrimaryContainer
+                          : theme.colors.onSurfaceVariant,
+                    }}
+                  >
+                    {teacher.nombre}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        <View style={styles.attachmentsHeaderWrap}>
+          <View style={styles.archivosHeader}>
+            <View style={styles.archivosHeaderLeft}>
               <Text variant="titleMedium" style={styles.archivosTitle}>
                 Archivos adjuntos
               </Text>
-              <Button
-                mode="contained-tonal"
-                icon="paperclip"
-                onPress={mostrarDialogoSeleccion}
-                disabled={publicando}
-                compact
-              >
-                Adjuntar
-              </Button>
+              <Text variant="labelMedium" style={styles.archivosSubtitle}>
+                Tamano maximo por archivo: 100 MB
+              </Text>
             </View>
-            <Text variant="bodySmall" style={styles.label}>
-              Tamaño máximo por archivo: 100 MB.
-            </Text>
-          </Card.Content>
-        </Card>
+            <Button
+              mode="contained-tonal"
+              icon="paperclip"
+              onPress={mostrarDialogoSeleccion}
+              disabled={publicando}
+              compact
+            >
+              Adjuntar
+            </Button>
+          </View>
+          {availableSections.length > 0 ? (
+            <View style={styles.quickTagWrap}>
+              <View style={styles.quickTagHeader}>
+                <Text variant="labelMedium" style={styles.label}>
+                  Seccion rapida
+                </Text>
+                <Button
+                  mode="text"
+                  compact
+                  onPress={aplicarSeccionATodos}
+                  disabled={publicando || !quickSectionId || archivos.length === 0}
+                  contentStyle={styles.quickApplyContent}
+                  labelStyle={styles.quickApplyLabel}
+                >
+                  Aplicar
+                </Button>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.teacherChipsRow}>
+                  {availableSections.map((section) => (
+                    <TouchableOpacity
+                      key={section.id}
+                      onPress={() => setQuickSectionId(section.id)}
+                      style={[
+                        styles.teacherChip,
+                        quickSectionId === section.id
+                          ? { backgroundColor: theme.colors.primaryContainer }
+                          : { backgroundColor: theme.colors.surfaceVariant },
+                      ]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          color:
+                            quickSectionId === section.id
+                              ? theme.colors.onPrimaryContainer
+                              : theme.colors.onSurfaceVariant,
+                        }}
+                      >
+                        {section.nombre}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          ) : null}
+        </View>
 
         {archivos.length === 0 ? (
           <Text variant="bodyMedium" style={styles.noArchivos}>
@@ -796,8 +1033,8 @@ export default function CreatePublicationScreen() {
               const icono = obtenerIconoPorTipo(tipo?.nombre || "");
 
               return (
-                <Card key={index} style={styles.archivoCard}>
-                  <Card.Content style={styles.archivoContent}>
+                <View key={index} style={styles.archivoItem}>
+                  <View style={styles.archivoContent}>
                     <View style={styles.archivoInfo}>
                       <View style={styles.archivoLeading}>
                         <MaterialCommunityIcons
@@ -869,9 +1106,36 @@ export default function CreatePublicationScreen() {
                             </TouchableOpacity>
                           </View>
                         </View>
+                        {availableSections.length > 0 ? (
+                          <View style={styles.fileSectionMinimalRow}>
+                            <Text variant="labelMedium" style={styles.fileSectionLabel}>
+                              Sección
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => abrirDialogoSeccionArchivo(index)}
+                              style={[
+                                styles.fileSectionPill,
+                                { backgroundColor: theme.colors.surfaceVariant },
+                              ]}
+                              disabled={publicando || archivo.subiendo}
+                            >
+                              <Text
+                                numberOfLines={1}
+                                style={{ color: theme.colors.onSurfaceVariant }}
+                              >
+                                {obtenerNombreSeccion(archivo.seccionId) || "Seleccionar"}
+                              </Text>
+                              <MaterialCommunityIcons
+                                name="chevron-down"
+                                size={16}
+                                color={theme.colors.onSurfaceVariant}
+                              />
+                            </TouchableOpacity>
+                          </View>
+                        ) : null}
                       </View>
                     </View>
-                  </Card.Content>
+                  </View>
 
                   {archivo.subiendo && (
                     <ProgressBar
@@ -881,13 +1145,13 @@ export default function CreatePublicationScreen() {
                   )}
 
                   {archivo.error && (
-                    <Card.Content>
+                    <View style={styles.archivoErrorWrap}>
                       <Text variant="bodySmall" style={styles.errorText}>
                         {archivo.error}
                       </Text>
-                    </Card.Content>
+                    </View>
                   )}
-                </Card>
+                </View>
               );
             })}
           </View>
@@ -1001,8 +1265,13 @@ export default function CreatePublicationScreen() {
             setNuevoNombreArchivo("");
             setExtensionBloqueada("");
           }}
+          style={{
+            transform: [
+              { translateY: keyboardHeight > 0 ? -Math.min(keyboardHeight * 0.35, 140) : 0 },
+            ],
+          }}
         >
-          <Dialog.Title>Editar nombre del archivo</Dialog.Title>
+          <Dialog.Title>Editar nombre</Dialog.Title>
           <Dialog.Content>
             <TextInput
               label="Nombre"
@@ -1026,6 +1295,50 @@ export default function CreatePublicationScreen() {
             </Button>
             <Button onPress={guardarNombreArchivo}>Guardar</Button>
           </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog
+          visible={dialogSeccionVisible}
+          onDismiss={() => {
+            setDialogSeccionVisible(false);
+            setArchivoSeccionIndex(null);
+          }}
+          style={styles.sectionDialog}
+        >
+          <Dialog.Title>Seleccionar sección</Dialog.Title>
+          <Dialog.ScrollArea style={styles.sectionDialogScrollArea}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {availableSections.map((section) => {
+                const currentSectionId =
+                  archivoSeccionIndex !== null ? archivos[archivoSeccionIndex]?.seccionId : "";
+                const isSelected = currentSectionId === section.id;
+                return (
+                  <TouchableOpacity
+                    key={section.id}
+                    onPress={() => seleccionarSeccionArchivo(section.id)}
+                    style={[
+                      styles.sectionOptionRow,
+                      isSelected
+                        ? { backgroundColor: theme.colors.primaryContainer }
+                        : undefined,
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: isSelected
+                          ? theme.colors.onPrimaryContainer
+                          : theme.colors.onSurface,
+                        fontWeight: isSelected ? "600" : "500",
+                      }}
+                    >
+                      {section.nombre}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Dialog.ScrollArea>
         </Dialog>
       </Portal>
       <CustomAlert

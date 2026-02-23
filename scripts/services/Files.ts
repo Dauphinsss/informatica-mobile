@@ -80,39 +80,18 @@ export const obtenerTipoArchivoPorId = async (tipoId: string): Promise<TipoArchi
 
 export const seleccionarArchivo = async (tiposPermitidos?: string[]) => {
   try {
-    const assetsSeleccionados: DocumentPicker.DocumentPickerAsset[] = [];
+    const result = await DocumentPicker.getDocumentAsync({
+      type: tiposPermitidos || "*/*",
+      copyToCacheDirectory: true,
+      multiple: true,
+    });
 
-    while (true) {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: tiposPermitidos || '*/*',
-        copyToCacheDirectory: true,
-        multiple: true,
-      });
-
-      if (result.canceled) {
-        break;
-      }
-
-      const assets = result.assets || [];
-      if (assets.length === 0) {
-        break;
-      }
-
-      assetsSeleccionados.push(...assets);
-
-      // Si el selector permitió elegir varios en una sola vista, cerramos.
-      // Si solo devolvió uno, reabrimos para permitir agregar más y se sale con "Cancelar".
-      if (assets.length > 1) {
-        break;
-      }
-    }
-
-    if (assetsSeleccionados.length === 0) {
+    if (result.canceled || !result.assets || result.assets.length === 0) {
       return null;
     }
 
     const unicos = Array.from(
-      new Map(assetsSeleccionados.map((a) => [a.uri, a])).values(),
+      new Map(result.assets.map((a) => [a.uri, a])).values(),
     );
     return unicos;
   } catch (error) {
@@ -145,7 +124,9 @@ export const subirArchivo = async (
   titulo: string,
   descripcion?: string,
   onProgress?: (progress: number) => void,
-  orden?: number
+  orden?: number,
+  seccionId?: string,
+  seccionNombre?: string,
 ): Promise<Archivo> => {
   let detenerProgreso: (() => void) | null = null;
   
@@ -245,6 +226,8 @@ export const subirArchivo = async (
       tipoArchivoId,
       titulo,
       descripcion: descripcion || null,
+      seccionId: seccionId || null,
+      seccionNombre: seccionNombre || null,
       webUrl: downloadURL,
       filepath: downloadURL,
       tamanoBytes: archivo.size || blob.size || 0,
@@ -356,7 +339,9 @@ export const actualizarArchivo = async (
   archivoId: string,
   titulo?: string,
   descripcion?: string,
-  orden?: number
+  orden?: number,
+  seccionId?: string,
+  seccionNombre?: string,
 ): Promise<void> => {
   try {
     const updateData: any = {};
@@ -364,6 +349,8 @@ export const actualizarArchivo = async (
     if (titulo !== undefined) updateData.titulo = titulo;
     if (descripcion !== undefined) updateData.descripcion = descripcion;
     if (orden !== undefined) updateData.orden = orden;
+    if (seccionId !== undefined) updateData.seccionId = seccionId || null;
+    if (seccionNombre !== undefined) updateData.seccionNombre = seccionNombre || null;
 
     await updateDoc(doc(db, "archivos", archivoId), updateData);
   } catch (error) {
@@ -391,7 +378,9 @@ export const guardarEnlaceExterno = async (
   tipoArchivoId: string,
   nombreEnlace: string,
   url: string,
-  orden?: number
+  orden?: number,
+  seccionId?: string,
+  seccionNombre?: string,
 ): Promise<{ id: string }> => {
   try {
 
@@ -404,6 +393,8 @@ export const guardarEnlaceExterno = async (
       tamanoBytes: 0,
       tipoArchivoId: tipoArchivoId,
       titulo: nombreEnlace,
+      seccionId: seccionId || null,
+      seccionNombre: seccionNombre || null,
       webUrl: url,
       esEnlaceExterno: true,
       ...(typeof orden === "number" ? { orden } : {}),

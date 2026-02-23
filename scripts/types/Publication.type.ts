@@ -3,6 +3,8 @@ export interface Publicacion {
   materiaId: string;
   autorUid: string;
   autorNombre: string;
+  docenteUid?: string | null;
+  docenteNombre?: string | null;
   autorFoto?: string | null;
   autorRol?: string;
   titulo: string;
@@ -20,6 +22,8 @@ export interface ArchivoPublicacion {
   tipoArchivoId: string;
   titulo: string;
   descripcion: string | null;
+  seccionId?: string | null;
+  seccionNombre?: string | null;
   webUrl: string;
   filepath: string | null;
   tamanoBytes: number;

@@ -2,7 +2,6 @@
 
 # dependencies
 node_modules/
-
 # Expo
 .expo/
 dist/
@@ -50,3 +49,7 @@ package-lock.json
 
 # Firebase config
 .firebase
+serviceAccountKey.json
+admin.json
+*firebase-adminsdk*.json
+exports/

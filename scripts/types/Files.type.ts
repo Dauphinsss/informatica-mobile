@@ -12,6 +12,8 @@ export interface Archivo {
   tipoArchivoId: string;
   titulo: string;
   descripcion: string | null;
+  seccionId?: string | null;
+  seccionNombre?: string | null;
   webUrl: string;
   filepath: string | null;
   tamanoBytes: number;

@@ -83,7 +83,6 @@ import {
   Divider,
   IconButton,
   Portal,
-  ProgressBar,
   Switch,
   Text,
   TextInput,
@@ -96,6 +95,7 @@ import CustomAlert, {
 import ReportReasonModal from "../../components/ui/ReportReasonModal";
 import CommentsModal from "../components/comments/CommentsModal";
 import { PublicationDetailSkeleton } from "../components/publications/PublicationDetailSkeleton";
+import PublicationFilesList from "./components/PublicationFilesList";
 import { getStyles } from "./_PublicationDetailScreen.styles";
 
 const { width } = Dimensions.get("window");
@@ -2000,223 +2000,38 @@ export default function PublicationDetailScreen() {
 
               {archivos.length > 0 && (
                 <View style={styles.archivosContainer}>
-                  <View style={styles.archivosGrid}>
-                    {archivos.map((archivo) => {
-                      const isMarked = filesMarkedForDelete.includes(
-                        archivo.id,
-                      );
-                      const isDownloading = downloadingFileId === archivo.id;
-                      const isOpening = openingFileId === archivo.id;
-                      const fileStatusText = inlineFileStatus[archivo.id];
-                      return (
-                        <View
-                          key={archivo.id}
-                          style={styles.archivoCardWrapper}
-                        >
-                          <Card
-                            style={[
-                              styles.archivoCard,
-                              isMarked ? { opacity: 0.45 } : undefined,
-                            ]}
-                            onPress={() => abrirArchivo(archivo)}
-                          >
-                            <View style={styles.archivoRow}>
-                              <View style={styles.archivoThumb}>
-                                {renderArchivoPreview(archivo, isDownloading, true)}
-                              </View>
-
-                              <View style={styles.archivoMeta}>
-                                <View style={styles.archivoTitleRow}>
-                                  <Text
-                                    variant="bodyMedium"
-                                    style={styles.archivoTitle}
-                                    numberOfLines={1}
-                                  >
-                                    {archivo.titulo}
-                                  </Text>
-                                </View>
-                                <Text
-                                  style={styles.archivoSubtitle}
-                                  numberOfLines={1}
-                                >
-                                  {isDownloading
-                                    ? `Descargando... ${downloadProgress}%`
-                                    : isOpening
-                                    ? getOpeningLabel(archivo)
-                                    : fileStatusText
-                                      ? fileStatusText
-                                    : archivo.esEnlaceExterno
-                                    ? "Enlace"
-                                    : archivo.tipoNombre || "Archivo"}
-                                </Text>
-                                {isDownloading && (
-                                  <ProgressBar
-                                    progress={
-                                      downloadProgress > 0
-                                        ? downloadProgress / 100
-                                        : undefined
-                                    }
-                                    indeterminate={downloadProgress <= 0}
-                                    color={theme.colors.primary}
-                                    style={styles.downloadingProgressBar}
-                                  />
-                                )}
-                                {isOpening && (
-                                  <ProgressBar
-                                    progress={openingProgress > 0 ? openingProgress : undefined}
-                                    indeterminate={openingProgress <= 0}
-                                    color={theme.colors.primary}
-                                    style={styles.openingProgressBar}
-                                  />
-                                )}
-                                {isMarked && (
-                                  <Text
-                                    style={{
-                                      color: theme.colors.error,
-                                      fontSize: 12,
-                                      marginTop: 4,
-                                    }}
-                                    numberOfLines={1}
-                                  >
-                                    Se eliminará al guardar
-                                  </Text>
-                                )}
-                              </View>
-
-                              {!editMode ? (
-                                <IconButton
-                                  icon={
-                                    archivo.esEnlaceExterno
-                                      ? "link-variant"
-                                      : isDownloading
-                                      ? "close"
-                                      : "download"
-                                  }
-                                  size={20}
-                                  onPress={() =>
-                                    archivo.esEnlaceExterno
-                                      ? abrirArchivo(archivo)
-                                      : isDownloading
-                                      ? cancelarDescargaArchivo()
-                                      : descargarArchivo(archivo)
-                                  }
-                                  style={styles.archivoTrailing}
-                                  iconColor={
-                                    isDownloading
-                                      ? theme.colors.error
-                                      : theme.colors.onSurface
-                                  }
-                                  disabled={isOpening}
-                                />
-                              ) : (
-                                <IconButton
-                                  icon={isMarked ? "check" : "close"}
-                                  size={18}
-                                  onPress={() =>
-                                    confirmarEliminarArchivo(archivo.id)
-                                  }
-                                  style={styles.archivoTrailing}
-                                  iconColor={
-                                    isMarked
-                                      ? theme.colors.primary
-                                      : theme.colors.onSurfaceVariant
-                                  }
-                                />
-                              )}
-                            </View>
-                          </Card>
-                        </View>
-                      );
-                    })}
-
-                    {stagedAdds.map((s, index) => {
-                      return (
-                        <View key={s.id} style={styles.archivoCardWrapper}>
-                          <Card
-                            style={[
-                              styles.archivoCard,
-                            ]}
-                          >
-                            <View style={styles.archivoRow}>
-                              <View style={styles.archivoThumb}>
-                                <View style={styles.iconFallbackContainer}>
-                                  <IconButton
-                                    icon={s.esEnlaceExterno ? "link-variant" : "file-document"}
-                                    size={28}
-                                    iconColor={theme.colors.primary}
-                                    style={{ margin: 0 }}
-                                  />
-                                </View>
-                              </View>
-
-                              <View style={styles.archivoMeta}>
-                                <Text
-                                  variant="bodyMedium"
-                                  style={styles.archivoTitle}
-                                  numberOfLines={1}
-                                >
-                                  {s.name || s.nombreEnlace || s.file?.name || "Nuevo archivo"}
-                                </Text>
-                                {s.esEnlaceExterno && s.url ? (
-                                  <Text style={styles.archivoSubtitle} numberOfLines={1}>
-                                    {s.url}
-                                  </Text>
-                                ) : (
-                                  <Text style={styles.archivoSubtitle} numberOfLines={1}>
-                                    {s.subiendo
-                                      ? `Subiendo... ${s.progreso || 0}%`
-                                      : s.progreso === 100
-                                        ? "Subido"
-                                        : "Pendiente"}
-                                  </Text>
-                                )}
-                              </View>
-
-                              <IconButton
-                                icon="close"
-                                size={18}
-                                onPress={() =>
-                                  setStagedAdds((prev) =>
-                                    prev.filter((x) => x.id !== s.id),
-                                  )
-                                }
-                                style={styles.archivoTrailing}
-                                iconColor={theme.colors.onSurfaceVariant}
-                              />
-                            </View>
-                          </Card>
-                        </View>
-                      );
-                    })}
-
-                    {editMode && (
-                      <View style={styles.archivoCardWrapper}>
-                        <Card
-                          style={[
-                            styles.addFileCard,
-                            { backgroundColor: theme.colors.elevation.level1 },
-                          ]}
-                          onPress={mostrarDialogoSeleccion}
-                        >
-                          <View style={styles.addFileRow}>
-                            <IconButton
-                              icon="plus"
-                              size={20}
-                              disabled={fileProcessing}
-                              iconColor={theme.colors.primary}
-                              style={{ margin: 0 }}
-                            />
-                            <Text
-                              variant="bodyMedium"
-                              style={{ color: theme.colors.onSurface, fontWeight: "600" }}
-                            >
-                              Agregar archivos
-                            </Text>
-                          </View>
-                        </Card>
-                      </View>
-                    )}
-                  </View>
+                  <PublicationFilesList
+                    files={archivos}
+                    styles={styles}
+                    theme={theme}
+                    editMode={editMode}
+                    downloadProgress={downloadProgress}
+                    openingProgress={openingProgress}
+                    isMarked={(archivo) => filesMarkedForDelete.includes(archivo.id)}
+                    isDownloading={(archivo) => downloadingFileId === archivo.id}
+                    isOpening={(archivo) => openingFileId === archivo.id}
+                    fileStatusText={(archivo) => inlineFileStatus[archivo.id]}
+                    onPressFile={abrirArchivo}
+                    onDownloadOrOpen={(archivo) =>
+                      archivo.esEnlaceExterno
+                        ? abrirArchivo(archivo)
+                        : downloadingFileId === archivo.id
+                          ? cancelarDescargaArchivo()
+                          : descargarArchivo(archivo)
+                    }
+                    onDeleteToggle={(archivo) => confirmarEliminarArchivo(archivo.id)}
+                    renderPreview={(f, downloading) =>
+                      renderArchivoPreview(f, downloading, true)
+                    }
+                    getOpeningLabel={getOpeningLabel}
+                    stagedAdds={stagedAdds}
+                    onRemoveStagedAdd={(id) =>
+                      setStagedAdds((prev) => prev.filter((x) => x.id !== id))
+                    }
+                    showAddCard={editMode}
+                    onPressAddFiles={mostrarDialogoSeleccion}
+                    fileProcessing={fileProcessing}
+                  />
                 </View>
               )}
             </ScrollView>
