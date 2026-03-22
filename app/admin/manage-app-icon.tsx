@@ -1,5 +1,6 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/firebase";
+import { applyLauncherIcon } from "@/services/launcherIcon.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
@@ -69,6 +70,7 @@ export default function ManageAppIconScreen() {
         },
         { merge: true },
       );
+      await applyLauncherIcon(selectedIcon);
       setSavedIcon(selectedIcon);
     } catch (error) {
       console.error("Error guardando configuracion de icono:", error);

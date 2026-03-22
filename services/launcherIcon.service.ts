@@ -11,13 +11,22 @@ const launcherModule = NativeModules.LauncherIconModule as
   | undefined;
 
 let lastAppliedIcon: IconKey | null = null;
+let warnedMissingModule = false;
 
 const normalizeIconKey = (value: unknown): IconKey =>
   value === "elecciones" ? "elecciones" : "default";
 
 export const applyLauncherIcon = async (iconKey: unknown): Promise<void> => {
   if (Platform.OS !== "android") return;
-  if (!launcherModule?.setLauncherIcon) return;
+  if (!launcherModule?.setLauncherIcon) {
+    if (!warnedMissingModule) {
+      warnedMissingModule = true;
+      console.warn(
+        "[LauncherIcon] Modulo nativo no disponible. Requiere rebuild Android (dev client/apk).",
+      );
+    }
+    return;
+  }
 
   const normalized = normalizeIconKey(iconKey);
   if (lastAppliedIcon === normalized) return;
