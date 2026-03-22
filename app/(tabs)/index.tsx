@@ -25,6 +25,8 @@ import React, {
 } from "react";
 import {
   Animated,
+  Dimensions,
+  Easing,
   FlatList,
   Image,
   RefreshControl,
@@ -36,9 +38,12 @@ import {
   Appbar,
   Avatar,
   Badge,
+  Button,
   Card,
   FAB,
   IconButton,
+  Modal,
+  Portal,
   Surface,
   Text,
 } from "react-native-paper";
@@ -53,6 +58,15 @@ interface Subject {
   imagenUrl?: string;
   semestre: number;
   estado: "active" | "inactive";
+}
+
+interface Announcement {
+  id: string;
+  titulo: string;
+  mensaje: string;
+  imagenUrl?: string;
+  activo: boolean;
+  updatedAtMs: number;
 }
 
 
@@ -133,6 +147,32 @@ export default function HomeScreen() {
   const [sortMode, setSortMode] = useState<SortMode>("semestre");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeAnnouncements, setActiveAnnouncements] = useState<Announcement[]>([]);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const [announcementModalVisible, setAnnouncementModalVisible] = useState(false);
+  const [modalAnnouncementIndex, setModalAnnouncementIndex] = useState(0);
+  const [announcementImageRatios, setAnnouncementImageRatios] = useState<Record<string, number>>({});
+  const [displayedAnnouncement, setDisplayedAnnouncement] = useState<Announcement | null>(null);
+  const announcementTransition = useRef(new Animated.Value(1)).current;
+  const displayedAnnouncementIdRef = useRef<string | null>(null);
+  const isAnnouncementAnimatingRef = useRef(false);
+  const announcementIndexRef = useRef(0);
+  const autoOpenedModalAnnouncementIdRef = useRef<string | null>(null);
+  const modalAutoOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modalCarouselRef = useRef<FlatList<Announcement> | null>(null);
+  const modalSlideWidth = Math.max(260, Dimensions.get("window").width - 32);
+
+  const getTimestampMillis = (value: unknown): number => {
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      "toDate" in value &&
+      typeof (value as { toDate?: unknown }).toDate === "function"
+    ) {
+      return ((value as { toDate: () => Date }).toDate().getTime());
+    }
+    return 0;
+  };
 
   const formatSemestre = (sem: any) => {
     if (typeof sem === "string" && sem.trim().toLowerCase() === "electiva") {
@@ -408,6 +448,205 @@ export default function HomeScreen() {
     };
   }, [enrolledSubjectIds]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const activeAnnouncementsQuery = query(
+      collection(db, "anuncios"),
+      where("activo", "==", true),
+    );
+
+    const unsub = onSnapshot(
+      activeAnnouncementsQuery,
+      (snapshot) => {
+        const list = snapshot.docs.map((announcementDoc) => {
+          const data = announcementDoc.data() as {
+            titulo?: unknown;
+            mensaje?: unknown;
+            imagenUrl?: unknown;
+            activo?: unknown;
+            updatedAt?: unknown;
+            createdAt?: unknown;
+          };
+          return {
+            id: announcementDoc.id,
+            titulo: typeof data.titulo === "string" ? data.titulo : "",
+            mensaje: typeof data.mensaje === "string" ? data.mensaje : "",
+            imagenUrl: typeof data.imagenUrl === "string" ? data.imagenUrl : "",
+            activo: Boolean(data.activo),
+            updatedAtMs:
+              getTimestampMillis(data.updatedAt) ||
+              getTimestampMillis(data.createdAt),
+          } as Announcement;
+        });
+
+        list.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+        setActiveAnnouncements(list);
+        setAnnouncementIndex((prev) => (list.length > 0 ? prev % list.length : 0));
+      },
+      (error) => {
+        console.warn("No se pudo leer anuncios activos:", error);
+        setActiveAnnouncements([]);
+        setAnnouncementIndex(0);
+      },
+    );
+
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+    announcementIndexRef.current = announcementIndex;
+  }, [announcementIndex]);
+
+  useEffect(() => {
+    if (activeAnnouncements.length <= 1) return;
+    const timer = setInterval(() => {
+      if (announcementModalVisible) return;
+      if (isAnnouncementAnimatingRef.current) return;
+      isAnnouncementAnimatingRef.current = true;
+
+      Animated.timing(announcementTransition, {
+        toValue: 0,
+        duration: 170,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start(() => {
+        const next = (announcementIndexRef.current + 1) % activeAnnouncements.length;
+        const nextAnnouncement = activeAnnouncements[next];
+        announcementIndexRef.current = next;
+        setAnnouncementIndex(next);
+        setDisplayedAnnouncement(nextAnnouncement);
+        displayedAnnouncementIdRef.current = nextAnnouncement?.id ?? null;
+        announcementTransition.setValue(0);
+        requestAnimationFrame(() => {
+          Animated.timing(announcementTransition, {
+            toValue: 1,
+            duration: 240,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }).start(() => {
+            isAnnouncementAnimatingRef.current = false;
+          });
+        });
+      });
+    }, 4200);
+    return () => clearInterval(timer);
+  }, [activeAnnouncements, announcementModalVisible, announcementTransition]);
+
+  const currentAnnouncement = useMemo(() => {
+    if (activeAnnouncements.length === 0) return null;
+    return activeAnnouncements[announcementIndex % activeAnnouncements.length];
+  }, [activeAnnouncements, announcementIndex]);
+  const announcementPreviewItem = displayedAnnouncement ?? currentAnnouncement;
+
+  useEffect(() => {
+    if (!currentAnnouncement) {
+      setDisplayedAnnouncement(null);
+      displayedAnnouncementIdRef.current = null;
+      announcementTransition.setValue(1);
+      return;
+    }
+
+    const visibleId = displayedAnnouncementIdRef.current;
+    const visibleStillExists = visibleId
+      ? activeAnnouncements.some((announcement) => announcement.id === visibleId)
+      : false;
+
+    if (!visibleStillExists) {
+      setDisplayedAnnouncement(currentAnnouncement);
+      displayedAnnouncementIdRef.current = currentAnnouncement.id;
+      announcementTransition.setValue(1);
+    }
+  }, [activeAnnouncements, announcementTransition, currentAnnouncement]);
+
+  const previewAnnouncementIndex = useMemo(() => {
+    if (!announcementPreviewItem) return 0;
+    const index = activeAnnouncements.findIndex(
+      (announcement) => announcement.id === announcementPreviewItem.id,
+    );
+    return index >= 0 ? index : announcementIndex;
+  }, [activeAnnouncements, announcementIndex, announcementPreviewItem]);
+  const modalAnnouncements = useMemo(() => {
+    if (activeAnnouncements.length > 0) return activeAnnouncements;
+    return announcementPreviewItem ? [announcementPreviewItem] : [];
+  }, [activeAnnouncements, announcementPreviewItem]);
+
+  useEffect(() => {
+    const urls = modalAnnouncements
+      .map((announcement) => announcement.imagenUrl || "")
+      .filter((url) => Boolean(url) && announcementImageRatios[url] == null);
+    if (urls.length === 0) return;
+
+    urls.forEach((url) => {
+      Image.getSize(
+        url,
+        (width, height) => {
+          if (!width || !height) return;
+          const ratio = width / height;
+          if (!Number.isFinite(ratio) || ratio <= 0) return;
+          setAnnouncementImageRatios((prev) => {
+            if (prev[url] != null) return prev;
+            return { ...prev, [url]: ratio };
+          });
+        },
+        () => {},
+      );
+    });
+  }, [announcementImageRatios, modalAnnouncements]);
+
+  const handleOpenAnnouncementModal = () => {
+    if (!announcementPreviewItem) return;
+    const tappedIndex = activeAnnouncements.findIndex(
+      (announcement) => announcement.id === announcementPreviewItem.id,
+    );
+    setModalAnnouncementIndex(tappedIndex >= 0 ? tappedIndex : 0);
+    setAnnouncementModalVisible(true);
+  };
+
+  const handleCloseAnnouncementModal = () => {
+    setAnnouncementModalVisible(false);
+  };
+
+  useEffect(() => {
+    if (!isFocused || activeAnnouncements.length === 0) return;
+    const latest = activeAnnouncements[0];
+    if (!latest || announcementModalVisible) return;
+    if (autoOpenedModalAnnouncementIdRef.current === latest.id) return;
+
+    if (modalAutoOpenTimerRef.current) {
+      clearTimeout(modalAutoOpenTimerRef.current);
+    }
+
+    modalAutoOpenTimerRef.current = setTimeout(() => {
+      autoOpenedModalAnnouncementIdRef.current = latest.id;
+      setModalAnnouncementIndex(0);
+      setAnnouncementModalVisible(true);
+    }, 900);
+  }, [activeAnnouncements, announcementModalVisible, isFocused]);
+
+  useEffect(() => {
+    return () => {
+      if (modalAutoOpenTimerRef.current) {
+        clearTimeout(modalAutoOpenTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!announcementModalVisible) return;
+    if (modalAnnouncements.length === 0) return;
+    const safeIndex = Math.max(
+      0,
+      Math.min(modalAnnouncementIndex, modalAnnouncements.length - 1),
+    );
+    requestAnimationFrame(() => {
+      modalCarouselRef.current?.scrollToOffset({
+        offset: safeIndex * modalSlideWidth,
+        animated: false,
+      });
+    });
+  }, [announcementModalVisible, modalAnnouncementIndex, modalAnnouncements, modalSlideWidth]);
+
   const getSubjectColor = (index: number) => {
     return SUBJECT_COLORS[index % SUBJECT_COLORS.length];
   };
@@ -567,6 +806,63 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </View>
+
+                {announcementPreviewItem ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.announcementPreview,
+                      {
+                        backgroundColor: theme.colors.elevation.level2,
+                        borderColor: theme.colors.outlineVariant,
+                      },
+                    ]}
+                    activeOpacity={0.75}
+                    onPress={handleOpenAnnouncementModal}
+                  >
+                    <View style={styles.announcementPreviewHeader}>
+                      <MaterialCommunityIcons
+                        name="bullhorn-outline"
+                        size={16}
+                        color={theme.colors.primary}
+                      />
+                      <Text
+                        variant="labelMedium"
+                        style={{ color: theme.colors.primary, fontWeight: "700" }}
+                      >
+                        Anuncio
+                      </Text>
+                      {activeAnnouncements.length > 1 ? (
+                        <Text
+                          variant="labelSmall"
+                          style={{ color: theme.colors.onSurfaceVariant, marginLeft: "auto" }}
+                    >
+                      {previewAnnouncementIndex + 1}/{activeAnnouncements.length}
+                    </Text>
+                  ) : null}
+                    </View>
+                    <Animated.View
+                      style={{
+                        opacity: announcementTransition,
+                        transform: [
+                          {
+                            translateY: announcementTransition.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [5, 0],
+                            }),
+                          },
+                        ],
+                      }}
+                    >
+                      <Text
+                        variant="bodyMedium"
+                        numberOfLines={1}
+                        style={{ color: theme.colors.onSurface, fontWeight: "600" }}
+                      >
+                        {announcementPreviewItem.titulo}
+                      </Text>
+                    </Animated.View>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </Surface>
 
@@ -731,6 +1027,107 @@ export default function HomeScreen() {
         newSubjectIds={newSubjectIds}
         newSubjectsNotifIds={newSubjectsNotifIds}
       />
+
+      <Portal>
+        <Modal
+          visible={announcementModalVisible && modalAnnouncements.length > 0}
+          onDismiss={handleCloseAnnouncementModal}
+          contentContainerStyle={[
+            styles.announcementModal,
+            { backgroundColor: theme.colors.background },
+          ]}
+        >
+          <FlatList
+            ref={modalCarouselRef}
+            data={modalAnnouncements}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            style={styles.announcementCarousel}
+            getItemLayout={(_, index) => ({
+              length: modalSlideWidth,
+              offset: modalSlideWidth * index,
+              index,
+            })}
+            onMomentumScrollEnd={(event) => {
+              const offsetX = event.nativeEvent.contentOffset.x;
+              const nextIndex = Math.round(offsetX / modalSlideWidth);
+              const safeIndex = Math.max(
+                0,
+                Math.min(nextIndex, modalAnnouncements.length - 1),
+              );
+              setModalAnnouncementIndex(safeIndex);
+            }}
+            renderItem={({ item }) => (
+              <View style={[styles.announcementSlide, { width: modalSlideWidth }]}>
+                {item.imagenUrl ? (
+                  <Image
+                    source={{ uri: item.imagenUrl }}
+                    style={[
+                      styles.announcementModalImage,
+                      {
+                        aspectRatio:
+                          announcementImageRatios[item.imagenUrl] || 16 / 9,
+                      },
+                    ]}
+                    resizeMode="contain"
+                  />
+                ) : null}
+                <Text
+                  variant="titleLarge"
+                  style={{
+                    color: theme.colors.onSurface,
+                    fontWeight: "800",
+                    marginBottom: 8,
+                    textAlign: "center",
+                    width: "100%",
+                  }}
+                >
+                  {item.titulo || "Anuncio"}
+                </Text>
+                <Text
+                  variant="bodyMedium"
+                  style={{
+                    color: theme.colors.onSurfaceVariant,
+                    lineHeight: 21,
+                    marginBottom: 4,
+                    textAlign: "center",
+                    width: "100%",
+                  }}
+                >
+                  {item.mensaje || ""}
+                </Text>
+              </View>
+            )}
+          />
+          {modalAnnouncements.length > 1 ? (
+            <View style={styles.announcementDotsRow}>
+              {modalAnnouncements.map((item, index) => (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.announcementDot,
+                    index === modalAnnouncementIndex && styles.announcementDotActive,
+                    {
+                      backgroundColor:
+                        index === modalAnnouncementIndex
+                          ? theme.colors.primary
+                          : theme.colors.outlineVariant,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.announcementActions}>
+            <Button mode="contained" onPress={handleCloseAnnouncementModal}>
+              Entendido
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
 
       <UserProfileModal
         visible={userMenuVisible}
@@ -928,5 +1325,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 16,
+  },
+  announcementPreview: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  announcementPreviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  announcementModal: {
+    marginHorizontal: 16,
+    borderRadius: 14,
+    paddingVertical: 16,
+    overflow: "hidden",
+  },
+  announcementCarousel: {
+    width: "100%",
+  },
+  announcementSlide: {
+    paddingHorizontal: 16,
+    minHeight: 320,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  announcementModalImage: {
+    width: "92%",
+    maxHeight: 240,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  announcementDotsRow: {
+    marginTop: 12,
+    marginBottom: 4,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  announcementDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    opacity: 0.6,
+  },
+  announcementDotActive: {
+    width: 18,
+    borderRadius: 6,
+    opacity: 1,
+  },
+  announcementActions: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingHorizontal: 16,
   },
 });

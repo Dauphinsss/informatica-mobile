@@ -4,6 +4,7 @@ import {
   configurarCanalAndroid,
   solicitarPermisosNotificaciones,
 } from "@/services/pushNotifications";
+import { applyLauncherIcon } from "@/services/launcherIcon.service";
 import { StatusBar } from "expo-status-bar";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -80,6 +81,30 @@ function AppContent() {
       }
     };
     registerTokens();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      void applyLauncherIcon("default");
+      return;
+    }
+
+    const configRef = doc(db, "configuracionSistema", "launcherIcon");
+    const unsubscribe = onSnapshot(
+      configRef,
+      (snapshot) => {
+        const data = snapshot.data() as { activeIconKey?: string } | undefined;
+        const iconKey = data?.activeIconKey === "elecciones" ? "elecciones" : "default";
+        void applyLauncherIcon(iconKey).catch((error) => {
+          console.warn("No se pudo aplicar icono launcher:", error);
+        });
+      },
+      (error) => {
+        console.warn("No se pudo cargar configuracion de icono:", error);
+      },
+    );
+
+    return () => unsubscribe();
   }, [user]);
 
   if (loading) {

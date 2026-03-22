@@ -464,6 +464,15 @@ export default function SubjectDetailScreen() {
     return result;
   }, [filesBySection, publicacionesPorDocente]);
 
+  const visibleSections = React.useMemo(
+    () =>
+      subjectSections.filter((section) => {
+        const files = filesBySectionForTeacher[section.id] || [];
+        return files.length > 0;
+      }),
+    [subjectSections, filesBySectionForTeacher],
+  );
+
   const formatearFecha = (fecha: Date): string => {
     const ahora = new Date();
     const diff = ahora.getTime() - fecha.getTime();
@@ -791,7 +800,7 @@ export default function SubjectDetailScreen() {
   );
 
   const renderSectionScrollable = () =>
-    subjectSections.map((section) => {
+    visibleSections.map((section) => {
       const files = filesBySectionForTeacher[section.id] || [];
       const isExpanded = !!expandedSections[section.id];
 
@@ -809,9 +818,6 @@ export default function SubjectDetailScreen() {
             <View style={styles.sectionHeaderContent}>
               <Text variant="titleMedium" style={styles.sectionTitle}>
                 {section.nombre}
-              </Text>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {files.length} archivos
               </Text>
             </View>
             <MaterialCommunityIcons
@@ -840,12 +846,6 @@ export default function SubjectDetailScreen() {
                 renderPreview={renderSectionFilePreview}
                 getOpeningLabel={() => "Abriendo..."}
               />
-            </View>
-          ) : isExpanded ? (
-            <View style={styles.sectionEmpty}>
-              <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                Sin archivos en esta sección
-              </Text>
             </View>
           ) : null}
         </View>
@@ -1006,12 +1006,12 @@ export default function SubjectDetailScreen() {
             ) : (
               publicacionesFiltradas.map(renderPublicationCard)
             )
-          ) : subjectSections.length > 0 ? (
+          ) : visibleSections.length > 0 ? (
             renderSectionScrollable()
           ) : (
             <View style={styles.emptyContainer}>
               <Text variant="headlineSmall" style={styles.emptyText}>
-                No hay secciones configuradas
+                No hay archivos disponibles
               </Text>
             </View>
           )}

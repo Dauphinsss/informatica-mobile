@@ -174,6 +174,13 @@ export default function NotificationsScreen() {
           
           break;
 
+        case "revisar_publicaciones_pendientes":
+          console.log("[Notificación] Abriendo publicaciones pendientes (Admin)");
+          tabNavigation.navigate("Admin", {
+            screen: "PendingPublications",
+          });
+          break;
+
         default:
           console.log("[Notificación] Acción no reconocida:", metadata.accion);
           break;
@@ -462,8 +469,10 @@ export default function NotificationsScreen() {
     if (!timestamp) return "Ahora";
 
     const fecha = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (Number.isNaN(fecha.getTime())) return "Ahora";
     const ahora = new Date();
     const diff = ahora.getTime() - fecha.getTime();
+    if (diff < 0) return "Ahora";
 
     const minutos = Math.floor(diff / 60000);
     const horas = Math.floor(diff / 3600000);
@@ -473,9 +482,12 @@ export default function NotificationsScreen() {
     if (minutos < 60) return `Hace ${minutos} min`;
     if (horas < 24) return `Hace ${horas} h`;
     if (dias < 7) return `Hace ${dias} d`;
-    return fecha.toLocaleDateString("es-ES", {
+
+    const sameYear = fecha.getFullYear() === ahora.getFullYear();
+    return fecha.toLocaleDateString("es-BO", {
       day: "2-digit",
-      month: "short",
+      month: "2-digit",
+      ...(sameYear ? {} : { year: "2-digit" }),
     });
   };
 

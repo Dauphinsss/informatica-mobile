@@ -4,8 +4,12 @@ import AdminScreen from "../(tabs)/admin";
 import FileGalleryScreen from "../subjects/FileGalleryScreen";
 import PublicationDetailScreen from "../subjects/PublicationDetailScreen";
 import AllActivityScreen from "./AllActivityScreen";
+import CreateAnnouncementScreen from "./create-announcement";
 import CreateSubjectScreen from "./create-subject";
+import EditAnnouncementScreen from "./edit-announcement";
 import EditSubjectScreen from "./edit-subject";
+import ManageAnnouncementsScreen from "./manage-announcements";
+import ManageAppIconScreen from "./manage-app-icon";
 import ManageSectionsScreen from "./manage-sections";
 import ManageSubjectsScreen from "./manage-subjects";
 import ManageTeachersScreen from "./manage-teachers";
@@ -54,6 +58,34 @@ export default function AdminLayOut() {
         component={ManageSectionsScreen}
         options={{
           title: "Secciones",
+        }}
+      />
+      <Stack.Screen
+        name="ManageAnnouncements"
+        component={ManageAnnouncementsScreen}
+        options={{
+          title: "Anuncios",
+        }}
+      />
+      <Stack.Screen
+        name="ManageAppIcon"
+        component={ManageAppIconScreen}
+        options={{
+          title: "Icono",
+        }}
+      />
+      <Stack.Screen
+        name="CreateAnnouncement"
+        component={CreateAnnouncementScreen}
+        options={{
+          title: "Nuevo anuncio",
+        }}
+      />
+      <Stack.Screen
+        name="EditAnnouncement"
+        component={EditAnnouncementScreen}
+        options={{
+          title: "Editar anuncio",
         }}
       />
       <Stack.Screen

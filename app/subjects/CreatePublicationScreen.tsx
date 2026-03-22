@@ -883,8 +883,18 @@ export default function CreatePublicationScreen() {
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={isEditMode ? "Editar publicación" : "Nueva publicación"} />
-        <Appbar.Action icon="check" onPress={publicar} disabled={publicando} />
+        <Appbar.Content title="" />
+        <Button
+          mode="contained"
+          onPress={publicar}
+          disabled={publicando}
+          loading={publicando}
+          style={styles.headerCreateButton}
+          contentStyle={styles.headerCreateButtonContent}
+          labelStyle={styles.headerCreateButtonLabel}
+        >
+          {isEditMode ? "Guardar" : "Crear"}
+        </Button>
       </Appbar.Header>
 
       <ScrollView
@@ -949,25 +959,6 @@ export default function CreatePublicationScreen() {
         </View>
 
         <View style={styles.attachmentsHeaderWrap}>
-          <View style={styles.archivosHeader}>
-            <View style={styles.archivosHeaderLeft}>
-              <Text variant="titleMedium" style={styles.archivosTitle}>
-                Archivos adjuntos
-              </Text>
-              <Text variant="labelMedium" style={styles.archivosSubtitle}>
-                Tamano maximo por archivo: 100 MB
-              </Text>
-            </View>
-            <Button
-              mode="contained-tonal"
-              icon="paperclip"
-              onPress={mostrarDialogoSeleccion}
-              disabled={publicando}
-              compact
-            >
-              Adjuntar
-            </Button>
-          </View>
           {availableSections.length > 0 ? (
             <View style={styles.quickTagWrap}>
               <View style={styles.quickTagHeader}>
@@ -1159,19 +1150,12 @@ export default function CreatePublicationScreen() {
 
         <Button
           mode="contained"
-          onPress={publicar}
-          loading={publicando}
+          onPress={mostrarDialogoSeleccion}
           disabled={publicando}
           style={styles.publicarButton}
-          icon="send"
+          icon="paperclip"
         >
-          {publicando
-            ? isEditMode
-              ? "Guardando..."
-              : "Publicando..."
-            : isEditMode
-            ? "Guardar cambios"
-            : "Publicar"}
+          Adjuntar archivos
         </Button>
       </ScrollView>
 

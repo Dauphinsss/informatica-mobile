@@ -6,7 +6,7 @@ import { escucharActividadesRecientes } from "@/services/activity.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Appbar, Button, Card, Text } from "react-native-paper";
@@ -20,6 +20,8 @@ type AdminStackParamList = {
   ManageUsers: undefined;
   ManageTeachers: undefined;
   ManageSections: undefined;
+  ManageAnnouncements: undefined;
+  ManageAppIcon: undefined;
   Reports: undefined;
   ManageSubjects: undefined;
   PendingPublications: undefined;
@@ -119,6 +121,8 @@ export default function AdminScreen() {
   const [totalUsuarios, setTotalUsuarios] = useState(0);
   const [totalDocentes, setTotalDocentes] = useState(0);
   const [totalSecciones, setTotalSecciones] = useState(0);
+  const [anunciosActivos, setAnunciosActivos] = useState(0);
+  const [activeIconKey, setActiveIconKey] = useState<"default" | "elecciones">("default");
   const [denunciasPendientes, setDenunciasPendientes] = useState(0);
   const [publicacionesPendientes, setPublicacionesPendientes] = useState(0);
   const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
@@ -132,6 +136,8 @@ export default function AdminScreen() {
     publicacionesPendientes: false,
     docentes: false,
     secciones: false,
+    anuncios: false,
+    icono: false,
   });
   const [selectedActivity, setSelectedActivity] = useState<ActivityLog | null>(null);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
@@ -182,6 +188,46 @@ export default function AdminScreen() {
       }
     });
 
+    const anunciosActivosQuery = query(
+      collection(db, "anuncios"),
+      where("activo", "==", true),
+    );
+    const unsubAnuncios = onSnapshot(
+      anunciosActivosQuery,
+      (snapshot) => {
+        if (mounted) {
+          setAnunciosActivos(snapshot.size);
+          setStatsLoaded((prev) => ({ ...prev, anuncios: true }));
+        }
+      },
+      (error) => {
+        console.warn("No se pudo cargar anuncios activos:", error);
+        if (mounted) {
+          setAnunciosActivos(0);
+          setStatsLoaded((prev) => ({ ...prev, anuncios: true }));
+        }
+      },
+    );
+
+    const iconConfigRef = doc(db, "configuracionSistema", "launcherIcon");
+    const unsubIconConfig = onSnapshot(
+      iconConfigRef,
+      (snapshot) => {
+        if (mounted) {
+          const data = snapshot.data() as { activeIconKey?: string } | undefined;
+          setActiveIconKey(data?.activeIconKey === "elecciones" ? "elecciones" : "default");
+          setStatsLoaded((prev) => ({ ...prev, icono: true }));
+        }
+      },
+      (error) => {
+        console.warn("No se pudo cargar configuracion de icono:", error);
+        if (mounted) {
+          setActiveIconKey("default");
+          setStatsLoaded((prev) => ({ ...prev, icono: true }));
+        }
+      },
+    );
+
     
     const denunciasPendientesQuery = query(
       collection(db, "reportes"),
@@ -217,6 +263,8 @@ export default function AdminScreen() {
       unsubPublicacionesPendientes();
       unsubDocentes();
       unsubSecciones();
+      unsubAnuncios();
+      unsubIconConfig();
     };
   }, []);
 
@@ -228,7 +276,9 @@ export default function AdminScreen() {
       statsLoaded.pendientes &&
       statsLoaded.publicacionesPendientes &&
       statsLoaded.docentes &&
-      statsLoaded.secciones;
+      statsLoaded.secciones &&
+      statsLoaded.anuncios &&
+      statsLoaded.icono;
     if (allLoaded) {
       setLoadingStats(false);
     }
@@ -490,6 +540,80 @@ export default function AdminScreen() {
           </TouchableOpacity>
         </View>
 
+        <TouchableOpacity
+          style={styles.announcementCardWrap}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("ManageAnnouncements")}
+        >
+          <Card elevation={2} style={styles.announcementCard}>
+            <Card.Content style={styles.announcementCardContent}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: theme.colors.surfaceVariant },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="bullhorn-outline"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+              </View>
+              <View style={styles.announcementTextBlock}>
+                <Text variant="titleMedium" style={styles.announcementTitle}>
+                  Anuncios
+                </Text>
+              </View>
+              <View style={styles.announcementCountBlock}>
+                <AnimatedStatNumber
+                  value={anunciosActivos}
+                  loading={loadingStats || !statsLoaded.anuncios}
+                  style={styles.statNumber}
+                />
+                <Text
+                  variant="labelSmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  activos
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.iconCardWrap}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("ManageAppIcon")}
+        >
+          <Card elevation={2} style={styles.announcementCard}>
+            <Card.Content style={styles.announcementCardContent}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: theme.colors.surfaceVariant },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="cellphone-cog"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+              </View>
+              <View style={styles.announcementTextBlock}>
+                <Text variant="titleMedium" style={styles.announcementTitle}>
+                  Icono
+                </Text>
+              </View>
+              <View style={styles.announcementCountBlock}>
+                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {activeIconKey === "elecciones" ? "elecciones.png" : "icon.png"}
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        </TouchableOpacity>
+
         {}
         <View style={styles.activitySection}>
           <View style={styles.activityHeader}>
@@ -669,5 +793,33 @@ const styles = StyleSheet.create({
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: 16,
+  },
+  announcementCardWrap: {
+    marginTop: -4,
+    marginBottom: 6,
+  },
+  iconCardWrap: {
+    marginTop: 0,
+    marginBottom: 6,
+  },
+  announcementCard: {
+    borderRadius: 16,
+  },
+  announcementCardContent: {
+    minHeight: 88,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  announcementTextBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  announcementTitle: {
+    fontWeight: "700",
+  },
+  announcementCountBlock: {
+    alignItems: "center",
+    minWidth: 70,
   },
 });

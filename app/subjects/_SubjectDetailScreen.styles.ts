@@ -60,7 +60,7 @@ export const getStyles = (theme: MD3Theme) =>
       maxWidth: 190,
     },
     sectionBlock: {
-      marginBottom: 2,
+      marginBottom: 12,
     },
     sectionAccordionHeader: {
       minHeight: 52,
@@ -87,8 +87,12 @@ export const getStyles = (theme: MD3Theme) =>
       paddingTop: 8,
       paddingBottom: 12,
     },
+    archivosGrid: {
+      flexDirection: "column",
+    },
     archivoCardWrapper: {
       width: "100%",
+      marginBottom: 8,
     },
     archivoCard: {
       width: "100%",

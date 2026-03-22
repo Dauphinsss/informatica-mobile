@@ -118,6 +118,76 @@ async function registrarActividad(tipo, titulo, descripcion, actorUid = null, ac
   }
 }
 
+async function notificarAdminsPublicacionPendiente(pubData, pubId) {
+  try {
+    const estado = String(pubData?.estado || '').toLowerCase();
+    if (estado !== 'pendiente') return;
+
+    const adminsSnap = await admin
+      .firestore()
+      .collection('usuarios')
+      .where('rol', 'in', ['admin', 'administrador', 'administrator'])
+      .get();
+
+    const adminIds = adminsSnap.docs
+      .filter((d) => {
+        const data = d.data() || {};
+        const estadoUsuario = String(data.estado || 'activo').toLowerCase();
+        return estadoUsuario === 'activo';
+      })
+      .map((d) => d.id);
+
+    if (adminIds.length === 0) {
+      console.log('[AdminNotif] No hay administradores activos para notificar');
+      return;
+    }
+
+    let materiaNombre = pubData?.materiaNombre || '';
+    const materiaId = pubData?.materiaId || pubData?.subjectUid || pubData?.materiaUid || pubData?.subjectId || '';
+    if (!materiaNombre && materiaId) {
+      const materiaDoc = await admin.firestore().collection('materias').doc(materiaId).get();
+      if (materiaDoc.exists) {
+        materiaNombre = materiaDoc.data()?.nombre || '';
+      }
+    }
+
+    const notifRef = await admin.firestore().collection('notificaciones').add({
+      titulo: 'Publicación pendiente por revisar',
+      descripcion: `${pubData?.autorNombre || 'Un usuario'} envió "${pubData?.titulo || 'Publicación'}" para aprobación`,
+      icono: 'newspaper-variant-multiple',
+      tipo: 'advertencia',
+      creadoEn: admin.firestore.FieldValue.serverTimestamp(),
+      metadata: {
+        accion: 'revisar_publicaciones_pendientes',
+        tipo: 'admin_review',
+        publicacionId: pubId,
+        materiaId: materiaId || '',
+        materiaNombre: materiaNombre || '',
+        publicacionTitulo: pubData?.titulo || '',
+        actorUid: pubData?.autorUid || null,
+        actorNombre: pubData?.autorNombre || null,
+        actorFoto: pubData?.autorFoto || null,
+      },
+    });
+
+    const batch = admin.firestore().batch();
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+    adminIds.forEach((adminId) => {
+      const refId = `${adminId}_${notifRef.id}`;
+      batch.set(admin.firestore().collection('notificacionesUsuario').doc(refId), {
+        notificacionId: notifRef.id,
+        userId: adminId,
+        leida: false,
+        creadoEn: timestamp,
+      });
+    });
+    await batch.commit();
+    console.log(`[AdminNotif] Notificación pendiente enviada a ${adminIds.length} admin(s)`);
+  } catch (error) {
+    console.error('[AdminNotif] Error notificando admins por publicación pendiente:', error);
+  }
+}
+
 exports.registrarUsuarioNuevo = functions.firestore
   .document('usuarios/{userId}')
   .onCreate(async (snap, context) => {
@@ -169,6 +239,8 @@ exports.registrarPublicacionNueva = functions.firestore
       pubId,
       { materiaId, materiaNombre, titulo: pubData.titulo }
     );
+
+    await notificarAdminsPublicacionPendiente(pubData, pubId);
     
     return null;
   });
@@ -278,7 +350,10 @@ exports.enviarPushNuevaPublicacion = functions.firestore
         materiaNombre: notifData.metadata?.materiaNombre || '',
         accion: 'ver_publicacion',
         publicacionId,
-        deepLink: materiaId && publicacionId ? `informatica:
+        deepLink:
+          materiaId && publicacionId
+            ? `informatica:/materias/${materiaId}/publicaciones/${publicacionId}`
+            : '',
       },
       tokens: [tokens[0]],
       android: {

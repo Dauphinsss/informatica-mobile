@@ -265,6 +265,13 @@ export function useNotificationNavigation({ navigation }: UseNotificationNavigat
         goTo('/perfil/notificaciones', data);
         break;
 
+      case 'revisar_publicaciones_pendientes':
+        console.log('Acción: revisar_publicaciones_pendientes');
+        tabNavigation.navigate('Admin', {
+          screen: 'PendingPublications',
+        });
+        break;
+
       case 'abrir_archivo':
         if (data.fileUri) {
           Linking.openURL(data.fileUri).catch((err) => {

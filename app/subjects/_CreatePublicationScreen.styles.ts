@@ -7,6 +7,23 @@ export const getStyles = (theme: MD3Theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    headerCreateButton: {
+      borderRadius: 999,
+      marginRight: 10,
+      minWidth: 96,
+      alignSelf: "center",
+    },
+    headerCreateButtonContent: {
+      height: 38,
+      paddingHorizontal: 6,
+    },
+    headerCreateButtonLabel: {
+      textTransform: "none",
+      fontWeight: "500",
+      fontSize: 14,
+      lineHeight: 18,
+      letterSpacing: 0,
+    },
     content: {
       flex: 1,
       paddingHorizontal: "4%",

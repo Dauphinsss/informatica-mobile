@@ -4,18 +4,27 @@ import { registrarActividadCliente } from "@/services/activity.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import {
+  QueryConstraint,
+  QueryDocumentSnapshot,
   collection,
   doc,
-  onSnapshot,
+  documentId,
+  getCountFromServer,
+  getDocs,
+  limit,
+  orderBy,
+  query,
   serverTimestamp,
+  startAfter,
   updateDoc,
+  where,
 } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityListSkeleton } from "./components/SkeletonLoaders";
 import {
   Animated,
   Easing,
-  ScrollView,
+  FlatList,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -37,11 +46,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth, db } from "../../firebase";
 
 const ManageUsers = () => {
+  type UserFilter = "all" | "usuario" | "admin" | "suspendido";
   const DEFAULT_SUSPEND_REASON = "Incumplimiento de normas de la comunidad.";
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [users, setUsers] = useState<any[]>([]);
-  const [filter, setFilter] = useState<"all" | "usuario" | "admin" | "suspendido">("all");
+  const [filter, setFilter] = useState<UserFilter>("all");
   const [filterOrder, setFilterOrder] = useState<SortOrder>("asc");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -56,8 +66,18 @@ const ManageUsers = () => {
   );
   const [actionLoading, setActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(null);
+  const [realCounts, setRealCounts] = useState<Record<UserFilter, number>>({
+    all: 0,
+    usuario: 0,
+    admin: 0,
+    suspendido: 0,
+  });
   const [expandedOpacity, setExpandedOpacity] = useState<string | null>(null);
   const expandAnimationsRef = React.useRef<Record<string, Animated.Value>>({});
+  const PAGE_SIZE = 40;
 
   const getJoinedMillis = (user: any): number => {
     const raw = user?.creadoEn ?? user?.createdAt ?? user?.fechaRegistro;
@@ -89,38 +109,30 @@ const ManageUsers = () => {
     });
   };
 
-  const getFilteredUsers = () => {
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const filteredUsers = useMemo(() => {
     let filtered = users;
 
-    if (filter === "usuario") {
-      filtered = filtered.filter((user) => user.rol === "usuario");
-    } else if (filter === "admin") {
-      filtered = filtered.filter((user) => user.rol === "admin");
-    } else if (filter === "suspendido") {
-      filtered = filtered.filter((user) => user.estado === "suspendido");
+    if (normalizedSearch !== "") {
+      filtered = filtered.filter((user) => {
+        const nombre = String(user?.nombre || "").toLowerCase();
+        const correo = String(user?.correo || "").toLowerCase();
+        return nombre.includes(normalizedSearch) || correo.includes(normalizedSearch);
+      });
     }
 
-    if (searchQuery.trim() !== "") {
-      filtered = filtered.filter(
-        (user) =>
-          (user.nombre && user.nombre.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (user.correo && user.correo.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
+    const ordered = [...filtered].sort((a, b) => getJoinedMillis(a) - getJoinedMillis(b));
+    return filterOrder === "desc" ? ordered.reverse() : ordered;
+  }, [users, normalizedSearch, filterOrder]);
 
-    return [...filtered].sort((a, b) => getJoinedMillis(a) - getJoinedMillis(b));
-  };
+  const currentFilterTotal = useMemo(() => realCounts[filter] ?? 0, [filter, realCounts]);
 
-  const filteredUsers = getFilteredUsers();
-
-  const totalUsers = users.filter((user) => user.rol === "usuario").length;
-  const totalAdmins = users.filter((user) => user.rol === "admin").length;
-  const totalSuspended = users.filter((user) => user.estado === "suspendido").length;
-  const userFilterOptions: SortOption<"all" | "usuario" | "admin" | "suspendido">[] = [
-    { key: "all", label: `Todos ${users.length}` },
-    { key: "usuario", label: `Usuarios ${totalUsers}` },
-    { key: "suspendido", label: `Suspendidos ${totalSuspended}` },
-    { key: "admin", label: `Admins ${totalAdmins}` },
+  const userFilterOptions: SortOption<UserFilter>[] = [
+    { key: "all", label: `Todos ${realCounts.all}` },
+    { key: "usuario", label: `Usuarios ${realCounts.usuario}` },
+    { key: "suspendido", label: `Suspendidos ${realCounts.suspendido}` },
+    { key: "admin", label: `Admins ${realCounts.admin}` },
   ];
 
   const getOrCreateAnimation = (userId: string) => {
@@ -189,6 +201,42 @@ const ManageUsers = () => {
     setSuspendReason("");
   };
 
+  const buildFilterConstraints = useCallback((targetFilter: UserFilter): QueryConstraint[] => {
+    if (targetFilter === "usuario") {
+      return [where("rol", "==", "usuario")];
+    }
+    if (targetFilter === "admin") {
+      return [where("rol", "in", ["admin", "administrador", "administrator"])];
+    }
+    if (targetFilter === "suspendido") {
+      return [where("estado", "==", "suspendido")];
+    }
+    return [];
+  }, []);
+
+  const refreshCounts = useCallback(async () => {
+    try {
+      const usersCollection = collection(db, "usuarios");
+      const [allSnap, usuariosSnap, adminsSnap, suspendidosSnap] = await Promise.all([
+        getCountFromServer(usersCollection),
+        getCountFromServer(query(usersCollection, where("rol", "==", "usuario"))),
+        getCountFromServer(
+          query(usersCollection, where("rol", "in", ["admin", "administrador", "administrator"])),
+        ),
+        getCountFromServer(query(usersCollection, where("estado", "==", "suspendido"))),
+      ]);
+
+      setRealCounts({
+        all: allSnap.data().count,
+        usuario: usuariosSnap.data().count,
+        admin: adminsSnap.data().count,
+        suspendido: suspendidosSnap.data().count,
+      });
+    } catch (error) {
+      console.error("Error cargando conteos de usuarios:", error);
+    }
+  }, []);
+
   const confirmAction = async () => {
     if (!selectedUser || actionLoading) return;
 
@@ -250,6 +298,8 @@ const ManageUsers = () => {
       });
       
       closeConfirmDialog();
+      await refreshCounts();
+      await loadUsers(true, filter);
     } catch (error) {
       console.error("Error al actualizar el estado del usuario:", error);
     } finally {
@@ -257,27 +307,312 @@ const ManageUsers = () => {
     }
   };
 
-  useEffect(() => {
-    const usersCollection = collection(db, "usuarios");
+  const loadUsers = useCallback(async (reset = false, targetFilter: UserFilter = filter) => {
+    if (loadingMore && !reset) return;
+    if (!reset && !hasMore) return;
 
-    const unsubscribe = onSnapshot(
-      usersCollection,
-      (snapshot) => {
-        const usersList = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-          uid: doc.id,
-        }));
-        setUsers(usersList);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error al escuchar cambios de usuarios:", error);
-        setLoading(false);
+    try {
+      if (reset) {
+        setLoading(true);
+        setUsers([]);
+        setLastVisible(null);
+        setHasMore(true);
+        setExpandedUser(null);
+        setExpandedOpacity(null);
+      } else {
+        setLoadingMore(true);
       }
-    );
 
-    return () => unsubscribe();
-  }, []);
+      const usersCollection = collection(db, "usuarios");
+      const constraints: QueryConstraint[] = [
+        ...buildFilterConstraints(targetFilter),
+        orderBy(documentId()),
+        limit(PAGE_SIZE),
+      ];
+      if (!reset && lastVisible) {
+        constraints.splice(constraints.length - 1, 0, startAfter(lastVisible));
+      }
+      const usersQuery = query(usersCollection, ...constraints);
+
+      const snapshot = await getDocs(usersQuery);
+      const usersPage = snapshot.docs.map((userDoc) => ({
+        ...userDoc.data(),
+        uid: userDoc.id,
+      }));
+
+      setUsers((prev) => {
+        if (reset) return usersPage;
+        const merged = new Map(prev.map((user) => [user.uid, user]));
+        usersPage.forEach((user) => merged.set(user.uid, user));
+        return Array.from(merged.values());
+      });
+      setLastVisible(snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null);
+      setHasMore(snapshot.docs.length === PAGE_SIZE);
+    } catch (error) {
+      console.error("Error cargando usuarios paginados:", error);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [buildFilterConstraints, filter, hasMore, lastVisible, loadingMore]);
+
+  useEffect(() => {
+    void refreshCounts();
+  }, [refreshCounts]);
+
+  useEffect(() => {
+    void loadUsers(true, filter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  const handleLoadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    void loadUsers(false, filter);
+  }, [filter, hasMore, loadUsers, loading, loadingMore]);
+
+  const renderUserItem = useCallback(({ item: user }: { item: any }) => {
+    const animation = getOrCreateAnimation(user.uid);
+    const maxHeight = animation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 380],
+    });
+
+    return (
+      <View>
+        <View
+          style={[
+            user.estado === "suspendido" &&
+              styles.suspendedUserItem,
+          ]}
+        >
+          <List.Item
+            title={user.nombre || "Sin nombre"}
+            description={user.correo || "Sin correo"}
+            titleStyle={[
+              styles.userName,
+              user.estado === "suspendido" &&
+                styles.suspendedUserName,
+            ]}
+            descriptionStyle={styles.userEmail}
+            left={(props) => (
+              <View style={styles.avatarContainer}>
+                {user.foto ? (
+                  <Avatar.Image
+                    size={40}
+                    source={{ uri: user.foto }}
+                    style={[
+                      styles.avatar,
+                      user.estado === "suspendido" &&
+                        styles.suspendedAvatar,
+                    ]}
+                  />
+                ) : (
+                  <Avatar.Icon
+                    size={40}
+                    icon={
+                      user.rol === "admin"
+                        ? "shield-account"
+                        : "account"
+                    }
+                    style={[
+                      styles.avatar,
+                      user.estado === "suspendido" &&
+                        styles.suspendedAvatar,
+                    ]}
+                  />
+                )}
+                {user.estado === "suspendido" && (
+                  <View style={styles.suspendedIndicator} />
+                )}
+              </View>
+            )}
+            right={(props) => (
+              <View style={styles.rightContainer}>
+                {user.rol === "admin" && (
+                  <MaterialCommunityIcons
+                    name="shield-crown"
+                    size={18}
+                    color={theme.colors.primary}
+                    style={styles.adminIcon}
+                  />
+                )}
+                <TouchableOpacity
+                  onPress={() => handleToggleExpand(user.uid)}
+                >
+                  <MaterialCommunityIcons
+                    name={
+                      expandedUser === user.uid
+                        ? "chevron-up"
+                        : "chevron-down"
+                    }
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+            onPress={() => handleToggleExpand(user.uid)}
+          />
+
+          {expandedUser === user.uid && (
+            <Animated.View
+              style={[
+                styles.collapseWrapper,
+                {
+                  maxHeight,
+                  overflow: "hidden",
+                  opacity:
+                    expandedOpacity === user.uid ? maxHeight.interpolate({
+                      inputRange: [0, 120, 420],
+                      outputRange: [0, 0.65, 1],
+                      extrapolate: "clamp",
+                    }) : 1,
+                },
+              ]}
+            >
+              <View style={styles.collapseContent}>
+                <View style={styles.infoSection}>
+                  <Text
+                    variant="labelSmall"
+                    style={[
+                      styles.infoLabel,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
+                    INFORMACIÓN
+                  </Text>
+
+                  <View style={styles.infoRow}>
+                    <MaterialCommunityIcons
+                      name="account-badge"
+                      size={18}
+                      color={theme.colors.onSurfaceVariant}
+                    />
+                    <Text variant="bodyMedium" style={styles.infoText}>
+                      Rol: {user.rol === "admin" ? "Administrador" : "Usuario"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <MaterialCommunityIcons
+                      name="calendar"
+                      size={18}
+                      color={theme.colors.onSurfaceVariant}
+                    />
+                    <Text variant="bodyMedium" style={styles.infoText}>
+                      Se unió: {formatJoinDate(user)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <MaterialCommunityIcons
+                      name={
+                        user.estado === "suspendido"
+                          ? "cancel"
+                          : "check-circle"
+                      }
+                      size={18}
+                      color={
+                        user.estado === "suspendido"
+                          ? theme.colors.error
+                          : theme.colors.primary
+                      }
+                    />
+                    <Text variant="bodyMedium" style={styles.infoText}>
+                      Estado:{" "}
+                      <Text
+                        style={{
+                          fontWeight: "bold",
+                          color:
+                            user.estado === "suspendido"
+                              ? theme.colors.error
+                              : theme.colors.primary,
+                        }}
+                      >
+                        {user.estado === "suspendido"
+                          ? "Suspendido"
+                          : "Activo"}
+                      </Text>
+                    </Text>
+                  </View>
+
+                  {user.estado === "suspendido" && (
+                    <View
+                      style={[
+                        styles.reasonBox,
+                        {
+                          backgroundColor: theme.colors.surfaceVariant,
+                        },
+                      ]}
+                    >
+                      <Text
+                        variant="labelSmall"
+                        style={[
+                          styles.reasonLabel,
+                          { color: theme.colors.onSurfaceVariant },
+                        ]}
+                      >
+                        MOTIVO
+                      </Text>
+                      <Text
+                        variant="bodySmall"
+                        style={[
+                          styles.reasonText,
+                          { color: theme.colors.onSurface },
+                        ]}
+                      >
+                        {user.motivoSuspension || DEFAULT_SUSPEND_REASON}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.actionButtons}>
+                  {user.estado !== "suspendido" &&
+                    user.rol !== "admin" &&
+                    user.uid !== auth.currentUser?.uid && (
+                      <Button
+                        mode="contained"
+                        onPress={() =>
+                          openConfirmDialog(user, "suspend")
+                        }
+                        style={styles.actionButton}
+                        contentStyle={styles.actionButtonContent}
+                        labelStyle={styles.actionButtonLabel}
+                        buttonColor={theme.colors.primary}
+                        textColor={theme.colors.onPrimary}
+                        icon="account-cancel"
+                      >
+                        Suspender
+                      </Button>
+                    )}
+                  {user.estado === "suspendido" &&
+                    user.rol !== "admin" &&
+                    user.uid !== auth.currentUser?.uid && (
+                      <Button
+                        mode="contained"
+                        onPress={() =>
+                          openConfirmDialog(user, "activate")
+                        }
+                        style={styles.actionButton}
+                        contentStyle={styles.actionButtonContent}
+                        labelStyle={styles.actionButtonLabel}
+                        buttonColor={theme.colors.secondaryContainer}
+                        textColor={theme.colors.onSecondaryContainer}
+                        icon="account-check"
+                      >
+                        Activar
+                      </Button>
+                    )}
+                </View>
+              </View>
+            </Animated.View>
+          )}
+        </View>
+        <Divider />
+      </View>
+    );
+  }, [theme, expandedUser, expandedOpacity, filterOrder, normalizedSearch, users]);
 
   return (
       <View
@@ -298,307 +633,95 @@ const ManageUsers = () => {
           />
         </Appbar.Header>
 
-        <ScrollView
+        <FlatList
           style={styles.content}
           contentContainerStyle={{ paddingBottom: 160 }}
-        >
-          {searchOpen && (
-            <Searchbar
-              placeholder="Buscar por nombre o email"
-              onChangeText={setSearchQuery}
-              value={searchQuery}
-              style={styles.searchbar}
-              autoFocus
-            />
-          )}
+          data={loading ? [] : filteredUsers}
+          keyExtractor={(item) => item.uid}
+          renderItem={renderUserItem}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={8}
+          removeClippedSubviews
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+          ListHeaderComponent={
+            <>
+              {searchOpen && (
+                <Searchbar
+                  placeholder="Buscar por nombre o email"
+                  onChangeText={setSearchQuery}
+                  value={searchQuery}
+                  style={styles.searchbar}
+                  autoFocus
+                />
+              )}
 
-          <View style={styles.filterContainer}>
-            <SortableChips
-              sortBy={filter}
-              sortOrder={filterOrder}
-              onFilterChange={(newFilter, newOrder) => {
-                setFilter(newFilter);
-                setFilterOrder(newOrder);
-              }}
-              options={userFilterOptions}
-              theme={theme}
-              showDirection={false}
-              toggleDirectionOnActive={false}
-            />
-          </View>
+              <View style={styles.filterContainer}>
+                <SortableChips
+                  sortBy={filter}
+                  sortOrder={filterOrder}
+                  onFilterChange={(newFilter, newOrder) => {
+                    setFilter(newFilter);
+                    setFilterOrder(newOrder);
+                  }}
+                  options={userFilterOptions}
+                  theme={theme}
+                  showDirection={false}
+                  toggleDirectionOnActive={false}
+                />
+              </View>
 
-          {loading ? (
-            <ActivityListSkeleton count={5} />
-          ) : filteredUsers.length > 0 ? (
-            <View style={styles.userSection}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                {filter === "all"
-                  ? "Todos los Usuarios"
-                  : filter === "admin"
-                  ? "Administradores"
-                  : filter === "suspendido"
-                  ? "Usuarios Suspendidos"
-                  : "Usuarios"}
-              </Text>
-              <Text variant="bodyMedium" style={styles.subtitle}>
-                {searchQuery
-                  ? `${filteredUsers.length} resultado(s)`
-                  : `Total: ${filteredUsers.length} usuario(s)`}
-              </Text>
-              <Divider style={styles.divider} />
-              {filteredUsers.map((user) => {
-                const animation = getOrCreateAnimation(user.uid);
-                const maxHeight = animation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 380],
-                });
-
-                return (
-                  <View key={user.uid}>
-                    <View
-                      style={[
-                        user.estado === "suspendido" &&
-                          styles.suspendedUserItem,
-                      ]}
-                    >
-                        <List.Item
-                          title={user.nombre || "Sin nombre"}
-                          description={user.correo || "Sin correo"}
-                          titleStyle={[
-                            styles.userName,
-                            user.estado === "suspendido" &&
-                              styles.suspendedUserName,
-                          ]}
-                          descriptionStyle={styles.userEmail}
-                          left={(props) => (
-                            <View style={styles.avatarContainer}>
-                              {user.foto ? (
-                                <Avatar.Image
-                                  size={40}
-                                  source={{ uri: user.foto }}
-                                  style={[
-                                    styles.avatar,
-                                    user.estado === "suspendido" &&
-                                      styles.suspendedAvatar,
-                                  ]}
-                                />
-                              ) : (
-                                <Avatar.Icon
-                                  size={40}
-                                  icon={
-                                    user.rol === "admin"
-                                      ? "shield-account"
-                                      : "account"
-                                  }
-                                  style={[
-                                    styles.avatar,
-                                    user.estado === "suspendido" &&
-                                      styles.suspendedAvatar,
-                                  ]}
-                                />
-                              )}
-                              {user.estado === "suspendido" && (
-                                <View style={styles.suspendedIndicator} />
-                              )}
-                            </View>
-                          )}
-                          right={(props) => (
-                            <View style={styles.rightContainer}>
-                              {user.rol === "admin" && (
-                                <MaterialCommunityIcons
-                                  name="shield-crown"
-                                  size={18}
-                                  color={theme.colors.primary}
-                                  style={styles.adminIcon}
-                                />
-                              )}
-                              <TouchableOpacity
-                                onPress={() => handleToggleExpand(user.uid)}
-                              >
-                                <MaterialCommunityIcons
-                                  name={
-                                    expandedUser === user.uid
-                                      ? "chevron-up"
-                                      : "chevron-down"
-                                  }
-                                  size={24}
-                                  color={theme.colors.onSurfaceVariant}
-                                />
-                              </TouchableOpacity>
-                            </View>
-                          )}
-                          onPress={() => handleToggleExpand(user.uid)}
-                        />
-
-                        {expandedUser === user.uid && (
-                          <Animated.View
-                            style={[
-                              styles.collapseWrapper,
-                              {
-                                maxHeight,
-                                overflow: "hidden",
-                                opacity:
-                                  expandedOpacity === user.uid ? maxHeight.interpolate({
-                                    inputRange: [0, 120, 420],
-                                    outputRange: [0, 0.65, 1],
-                                    extrapolate: "clamp",
-                                  }) : 1,
-                              },
-                            ]}
-                          >
-                            <View style={styles.collapseContent}>
-                              <View style={styles.infoSection}>
-                                <Text
-                                  variant="labelSmall"
-                                  style={[
-                                    styles.infoLabel,
-                                    { color: theme.colors.primary },
-                                  ]}
-                                >
-                                  INFORMACIÓN
-                                </Text>
-
-                                <View style={styles.infoRow}>
-                                  <MaterialCommunityIcons
-                                    name="account-badge"
-                                    size={18}
-                                    color={theme.colors.onSurfaceVariant}
-                                  />
-                                  <Text variant="bodyMedium" style={styles.infoText}>
-                                    Rol: {user.rol === "admin" ? "Administrador" : "Usuario"}
-                                  </Text>
-                                </View>
-
-                                <View style={styles.infoRow}>
-                                  <MaterialCommunityIcons
-                                    name="calendar"
-                                    size={18}
-                                    color={theme.colors.onSurfaceVariant}
-                                  />
-                                  <Text variant="bodyMedium" style={styles.infoText}>
-                                    Se unió: {formatJoinDate(user)}
-                                  </Text>
-                                </View>
-
-                                <View style={styles.infoRow}>
-                                  <MaterialCommunityIcons
-                                    name={
-                                      user.estado === "suspendido"
-                                        ? "cancel"
-                                        : "check-circle"
-                                    }
-                                    size={18}
-                                    color={
-                                      user.estado === "suspendido"
-                                        ? theme.colors.error
-                                        : theme.colors.primary
-                                    }
-                                  />
-                                  <Text variant="bodyMedium" style={styles.infoText}>
-                                    Estado:{" "}
-                                    <Text
-                                      style={{
-                                        fontWeight: "bold",
-                                        color:
-                                          user.estado === "suspendido"
-                                            ? theme.colors.error
-                                            : theme.colors.primary,
-                                      }}
-                                    >
-                                      {user.estado === "suspendido"
-                                        ? "Suspendido"
-                                        : "Activo"}
-                                    </Text>
-                                  </Text>
-                                </View>
-
-                                {user.estado === "suspendido" && (
-                                  <View
-                                    style={[
-                                      styles.reasonBox,
-                                      {
-                                        backgroundColor: theme.colors.surfaceVariant,
-                                      },
-                                    ]}
-                                  >
-                                    <Text
-                                      variant="labelSmall"
-                                      style={[
-                                        styles.reasonLabel,
-                                        { color: theme.colors.onSurfaceVariant },
-                                      ]}
-                                    >
-                                      MOTIVO
-                                    </Text>
-                                    <Text
-                                      variant="bodySmall"
-                                      style={[
-                                        styles.reasonText,
-                                        { color: theme.colors.onSurface },
-                                      ]}
-                                    >
-                                      {user.motivoSuspension || DEFAULT_SUSPEND_REASON}
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
-
-                              
-                              <View style={styles.actionButtons}>
-                                {user.estado !== "suspendido" &&
-                                  user.rol !== "admin" &&
-                                  user.uid !== auth.currentUser?.uid && (
-                                    <Button
-                                      mode="contained"
-                                      onPress={() =>
-                                        openConfirmDialog(user, "suspend")
-                                      }
-                                      style={styles.actionButton}
-                                      contentStyle={styles.actionButtonContent}
-                                      labelStyle={styles.actionButtonLabel}
-                                      buttonColor={theme.colors.primary}
-                                      textColor={theme.colors.onPrimary}
-                                      icon="account-cancel"
-                                    >
-                                      Suspender
-                                    </Button>
-                                  )}
-                                {user.estado === "suspendido" &&
-                                  user.rol !== "admin" &&
-                                  user.uid !== auth.currentUser?.uid && (
-                                    <Button
-                                      mode="contained"
-                                      onPress={() =>
-                                        openConfirmDialog(user, "activate")
-                                      }
-                                      style={styles.actionButton}
-                                      contentStyle={styles.actionButtonContent}
-                                      labelStyle={styles.actionButtonLabel}
-                                      buttonColor={theme.colors.secondaryContainer}
-                                      textColor={theme.colors.onSecondaryContainer}
-                                      icon="account-check"
-                                    >
-                                      Activar
-                                    </Button>
-                                  )}
-                              </View>
-                            </View>
-                          </Animated.View>
-                        )}
-                    </View>
-                    <Divider />
-                  </View>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                No se encontraron usuarios.
-              </Text>
-            </View>
-          )}
-        </ScrollView>
+              {loading ? (
+                <ActivityListSkeleton count={5} />
+              ) : (
+                <View style={styles.userSection}>
+                  <Text variant="titleMedium" style={styles.sectionTitle}>
+                    {filter === "all"
+                      ? "Todos los Usuarios"
+                      : filter === "admin"
+                      ? "Administradores"
+                      : filter === "suspendido"
+                      ? "Usuarios Suspendidos"
+                      : "Usuarios"}
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.subtitle}>
+                    {searchQuery
+                      ? `${filteredUsers.length} resultado(s) en cargados`
+                      : `Total real: ${currentFilterTotal} usuario(s)`}
+                  </Text>
+                  <Divider style={styles.divider} />
+                </View>
+              )}
+            </>
+          }
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.emptyContainer}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                  No se encontraron usuarios.
+                </Text>
+              </View>
+            ) : null
+          }
+          ListFooterComponent={
+            !loading ? (
+              <View style={styles.listFooter}>
+                {loadingMore ? (
+                  <>
+                    <Text variant="bodySmall" style={styles.footerText}>
+                      Cargando mas usuarios...
+                    </Text>
+                  </>
+                ) : !hasMore && filteredUsers.length > 0 ? (
+                  <Text variant="bodySmall" style={styles.footerText}>
+                    No hay mas usuarios por cargar.
+                  </Text>
+                ) : null}
+              </View>
+            ) : null
+          }
+        />
 
         <Portal>
           <Dialog
@@ -809,6 +932,15 @@ const styles = StyleSheet.create({
   emptyContainer: {
     padding: 24,
     alignItems: 'center',
+  },
+  listFooter: {
+    minHeight: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 4,
+  },
+  footerText: {
+    opacity: 0.7,
   },
   dialogTitleRow: {
     flexDirection: "row",

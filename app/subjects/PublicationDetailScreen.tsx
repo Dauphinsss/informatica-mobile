@@ -204,7 +204,7 @@ export default function PublicationDetailScreen() {
     fileName: string;
   } | null>(null);
   const [sharingPublication, setSharingPublication] = useState(false);
-  const [userRole, setUserRole] = useState<string>("usuario");
+  const [userRole, setUserRole] = useState<"admin" | "usuario">("usuario");
   const [reviewRejectDialogVisible, setReviewRejectDialogVisible] =
     useState(false);
   const [reviewBanUserOnReject, setReviewBanUserOnReject] = useState(false);
@@ -226,7 +226,7 @@ export default function PublicationDetailScreen() {
   const isOwner =
     publicacion && usuario && publicacion.autorUid === usuario.uid;
   const isAdmin = userRole === "admin";
-  const canEdit = isOwner;
+  const canEdit = isOwner || isAdmin;
   const canDelete = isOwner || isAdmin;
   const showAdminReviewFooter =
     isAdminReviewMode && isAdmin && publicacion?.estado === "pendiente";
@@ -255,9 +255,15 @@ export default function PublicationDetailScreen() {
     if (!usuario) return;
     getDoc(doc(db, "usuarios", usuario.uid))
       .then((snap) => {
-        if (snap.exists()) setUserRole(snap.data()?.rol || "usuario");
+        if (snap.exists()) {
+          setUserRole(normalizeAuthorRole(snap.data()?.rol));
+        } else {
+          setUserRole("usuario");
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        setUserRole("usuario");
+      });
   }, [usuario]);
 
   const showAlert = (
