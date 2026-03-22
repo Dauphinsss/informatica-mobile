@@ -39,11 +39,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    match /configuracionSistema/{configId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    
     match /inscripciones/{inscripcionId} {
       allow read, write: if request.auth != null;
     }

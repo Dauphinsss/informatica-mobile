@@ -9,7 +9,6 @@ import CreateSubjectScreen from "./create-subject";
 import EditAnnouncementScreen from "./edit-announcement";
 import EditSubjectScreen from "./edit-subject";
 import ManageAnnouncementsScreen from "./manage-announcements";
-import ManageAppIconScreen from "./manage-app-icon";
 import ManageSectionsScreen from "./manage-sections";
 import ManageSubjectsScreen from "./manage-subjects";
 import ManageTeachersScreen from "./manage-teachers";
@@ -65,13 +64,6 @@ export default function AdminLayOut() {
         component={ManageAnnouncementsScreen}
         options={{
           title: "Anuncios",
-        }}
-      />
-      <Stack.Screen
-        name="ManageAppIcon"
-        component={ManageAppIconScreen}
-        options={{
-          title: "Icono",
         }}
       />
       <Stack.Screen
