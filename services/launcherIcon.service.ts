@@ -6,10 +6,6 @@ type LauncherIconNativeModule = {
   setLauncherIcon: (iconKey: IconKey) => Promise<string>;
 };
 
-const launcherModule = NativeModules.LauncherIconModule as
-  | LauncherIconNativeModule
-  | undefined;
-
 let lastAppliedIcon: IconKey | null = null;
 let warnedMissingModule = false;
 
@@ -18,6 +14,10 @@ const normalizeIconKey = (value: unknown): IconKey =>
 
 export const applyLauncherIcon = async (iconKey: unknown): Promise<void> => {
   if (Platform.OS !== "android") return;
+  const launcherModule = NativeModules.LauncherIconModule as
+    | LauncherIconNativeModule
+    | undefined;
+
   if (!launcherModule?.setLauncherIcon) {
     if (!warnedMissingModule) {
       warnedMissingModule = true;
